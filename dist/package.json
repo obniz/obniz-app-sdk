@@ -1,0 +1,27 @@
+{
+    "name": "obniz-app-sdk",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/obniz/obniz-app-sdk.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/obniz/obniz-app-sdk/issues"
+    },
+    "homepage": "https://github.com/obniz/obniz-app-sdk#readme",
+    "devDependencies": {
+        "eslint": "^7.16.0",
+        "eslint-config-prettier": "^7.1.0"
+    },
+    "dependencies": {
+        "obniz": "^3.12.0-beta.0"
+    }
+}

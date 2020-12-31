@@ -29,7 +29,7 @@ export class Worker extends WorkerAbstract {
     console.log("on obniz close");
   }
 
-  stop(){
+  async stop(){
     //TODO;
   }
 }

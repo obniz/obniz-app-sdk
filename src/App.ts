@@ -9,7 +9,7 @@ type Detabase = 'postgresql';
 export interface AppOption {
   appToken: string;
   database?: Detabase;
-  workerClass: new (install: any, app:App) => WorkerAbstract;
+  workerClass: new (install: any, app:App) => any; //todo:worker abstract
 }
 
 interface AppOptionInternal extends AppOption {

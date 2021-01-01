@@ -1,20 +1,35 @@
 import Obniz from 'obniz'
 import express from 'express';
-import {WorkerAbstract} from './WorkerAbstract';
+import {Worker} from './Worker';
 import {logger} from './logger'
-import {getInstallRequest} from "./install";
+import Master from './Master';
+import RedisAdaptor from './adaptor/redis';
+import Adaptor from './adaptor/adaptor';
+import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
 
 type Detabase = 'postgresql';
+
+export enum AppInstanceType {
+  WebAndWorker, // Become an web server and Worker
+  Worker, // Worker
+}
 
 export interface AppOption {
   appToken: string;
   database?: Detabase;
   workerClass: new (install: any, app:App) => any; //todo:worker abstract
+  instanceType: AppInstanceType;
+  instanceName?: string;
+  scaleFactor?: number; // number of installs.
 }
 
 interface AppOptionInternal extends AppOption {
   appToken: string;
   database: Detabase;
+  workerClass: new (install: any, app:App) => any; //todo:worker abstract
+  instanceType: AppInstanceType
+  instanceName: string;
+  scaleFactor: number; // number of installs.
 }
 
 
@@ -24,32 +39,83 @@ export interface AppStartOption {
   port?: number;
 }
 
-interface AppStartOptionInternal extends AppStartOption {
-  express: express.Express;
-  webhookUrl: string;
-  port: number;
-}
-
-interface User {
-}
-
-interface Install {
-}
-
-
 export class App {
   private _options: AppOptionInternal;
-  private _startOptions?: AppStartOptionInternal;
-  private _syncing: boolean = false;
-  private _workers: { [key: string]: WorkerAbstract } = {};
+
+  // As Master
+  private _master?: Master;
+
+  // As Worker
+  private _adaptor: Adaptor;
+  private _workers: { [key: string]: Worker } = {};
 
   constructor(option: AppOption) {
     this._options = {
       appToken: option.appToken,
       database: option.database || "postgresql",
-      workerClass: option.workerClass
+      workerClass: option.workerClass,
+      instanceType: option.instanceType || AppInstanceType.WebAndWorker,
+      instanceName: option.instanceName || 'master',
+      scaleFactor: option.scaleFactor || 0
     }
-
+    if (option.instanceType === AppInstanceType.WebAndWorker) {
+      this._master = new Master(option.appToken, this._options.scaleFactor);
+    }
+    if(this._options.scaleFactor > 0) {
+      this._adaptor = new RedisAdaptor((this._options.instanceName === 'master') ? 'master-worker' : this._options.instanceName);
+    } else {
+      this._adaptor = this._master!.adaptor
+    }
+    // on start
+    this._adaptor.onStart = async (install: Installed_Device) => {
+      logger.info(`App start id=${install.id}`);
+      const oldWorker = this._workers[install.id];
+      if (oldWorker) {
+        oldWorker
+          .stop()
+          .then(() => {
+          })
+          .catch((e) => {
+            logger.error(e);
+          });
+      }
+      const app = new this._options.workerClass(install, this);
+      this._workers[install.id] = app;
+      await this._startOneWorker(app);
+    }
+    // on update
+    this._adaptor.onUpdate = async (install: Installed_Device) => {
+      logger.info(`App config changed id=${install.id}`);
+      const oldWorker = this._workers[install.id];
+      if (oldWorker) {
+        oldWorker
+          .stop()
+          .then(() => {
+          })
+          .catch((e) => {
+            logger.error(e);
+          });
+      }
+      const app = new this._options.workerClass(install, this);
+      this._workers[install.id] = app;
+      await this._restartOneWorker(app); 
+    }
+    // on stop
+    this._adaptor.onStop = async (install: Installed_Device) => {
+      logger.info(`App stop id=${install.id}`);
+      const oldWorker = this._workers[install.id];
+      if (oldWorker) {
+        oldWorker
+          .stop()
+          .then(() => {
+          })
+          .catch((e) => {
+            logger.error(e);
+          });
+        delete this._workers[install.id];
+        await this._stopOneWorker(oldWorker);
+      }
+    }
   }
 
 
@@ -59,32 +125,19 @@ export class App {
   //
   // }
 
-  onInstall(user: User, install: Install) {
+  onInstall(user: User, install: Installed_Device) {
 
   }
 
-  onUninstall(user: User, install: Install) {
+  onUninstall(user: User, install: Installed_Device) {
 
   }
 
   start(option?: AppStartOption) {
-    option = option || {};
-    this._startOptions = {
-      express: option.express || express(),
-      webhookUrl: option.webhookUrl || "/webhook",
-      port: option.port || 3333
-    }
-    this._startOptions.express.get(this._startOptions.webhookUrl, this._webhook);
-
-    if (!option.express) {
-      this._startOptions.express.listen(this._startOptions.port, () => {
-        const port = this._startOptions ? this._startOptions.port : undefined;
-        console.log('Example app listening on port ' + port);
-        console.log('localhost:  http://localhost:' + port);
-      })
+    if (this._master) {
+      this._master.start(option);
     }
   }
-
 
   getAllUsers() {
 
@@ -109,99 +162,16 @@ export class App {
   }
 
 
-  private _webhook(req: express.Request, res: express.Response, next: express.NextFunction) {
-    // TODO : check Instance and start
-
+  private _startOneWorker(worker:Worker) {
 
   }
 
-  private _startOneWorker(worker:WorkerAbstract) {
+  private _stopOneWorker(worker:Worker) {
 
   }
 
-  private _stopOneWorker(worker:WorkerAbstract) {
+  private _restartOneWorker(worker:Worker) {
 
-  }
-
-  private _restartOneWorker(worker:WorkerAbstract) {
-
-  }
-
-  private async _syncInstalls() {
-    try {
-      if (this._syncing) {
-        return;
-      }
-      this._syncing = true;
-
-      // logger.debug("sync api start");
-
-      const apiInstalls: any = {};
-      let installs_api = [];
-      try {
-        installs_api = await getInstallRequest(this._options.appToken);
-        for (const install of installs_api) {
-          apiInstalls[install.id] = install;
-        }
-      } catch (e) {
-        // logger.error(e);
-        process.exit();
-      }
-
-      // 稼働中の報告があるID一覧
-      // logger.debug(`API install ids:    ${JSON.stringify(Object.keys(apiInstalls), null, 2)}`);
-      // logger.debug(`working ids:    ${JSON.stringify(Object.keys(this.apps), null, 2)}`);
-
-      const exists: any = {};
-      for (const install_id in this._workers) {
-        exists[install_id] = this._workers[install_id];
-      }
-
-      for (const install_id in apiInstalls) {
-        const install = apiInstalls[install_id];
-        if (exists[install_id]) {
-          const oldApp = this._workers[install_id];
-          if (oldApp.install.configs !== install.configs) {
-            // config changed
-            logger.info(`App config changed id=${install.id}`);
-            const app = new this._options.workerClass(install, this);
-            this._workers[install.id] = app;
-            oldApp
-              .stop()
-              .then(() => {
-              })
-              .catch((e) => {
-                logger.error(e);
-              });
-            await this._startOneWorker(app);
-          }
-          delete exists[install_id];
-        } else {
-          logger.info(`New App Start id=${install.id}`);
-          const app = new this._options.workerClass(install, this);
-          this._workers[install.id] = app;
-          await this._startOneWorker(app);
-        }
-      }
-      for (const install_id in exists) {
-        const oldApp = this._workers[install_id];
-        if (oldApp) {
-          logger.info(`App Deleted id=${install_id}`);
-          delete this._workers[install_id];
-          oldApp
-            .stop()
-            .then(() => {
-            })
-            .catch((e) => {
-              logger.error(e);
-            });
-        }
-      }
-    } catch (e) {
-      logger.error(e);
-    }
-
-    this._syncing = false;
   }
 
 }

@@ -5,57 +5,64 @@ import { logger } from '../logger';
 
 export default class RedisAdaptor extends Adaptor {
 
+  public isMaster = false;
+
   public id:string;
   private redis: any
   private pubRedis: any
 
-  public onInstanceInfoUpdated?: (info: any) => Promise<void>
-
-  constructor(id:string) {
+  constructor(id:string, isMaster: boolean) {
     super();
 
     this.id = id;
+    this.isMaster = isMaster
 
     this.redis = new IORedis(process.env.REDIS_URL);
     this.pubRedis = new IORedis(process.env.REDIS_URL);
     this.redis.subscribe("app", () => {
 
     });
-    this.redis.on("ready", async () => {
-      if (this.id !== 'master') {
-        await this.pubRedis.publish("app", JSON.stringify({
-          action: 'info',
-          instanceName: 'master',
-          from: this.id
-        }))
+    this.redis.on("ready", () => {
+      logger.debug("ready");
+      if (this.isMaster) {
+        this.reportRequest().then(()=>{
+
+        }).catch( e => {
+          logger.error(e);
+        });
+      }else{
+        this.onReportRequest!().then(()=>{
+
+        }).catch( e => {
+          logger.error(e);
+        });
       }
     });
     this.redis.on("message", (channel: string, message: string) => {
       const parsed = JSON.parse(message);
-      if (parsed.instanceName === this.id) {
-        if (parsed.action === 'start') {
-          this.onStart!(parsed.install).then(()=>{
+      // slave functions
+      if ( this.isMaster === parsed.toMaster && this.isMaster === false && (parsed.instanceName === this.id || parsed.instanceName === '*')) {
+        if (parsed.action === 'synchronize') {
+          this.onSynchronize!(parsed.installs).then(()=>{
 
           }).catch( e => {
             logger.error(e);
           });
-        } else if (parsed.action === 'update') {
-          this.onUpdate!(parsed.install).then(()=>{
+        } else if (parsed.action === 'reportRequest') {
+          this.onReportRequest!().then(()=>{
 
           }).catch( e => {
             logger.error(e);
           });
-        } else if (parsed.action === 'stop') {
-          this.onStop!(parsed.install).then(()=>{
+        }
+      // master functions
+      } else if ( this.isMaster === parsed.toMaster && this.isMaster === true){
+         if (parsed.action === 'report'){
+          this.onReported!(parsed.instanceName, parsed.installIds).then(()=>{
 
           }).catch( e => {
             logger.error(e);
           });
-        } else if (parsed.action === 'info'){
-          this.onInstanceInfoUpdated!(parsed);
-        } else {
-          console.error(`unknown action ${parsed.action}`);
-          process.exit(-1);
         }
       }
     });
@@ -67,27 +74,33 @@ export default class RedisAdaptor extends Adaptor {
     });
   }
 
-  async start(install: Installed_Device, instanceName: string) {
-    await this.pubRedis.publish("app", JSON.stringify({
-      action: 'start',
-      instanceName,
-      install
-    }));
+  async send(json:any) {
+    await this.pubRedis.publish("app", JSON.stringify(json));
   }
 
-  async update(install: Installed_Device, instanceName: string) {
-    await this.pubRedis.publish("app", JSON.stringify({
-      action: 'update',
+  async synchronize(instanceName: string, installs: Installed_Device[]) {
+    await this.send({
+      action: 'synchronize',
       instanceName,
-      install
-    }));
+      toMaster: false,
+      installs
+    })
   }
 
-  async stop(install: Installed_Device, instanceName: string) {
-    await this.pubRedis.publish("app", JSON.stringify({
-      action: 'stop',
+  async reportRequest() {
+    await this.send({
+      action: 'reportRequest',
+      instanceName: '*',
+      toMaster: false
+    })
+  }
+
+  async report(instanceName: string, installIds: string[]) {
+    await this.send({
+      action: 'report',
       instanceName,
-      install
-    }));
+      toMaster: true,
+      installIds
+    })
   }
 }

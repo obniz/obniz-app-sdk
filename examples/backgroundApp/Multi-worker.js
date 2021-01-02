@@ -35,7 +35,6 @@ class MyWorker extends Worker {
 
   }
 
-
   async stop(){
 
   }
@@ -45,7 +44,7 @@ const app = new App({
   appToken: 'apptoken_Tmj2JMXVXgLBYW6iDlBzQph7L6uwcBYqRmW2NvnKk_kQeiwvnRCnUJePUrsTRtXW',
   workerClass: MyWorker,
   instanceType: AppInstanceType.Worker,
-  instanceName: 'worker0',
+  instanceName: process.env.dynoId || 'worker0',
   scaleFactor: 1
 })
 

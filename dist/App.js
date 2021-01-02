@@ -15,6 +15,7 @@ var AppInstanceType;
 class App {
     constructor(option) {
         this._workers = {};
+        this._syncing = false;
         this._options = {
             appToken: option.appToken,
             database: option.database || "postgresql",
@@ -24,64 +25,106 @@ class App {
             scaleFactor: option.scaleFactor || 0
         };
         if (option.instanceType === AppInstanceType.WebAndWorker) {
-            this._master = new Master_1.default(option.appToken, this._options.scaleFactor);
+            this._master = new Master_1.default(option.appToken, this._options.instanceName, this._options.scaleFactor);
         }
         if (this._options.scaleFactor > 0) {
-            this._adaptor = new redis_1.default((this._options.instanceName === 'master') ? 'master-worker' : this._options.instanceName);
+            this._adaptor = new redis_1.default(this._options.instanceName, false);
         }
         else {
+            // share same adaptor
             this._adaptor = this._master.adaptor;
         }
-        // on start
-        this._adaptor.onStart = async (install) => {
-            logger_1.logger.info(`App start id=${install.id}`);
-            const oldWorker = this._workers[install.id];
-            if (oldWorker) {
-                oldWorker
-                    .stop()
-                    .then(() => {
-                })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-            }
-            const app = new this._options.workerClass(install, this);
-            this._workers[install.id] = app;
-            await this._startOneWorker(app);
+        this._adaptor.onSynchronize = async (installs) => {
+            await this._synchronize(installs);
         };
-        // on update
-        this._adaptor.onUpdate = async (install) => {
-            logger_1.logger.info(`App config changed id=${install.id}`);
-            const oldWorker = this._workers[install.id];
-            if (oldWorker) {
-                oldWorker
-                    .stop()
-                    .then(() => {
-                })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-            }
-            const app = new this._options.workerClass(install, this);
-            this._workers[install.id] = app;
-            await this._restartOneWorker(app);
+        this._adaptor.onReportRequest = async () => {
+            await this._reportToMaster();
         };
-        // on stop
-        this._adaptor.onStop = async (install) => {
-            logger_1.logger.info(`App stop id=${install.id}`);
-            const oldWorker = this._workers[install.id];
-            if (oldWorker) {
-                oldWorker
-                    .stop()
-                    .then(() => {
-                })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-                delete this._workers[install.id];
-                await this._stopOneWorker(oldWorker);
+    }
+    /**
+     * Receive Master Generated List and compare current apps.
+     * @param installs
+     */
+    async _synchronize(installs) {
+        try {
+            if (this._syncing) {
+                return;
             }
-        };
+            this._syncing = true;
+            // logger.debug("receive synchronize message");
+            const exists = {};
+            for (const install_id in this._workers) {
+                exists[install_id] = this._workers[install_id];
+            }
+            for (const install of installs) {
+                if (exists[install.id]) {
+                    const oldApp = this._workers[install.id];
+                    if (JSON.stringify(oldApp.install) !== JSON.stringify(install)) {
+                        // config changed
+                        logger_1.logger.info(`App config changed id=${install.id}`);
+                        oldApp
+                            .stop()
+                            .then(() => {
+                        })
+                            .catch((e) => {
+                            logger_1.logger.error(e);
+                        });
+                        const app = new this._options.workerClass(install, this);
+                        this._workers[install.id] = app;
+                        await this._startOneWorker(app);
+                    }
+                    delete exists[install.id];
+                }
+                else {
+                    logger_1.logger.info(`New App Start id=${install.id}`);
+                    const app = new this._options.workerClass(install, this);
+                    this._workers[install.id] = app;
+                    await this._startOneWorker(app);
+                }
+            }
+            // Apps which not listed
+            for (const install_id in exists) {
+                const oldApp = this._workers[install_id];
+                if (oldApp) {
+                    logger_1.logger.info(`App Deleted id=${install_id}`);
+                    delete this._workers[install_id];
+                    oldApp
+                        .stop()
+                        .then(() => {
+                    })
+                        .catch((e) => {
+                        logger_1.logger.error(e);
+                    });
+                }
+            }
+        }
+        catch (e) {
+            logger_1.logger.error(e);
+        }
+        this._syncing = false;
+    }
+    /**
+     * Let Master know worker is working.
+     */
+    async _reportToMaster() {
+        const keys = Object.keys(this._workers);
+        await this._adaptor.report(this._options.instanceName, keys);
+    }
+    _startSynching() {
+        // every minutes
+        if (!this._interval) {
+            this._interval = setInterval(async () => {
+                try {
+                    await this._reportToMaster();
+                }
+                catch (e) {
+                    logger_1.logger.error(e);
+                }
+            }, 10 * 1000);
+            this._reportToMaster().then().catch(e => {
+                logger_1.logger.error(e);
+            });
+        }
     }
     // 必須なのでオプションでいいのでは
     // registerApplication(workerClass:new () => Worker){
@@ -96,6 +139,7 @@ class App {
         if (this._master) {
             this._master.start(option);
         }
+        this._startSynching();
     }
     getAllUsers() {
     }

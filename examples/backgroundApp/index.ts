@@ -1,6 +1,6 @@
-import {App} from '../../src/index'
-import {Worker} from './Worker'
+import {App, AppInstanceType} from '../../src/index'
+import {MyWorker} from './Worker'
 
-const app = new App({appToken: "aa", workerClass : Worker});
+const app = new App({appToken: "aa", workerClass : MyWorker, instanceType: AppInstanceType.WebAndWorker});
 
 app.start();

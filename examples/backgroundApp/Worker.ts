@@ -1,5 +1,4 @@
-import {Worker} from "../../src/index";
-import Obniz from 'obniz';
+import {Worker, Obniz} from "../../src/index";
 
 export class MyWorker extends Worker {
 

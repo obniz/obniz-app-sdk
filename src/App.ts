@@ -2,12 +2,12 @@ import Obniz from 'obniz'
 import express from 'express';
 import {Worker} from './Worker';
 import {logger} from './logger'
-import Master from './Master';
-import RedisAdaptor from './adaptor/redis';
-import Adaptor from './adaptor/adaptor';
+import {Master} from './Master';
+import {RedisAdaptor} from './adaptor/RedisAdaptor';
+import {Adaptor} from './adaptor/Adaptor';
 import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
 
-type Detabase = 'postgresql';
+type Database = 'redis';
 
 export enum AppInstanceType {
   WebAndWorker, // Become an web server and Worker
@@ -16,8 +16,8 @@ export enum AppInstanceType {
 
 export interface AppOption {
   appToken: string;
-  database?: Detabase;
-  workerClass: new (install: any, app:App) => any; //todo:worker abstract
+  database?: Database;
+  workerClass: new (install: any, app:App) => Worker;
   instanceType: AppInstanceType;
   instanceName?: string;
   scaleFactor?: number; // number of installs.
@@ -25,8 +25,8 @@ export interface AppOption {
 
 interface AppOptionInternal extends AppOption {
   appToken: string;
-  database: Detabase;
-  workerClass: new (install: any, app:App) => any; //todo:worker abstract
+  database: Database;
+  workerClass: new (install: any, app:App) => Worker;
   instanceType: AppInstanceType
   instanceName: string;
   scaleFactor: number; // number of installs.
@@ -54,12 +54,13 @@ export class App {
   constructor(option: AppOption) {
     this._options = {
       appToken: option.appToken,
-      database: option.database || "postgresql",
+      database: option.database || "redis",
       workerClass: option.workerClass,
       instanceType: option.instanceType || AppInstanceType.WebAndWorker,
       instanceName: option.instanceName || 'master',
       scaleFactor: option.scaleFactor || 0
     }
+
     if (option.instanceType === AppInstanceType.WebAndWorker) {
       this._master = new Master(option.appToken, this._options.instanceName, this._options.scaleFactor);
     }
@@ -152,7 +153,7 @@ export class App {
     await this._adaptor.report(this._options.instanceName, keys);
   }
 
-  private _startSynching() {
+  private _startSyncing() {
     // every minutes
     if (!this._interval) {
       this._interval = setInterval( async () => {
@@ -186,7 +187,7 @@ export class App {
     if (this._master) {
       this._master.start(option);
     }
-    this._startSynching();
+    this._startSyncing();
   }
 
   getAllUsers() {

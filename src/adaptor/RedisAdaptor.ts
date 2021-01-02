@@ -1,15 +1,15 @@
 import { Installed_Device } from 'obniz-cloud-sdk/sdk'
-import Adaptor from './adaptor'
-const IORedis = require('ioredis')
+import {Adaptor} from './Adaptor'
+import  IORedis from 'ioredis'
 import { logger } from '../logger';
 
-export default class RedisAdaptor extends Adaptor {
+export class RedisAdaptor extends Adaptor {
 
   public isMaster = false;
 
   public id:string;
-  private redis: any
-  private pubRedis: any
+  private _redis: IORedis.Redis;
+  private _pubRedis: IORedis.Redis;
 
   constructor(id:string, isMaster: boolean) {
     super();
@@ -17,12 +17,12 @@ export default class RedisAdaptor extends Adaptor {
     this.id = id;
     this.isMaster = isMaster
 
-    this.redis = new IORedis(process.env.REDIS_URL);
-    this.pubRedis = new IORedis(process.env.REDIS_URL);
-    this.redis.subscribe("app", () => {
+    this._redis = new IORedis(process.env.REDIS_URL);
+    this._pubRedis = new IORedis(process.env.REDIS_URL);
+    this._redis.subscribe("app", () => {
 
     });
-    this.redis.on("ready", () => {
+    this._redis.on("ready", () => {
       logger.debug("ready");
       if (this.isMaster) {
         this.reportRequest().then(()=>{
@@ -38,7 +38,7 @@ export default class RedisAdaptor extends Adaptor {
         });
       }
     });
-    this.redis.on("message", (channel: string, message: string) => {
+    this._redis.on("message", (channel: string, message: string) => {
       const parsed = JSON.parse(message);
       // slave functions
       if ( this.isMaster === parsed.toMaster && this.isMaster === false && (parsed.instanceName === this.id || parsed.instanceName === '*')) {
@@ -66,16 +66,16 @@ export default class RedisAdaptor extends Adaptor {
         }
       }
     });
-    this.redis.on("+node", () => {
+    this._redis.on("+node", () => {
       logger.debug('+node');
     });
-    this.redis.on("-node", () => {
+    this._redis.on("-node", () => {
       logger.debug('-node');
     });
   }
 
   async send(json:any) {
-    await this.pubRedis.publish("app", JSON.stringify(json));
+    await this._pubRedis.publish("app", JSON.stringify(json));
   }
 
   async synchronize(instanceName: string, installs: Installed_Device[]) {

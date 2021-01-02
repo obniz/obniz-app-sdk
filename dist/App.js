@@ -1,12 +1,8 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.App = exports.AppInstanceType = void 0;
 const logger_1 = require("./logger");
-const Master_1 = __importDefault(require("./Master"));
-const redis_1 = __importDefault(require("./adaptor/redis"));
+const Master_1 = require("./Master");
+const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["WebAndWorker"] = 0] = "WebAndWorker";
@@ -18,17 +14,17 @@ class App {
         this._syncing = false;
         this._options = {
             appToken: option.appToken,
-            database: option.database || "postgresql",
+            database: option.database || "redis",
             workerClass: option.workerClass,
             instanceType: option.instanceType || AppInstanceType.WebAndWorker,
             instanceName: option.instanceName || 'master',
             scaleFactor: option.scaleFactor || 0
         };
         if (option.instanceType === AppInstanceType.WebAndWorker) {
-            this._master = new Master_1.default(option.appToken, this._options.instanceName, this._options.scaleFactor);
+            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor);
         }
         if (this._options.scaleFactor > 0) {
-            this._adaptor = new redis_1.default(this._options.instanceName, false);
+            this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false);
         }
         else {
             // share same adaptor
@@ -110,7 +106,7 @@ class App {
         const keys = Object.keys(this._workers);
         await this._adaptor.report(this._options.instanceName, keys);
     }
-    _startSynching() {
+    _startSyncing() {
         // every minutes
         if (!this._interval) {
             this._interval = setInterval(async () => {
@@ -139,7 +135,7 @@ class App {
         if (this._master) {
             this._master.start(option);
         }
-        this._startSynching();
+        this._startSyncing();
     }
     getAllUsers() {
     }

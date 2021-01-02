@@ -1,6 +1,5 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Worker = void 0;
 /**
  * This class is exported from this library
  * "Abstract" must be drop

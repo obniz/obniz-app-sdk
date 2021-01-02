@@ -1,8 +1,8 @@
 import {logger} from './logger'
 import {getInstallRequest} from "./install";
-import { Installed_Device } from 'obniz-cloud-sdk/sdk';
-import Adaptor from './adaptor/adaptor';
-import RedisAdaptor from './adaptor/redis';
+import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import {Adaptor} from './adaptor/Adaptor';
+import {RedisAdaptor} from './adaptor/RedisAdaptor';
 import express from 'express';
 import {AppStartOption} from './App'
 
@@ -15,7 +15,7 @@ enum InstallStatus {
 
 interface ManagedInstall {
   instanceName: string; // Which Instance handling this 
-  install: Installed_Device;
+  install: InstalledDevice;
   status: InstallStatus;
   updatedMillisecond: number;
 }
@@ -32,7 +32,7 @@ interface AppStartOptionInternal extends AppStartOption {
   port: number;
 }
 
-export default class Master {
+export class Master {
   public adaptor: Adaptor;
   public scaleFactor: number;
 
@@ -71,7 +71,7 @@ export default class Master {
 
   public start(option?: AppStartOption) {
     this._startWeb(option);
-    this._startSynching();
+    this._startSyncing();
     this._startHealthCheck();
   }
 
@@ -87,12 +87,12 @@ export default class Master {
 
     if (!option.express) {
       this._startOptions.express.listen(this._startOptions.port, () => {
-        const port = this._startOptions ? this._startOptions.port : undefined;
+        logger.debug(`App listening on http://localhost:${(this._startOptions || {}).port} `);
       })
     }
   }
 
-  private async _webhook(req: express.Request, res: express.Response, next: express.NextFunction) {
+  private async _webhook(_: express.Request, res: express.Response) {
     // TODO : check Instance and start
     try {
       await this._syncInstalls();
@@ -131,7 +131,7 @@ export default class Master {
   }
 
   /**
-   * incetanceId がidのWorkerが新たに参加した
+   * instanceId がidのWorkerが新たに参加した
    * @param id 
    */
   private onInstanceAttached(instanceName :string) {
@@ -140,12 +140,12 @@ export default class Master {
   }
 
   /**
-   * incetanceId がidのWorkerが喪失した
+   * instanceId がidのWorkerが喪失した
    * @param id 
    */
   private onInstanceMissed(instanceName :string) {
 
-    // delete immidiately
+    // delete immediately
     const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
     delete this._allWorkerInstances[instanceName];
 
@@ -166,7 +166,7 @@ export default class Master {
   }
 
   /**
-   * incetanceId がidのWorkerから新しい情報が届いた（定期的に届く）
+   * instanceId がidのWorkerから新しい情報が届いた（定期的に届く）
    * @param id 
    */
   private onInstanceReported(instanceName :string) {
@@ -183,7 +183,7 @@ export default class Master {
     }
   }
 
-  private _startSynching() {
+  private _startSyncing() {
     // every minutes
     if (!this._interval) {
       this._interval = setInterval( async () => {
@@ -218,9 +218,9 @@ export default class Master {
 
       // logger.debug("sync api start");
 
-      const installs_api = [];
+      const installsApi = [];
       try {
-        installs_api.push(... await getInstallRequest(this._appToken));
+        installsApi.push(... await getInstallRequest(this._appToken));
       } catch (e) {
         console.error(e);
         process.exit(-1);
@@ -229,29 +229,29 @@ export default class Master {
       /**
        * Compare with currents
        */
-      const mustaddds: Installed_Device[] = [];
-      const updateds: Installed_Device[] = [];
+      const mustAdds: InstalledDevice[] = [];
+      const updated: InstalledDevice[] = [];
       const deleted: ManagedInstall[] = [];
-      for (const install of installs_api) {
+      for (const install of installsApi) {
         let found = false;
         for (const id in this._allInstalls) {
           const oldInstall = this._allInstalls[id].install;
           if (install.id === id) {
             if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
               // updated
-              updateds.push(install);
+              updated.push(install);
             }
             found = true;
             break;
           }
         }
         if (!found){
-          mustaddds.push(install);
+          mustAdds.push(install);
         }
       }
       for (const id in this._allInstalls) {
         let found = false;
-        for (const install of installs_api){ 
+        for (const install of installsApi){
           if (id === install.id) {
             found = true;
             break;
@@ -261,12 +261,12 @@ export default class Master {
           deleted.push(this._allInstalls[id]);
         }
       }
-      if (mustaddds.length + updateds.length + deleted.length > 0) {
+      if (mustAdds.length + updated.length + deleted.length > 0) {
         logger.debug(`all \t| added \t| updated \t| deleted`);
-        logger.debug(`${installs_api.length} \t| ${mustaddds.length} \t| ${updateds.length} \t| ${deleted.length}`);
+        logger.debug(`${installsApi.length} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
       }
       
-      for (const install of updateds) {
+      for (const install of updated) {
         const managedInstall = this._allInstalls[install.id];
         managedInstall.install = install;
       }
@@ -274,7 +274,7 @@ export default class Master {
         managedInstall.status = InstallStatus.Stopping;
         delete this._allInstalls[managedInstall.install.id];
       }
-      for (const install of mustaddds) {
+      for (const install of mustAdds) {
         const instance = this.bestWorkerInstance(); // maybe throw
         const managedInstall: ManagedInstall = {
           instanceName: instance.name,
@@ -293,7 +293,7 @@ export default class Master {
   }
 
   private async synchronize() {
-    let separeted: { [key: string]: Installed_Device[] } = {};
+    let separeted: { [key: string]: InstalledDevice[] } = {};
     for (const id in this._allInstalls) {
       const managedInstall: ManagedInstall = this._allInstalls[id];
       const instanceName = managedInstall.instanceName;
@@ -304,7 +304,7 @@ export default class Master {
     }
     //
     for (const instanceName in separeted) {
-      logger.debug(`synchonize sent to ${instanceName} idsCount=${separeted[instanceName].length}`)
+      logger.debug(`synchronize sent to ${instanceName} idsCount=${separeted[instanceName].length}`)
       await this.adaptor.synchronize(instanceName, separeted[instanceName]);
     }
   }

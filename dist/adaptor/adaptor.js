@@ -10,14 +10,20 @@ class Adaptor {
     constructor() {
     }
     async synchronize(instanceName, installs) {
-        this.onSynchronize(installs);
+        if (this.onSynchronize) {
+            await this.onSynchronize(installs);
+        }
     }
     async reportRequest() {
-        this.onReportRequest();
+        if (this.onReportRequest) {
+            await this.onReportRequest();
+        }
     }
     async report(instanceName, installIds) {
-        this.onReported(instanceName, installIds);
+        if (this.onReported) {
+            this.onReported(instanceName, installIds);
+        }
     }
 }
-exports.default = Adaptor;
+exports.Adaptor = Adaptor;
 //# sourceMappingURL=adaptor.js.map

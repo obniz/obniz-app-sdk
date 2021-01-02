@@ -5,8 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const logger_1 = require("./logger");
 const install_1 = require("./install");
-const adaptor_1 = __importDefault(require("./adaptor/adaptor"));
-const redis_1 = __importDefault(require("./adaptor/redis"));
+const Adaptor_1 = require("./adaptor/Adaptor");
+const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const express_1 = __importDefault(require("express"));
 var InstallStatus;
 (function (InstallStatus) {
@@ -23,23 +23,23 @@ class Master {
         this._appToken = appToken;
         this.scaleFactor = scaleFactor;
         if (scaleFactor > 0) {
-            this.adaptor = new redis_1.default(instanceName, true);
+            this.adaptor = new RedisAdaptor_1.RedisAdaptor(instanceName, true);
         }
         else {
-            this.adaptor = new adaptor_1.default();
+            this.adaptor = new Adaptor_1.Adaptor();
         }
         this.adaptor.onReported = async (instanceName, installIds) => {
             // logger.debug(`receive report ${instanceName}`)
             const exist = this._allWorkerInstances[instanceName];
             if (exist) {
                 exist.installIds = installIds;
-                exist.updatedMilissecond = Date.now().valueOf();
+                exist.updatedMillisecond = Date.now().valueOf();
             }
             else {
                 this._allWorkerInstances[instanceName] = {
                     name: instanceName,
                     installIds: installIds,
-                    updatedMilissecond: Date.now().valueOf()
+                    updatedMillisecond: Date.now().valueOf()
                 };
                 this.onInstanceAttached(instanceName);
             }
@@ -48,7 +48,7 @@ class Master {
     }
     start(option) {
         this._startWeb(option);
-        this._startSynching();
+        this._startSyncing();
         this._startHealthCheck();
     }
     _startWeb(option) {
@@ -62,11 +62,11 @@ class Master {
         this._startOptions.express.post(this._startOptions.webhookUrl, this._webhook.bind(this));
         if (!option.express) {
             this._startOptions.express.listen(this._startOptions.port, () => {
-                const port = this._startOptions ? this._startOptions.port : undefined;
+                logger_1.logger.debug(`App listening on http://localhost:${(this._startOptions || {}).port} `);
             });
         }
     }
-    async _webhook(req, res, next) {
+    async _webhook(_, res) {
         // TODO : check Instance and start
         try {
             await this._syncInstalls();
@@ -104,7 +104,7 @@ class Master {
         return minInstance;
     }
     /**
-     * incetanceId がidのWorkerが新たに参加した
+     * instanceId がidのWorkerが新たに参加した
      * @param id
      */
     onInstanceAttached(instanceName) {
@@ -112,11 +112,11 @@ class Master {
         // TODO: Overloadのinstanceがあれば引っ越しさせる
     }
     /**
-     * incetanceId がidのWorkerが喪失した
+     * instanceId がidのWorkerが喪失した
      * @param id
      */
     onInstanceMissed(instanceName) {
-        // delete immidiately
+        // delete immediately
         const diedWorker = this._allWorkerInstances[instanceName];
         delete this._allWorkerInstances[instanceName];
         // Replacing missed instance workers.
@@ -134,7 +134,7 @@ class Master {
         });
     }
     /**
-     * incetanceId がidのWorkerから新しい情報が届いた（定期的に届く）
+     * instanceId がidのWorkerから新しい情報が届いた（定期的に届く）
      * @param id
      */
     onInstanceReported(instanceName) {
@@ -143,7 +143,7 @@ class Master {
             const managedInstall = this._allInstalls[existId];
             if (managedInstall) {
                 managedInstall.status = InstallStatus.Started;
-                managedInstall.updatedMilissecond = Date.now().valueOf();
+                managedInstall.updatedMillisecond = Date.now().valueOf();
             }
             else {
                 // ghost
@@ -151,7 +151,7 @@ class Master {
             }
         }
     }
-    _startSynching() {
+    _startSyncing() {
         // every minutes
         if (!this._interval) {
             this._interval = setInterval(async () => {
@@ -184,9 +184,9 @@ class Master {
             }
             this._syncing = true;
             // logger.debug("sync api start");
-            const installs_api = [];
+            const installsApi = [];
             try {
-                installs_api.push(...await install_1.getInstallRequest(this._appToken));
+                installsApi.push(...await install_1.getInstallRequest(this._appToken));
             }
             catch (e) {
                 console.error(e);
@@ -195,29 +195,29 @@ class Master {
             /**
              * Compare with currents
              */
-            const mustaddds = [];
-            const updateds = [];
+            const mustAdds = [];
+            const updated = [];
             const deleted = [];
-            for (const install of installs_api) {
+            for (const install of installsApi) {
                 let found = false;
                 for (const id in this._allInstalls) {
                     const oldInstall = this._allInstalls[id].install;
                     if (install.id === id) {
                         if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
                             // updated
-                            updateds.push(install);
+                            updated.push(install);
                         }
                         found = true;
                         break;
                     }
                 }
                 if (!found) {
-                    mustaddds.push(install);
+                    mustAdds.push(install);
                 }
             }
             for (const id in this._allInstalls) {
                 let found = false;
-                for (const install of installs_api) {
+                for (const install of installsApi) {
                     if (id === install.id) {
                         found = true;
                         break;
@@ -227,11 +227,11 @@ class Master {
                     deleted.push(this._allInstalls[id]);
                 }
             }
-            if (mustaddds.length + updateds.length + deleted.length > 0) {
+            if (mustAdds.length + updated.length + deleted.length > 0) {
                 logger_1.logger.debug(`all \t| added \t| updated \t| deleted`);
-                logger_1.logger.debug(`${installs_api.length} \t| ${mustaddds.length} \t| ${updateds.length} \t| ${deleted.length}`);
+                logger_1.logger.debug(`${installsApi.length} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
             }
-            for (const install of updateds) {
+            for (const install of updated) {
                 const managedInstall = this._allInstalls[install.id];
                 managedInstall.install = install;
             }
@@ -239,12 +239,12 @@ class Master {
                 managedInstall.status = InstallStatus.Stopping;
                 delete this._allInstalls[managedInstall.install.id];
             }
-            for (const install of mustaddds) {
+            for (const install of mustAdds) {
                 const instance = this.bestWorkerInstance(); // maybe throw
                 const managedInstall = {
                     instanceName: instance.name,
                     status: InstallStatus.Starting,
-                    updatedMilissecond: Date.now().valueOf(),
+                    updatedMillisecond: Date.now().valueOf(),
                     install
                 };
                 this._allInstalls[install.id] = managedInstall;
@@ -268,7 +268,7 @@ class Master {
         }
         //
         for (const instanceName in separeted) {
-            logger_1.logger.debug(`synchonize sent to ${instanceName} idsCount=${separeted[instanceName].length}`);
+            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${separeted[instanceName].length}`);
             await this.adaptor.synchronize(instanceName, separeted[instanceName]);
         }
     }
@@ -277,7 +277,7 @@ class Master {
         // each install
         // for (const id in this._allInstalls) {
         //   const managedInstall = this._allInstalls[id];
-        //   if (managedInstall.updatedMilissecond + 60 * 1000 < current) {
+        //   if (managedInstall.updatedMillisecond + 60 * 1000 < current) {
         //     // over time.
         //     this._onHealthCheckFailedInstall(managedInstall);
         //   }
@@ -285,7 +285,7 @@ class Master {
         // each room
         for (const id in this._allWorkerInstances) {
             const workerInstance = this._allWorkerInstances[id];
-            if (workerInstance.updatedMilissecond + 30 * 1000 < current) {
+            if (workerInstance.updatedMillisecond + 30 * 1000 < current) {
                 // over time.
                 this._onHealthCheckFailedWorkerInstance(workerInstance);
             }
@@ -299,5 +299,5 @@ class Master {
         this.onInstanceMissed(workerInstance.name);
     }
 }
-exports.default = Master;
+exports.Master = Master;
 //# sourceMappingURL=Master.js.map

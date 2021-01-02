@@ -21,6 +21,7 @@
   "homepage": "https://github.com/obniz/obniz-app-sdk#readme",
   "devDependencies": {
     "@types/express": "^4.17.9",
+    "@types/ioredis": "^4.17.10",
     "eslint": "^7.16.0",
     "eslint-config-prettier": "^7.1.0",
     "ts-node": "^9.1.1",

@@ -16,6 +16,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Obniz = void 0;
 __exportStar(require("./App"), exports);
 __exportStar(require("./Worker"), exports);
+__exportStar(require("./authMiddleware"), exports);
 /**
  * User Required to be import Obniz for argument.
  * So it must be exported from this library

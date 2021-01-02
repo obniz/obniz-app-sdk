@@ -102,15 +102,15 @@ class App {
         }
         this._startSyncing();
     }
-    getAllUsers() {
+    async getAllUsers() {
     }
-    getAllObnizes() {
+    async getAllObnizes() {
     }
-    getOnlineObnizes() {
+    async getOnlineObnizes() {
     }
-    getOfflineObnizes() {
+    async getOfflineObnizes() {
     }
-    getObnizesOnThisInstance() {
+    async getObnizesOnThisInstance() {
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New App Start id=${install.id}`);

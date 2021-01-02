@@ -168,25 +168,25 @@ export class App {
     this._startSyncing();
   }
 
-  getAllUsers() {
+  async getAllUsers() {
 
   }
 
 
-  getAllObnizes() {
+  async getAllObnizes() {
 
   }
 
 
-  getOnlineObnizes() {
+  async getOnlineObnizes() {
 
   }
 
-  getOfflineObnizes() {
+  async getOfflineObnizes() {
 
   }
 
-  getObnizesOnThisInstance() {
+  async getObnizesOnThisInstance() {
 
   }
 

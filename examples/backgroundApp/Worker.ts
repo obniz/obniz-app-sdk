@@ -1,8 +1,6 @@
-import {WorkerAbstract} from "../../src/index";
-import Obniz from 'obniz';
+import {Worker, Obniz} from "../../src/index";
 
-
-export class Worker extends WorkerAbstract {
+export class MyWorker extends Worker {
 
   onStart() {
     console.log("on start");

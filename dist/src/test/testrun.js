@@ -1,11 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Worker = void 0;
-class Worker {
-    constructor(install, app) {
-        this.install = install;
-        this.app = app;
-    }
+const index_1 = require("../index");
+class MyWorker extends index_1.Worker {
     /**
      * Worker lifecycle
      */
@@ -27,5 +23,10 @@ class Worker {
     async stop() {
     }
 }
-exports.Worker = Worker;
-//# sourceMappingURL=Worker.js.map
+const app = new index_1.App({
+    appToken: "",
+    workerClass: MyWorker,
+    instanceType: index_1.AppInstanceType.Web
+});
+app.start();
+//# sourceMappingURL=testrun.js.map

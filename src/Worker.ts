@@ -1,5 +1,7 @@
 import Obniz from 'obniz'
 import {App} from "./App";
+import {ObnizOptions} from "obniz/dist/src/obniz/ObnizOptions";
+import {logger} from "./logger";
 
 /**
  * This class is exported from this library
@@ -7,12 +9,16 @@ import {App} from "./App";
  * Example: https://qiita.com/okdyy75/items/610623943979cf422775#%E3%81%BE%E3%81%82%E3%81%A8%E3%82%8A%E3%81%82%E3%81%88%E3%81%9A%E3%81%A9%E3%82%93%E3%81%AA%E6%84%9F%E3%81%98%E3%81%AB%E6%9B%B8%E3%81%8F%E3%81%AE
  */
 export abstract class Worker {
-  public install : any;
+  public install: any;
   private app: App;
+  private obniz?: Obniz;
+  public state: "stopped" | "starting" | "started" | "stopping" = "stopped";
+  private _obnizOption: ObnizOptions;
 
-  constructor(install: any, app:App) {
+  constructor(install: any, app: App, option: ObnizOptions = {}) {
     this.install = install;
     this.app = app;
+    this._obnizOption = option;
   }
 
 
@@ -20,15 +26,15 @@ export abstract class Worker {
    * Worker lifecycle
    */
 
-  onStart(){ 
+  async onStart() {
 
   }
 
-  onLoop(){
+  async onLoop() {
 
   }
 
-  onEnd(){
+  async onEnd() {
 
   }
 
@@ -37,20 +43,61 @@ export abstract class Worker {
    */
 
 
-  onObnizConnect(obniz: Obniz){
+  async onObnizConnect(obniz: Obniz) {
 
   }
 
-  onObnizLoop(obniz: Obniz){
+  async onObnizLoop(obniz: Obniz) {
 
   }
 
-  onObnizClose(obniz: Obniz){
+  async onObnizClose(obniz: Obniz) {
 
   }
 
 
-  async stop(){
+  async start() {
+    if (this.state !== "stopped") {
+      throw new Error(`invalid state`);
+    }
+    this.state = "starting";
+    await this.onStart();
+    this.obniz = new Obniz(this.install.id, this._obnizOption);
+    this.obniz.onconnect = this.onObnizConnect.bind(this);
+    this.obniz.onloop = this.onObnizLoop.bind(this);
+    this.obniz.onclose = this.onObnizClose.bind(this);
+    this.state = "started";
 
+    // in background
+    // noinspection ES6MissingAwait
+    this._loop();
+
+  }
+
+  private async _loop() {
+    while (this.state === "starting" || this.state === "started") {
+      try {
+        await this.onLoop();
+      } catch (e) {
+        logger.error(e);
+      }
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1000);
+      });
+    }
+  }
+
+  async stop() {
+    if (this.state === "starting" || this.state === "started") {
+      this.state = "stopping";
+      if (this.obniz) {
+        this.obniz.close();
+      }
+      this.obniz = undefined;
+      await this.onEnd();
+
+
+      this.state = "stopped";
+    }
   }
 }

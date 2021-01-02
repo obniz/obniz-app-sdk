@@ -53,45 +53,14 @@ class App {
                 exists[install_id] = this._workers[install_id];
             }
             for (const install of installs) {
+                await this._startOrRestartOneWorker(install);
                 if (exists[install.id]) {
-                    const oldApp = this._workers[install.id];
-                    if (JSON.stringify(oldApp.install) !== JSON.stringify(install)) {
-                        // config changed
-                        logger_1.logger.info(`App config changed id=${install.id}`);
-                        oldApp
-                            .stop()
-                            .then(() => {
-                        })
-                            .catch((e) => {
-                            logger_1.logger.error(e);
-                        });
-                        const app = new this._options.workerClass(install, this);
-                        this._workers[install.id] = app;
-                        await this._startOneWorker(app);
-                    }
                     delete exists[install.id];
-                }
-                else {
-                    logger_1.logger.info(`New App Start id=${install.id}`);
-                    const app = new this._options.workerClass(install, this);
-                    this._workers[install.id] = app;
-                    await this._startOneWorker(app);
                 }
             }
             // Apps which not listed
             for (const install_id in exists) {
-                const oldApp = this._workers[install_id];
-                if (oldApp) {
-                    logger_1.logger.info(`App Deleted id=${install_id}`);
-                    delete this._workers[install_id];
-                    oldApp
-                        .stop()
-                        .then(() => {
-                    })
-                        .catch((e) => {
-                        logger_1.logger.error(e);
-                    });
-                }
+                await this._stopOneWorker(install_id);
             }
         }
         catch (e) {
@@ -122,15 +91,6 @@ class App {
             });
         }
     }
-    // 必須なのでオプションでいいのでは
-    // registerApplication(workerClass:new () => Worker){
-    //
-    //
-    // }
-    onInstall(user, install) {
-    }
-    onUninstall(user, install) {
-    }
     start(option) {
         if (this._master) {
             this._master.start(option);
@@ -147,11 +107,37 @@ class App {
     }
     getObnizesOnThisInstance() {
     }
-    _startOneWorker(worker) {
+    async _startOneWorker(install) {
+        logger_1.logger.info(`New App Start id=${install.id}`);
+        const worker = new this._options.workerClass(install, this);
+        this._workers[install.id] = worker;
+        await worker.start();
     }
-    _stopOneWorker(worker) {
+    async _startOrRestartOneWorker(install) {
+        const oldWorker = this._workers[install.id];
+        if (oldWorker && JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
+            logger_1.logger.info(`App config changed id=${install.id}`);
+            await this._stopOneWorker(install.id);
+            await this._startOneWorker(install);
+        }
+        else if (!oldWorker) {
+            await this._startOneWorker(install);
+        }
     }
-    _restartOneWorker(worker) {
+    async _stopOneWorker(installId) {
+        logger_1.logger.info(`App Deleted id=${installId}`);
+        const worker = this._workers[installId];
+        if (worker) {
+            delete this._workers[installId];
+            //background
+            worker
+                .stop()
+                .then(() => {
+            })
+                .catch((e) => {
+                logger_1.logger.error(e);
+            });
+        }
     }
 }
 exports.App = App;

@@ -257,19 +257,19 @@ class Master {
         this._syncing = false;
     }
     async synchronize() {
-        let separeted = {};
+        let separated = {};
         for (const id in this._allInstalls) {
             const managedInstall = this._allInstalls[id];
             const instanceName = managedInstall.instanceName;
-            if (!separeted[instanceName]) {
-                separeted[instanceName] = [];
+            if (!separated[instanceName]) {
+                separated[instanceName] = [];
             }
-            separeted[instanceName].push(managedInstall.install);
+            separated[instanceName].push(managedInstall.install);
         }
         //
-        for (const instanceName in separeted) {
-            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${separeted[instanceName].length}`);
-            await this.adaptor.synchronize(instanceName, separeted[instanceName]);
+        for (const instanceName in separated) {
+            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`);
+            await this.adaptor.synchronize(instanceName, separated[instanceName]);
         }
     }
     _healthCheck() {
@@ -292,10 +292,10 @@ class Master {
         }
     }
     // private _onHealthCheckFailedInstall(managedInstall: ManagedInstall) {
-    //   logger.warn(`healthcheck failed install ${managedInstall.install.id}`)
+    //   logger.warn(`health check failed install ${managedInstall.install.id}`)
     // }
     _onHealthCheckFailedWorkerInstance(workerInstance) {
-        logger_1.logger.warn(`healthcheck failed worker ${workerInstance.name}`);
+        logger_1.logger.warn(`health check failed worker ${workerInstance.name}`);
         this.onInstanceMissed(workerInstance.name);
     }
 }

@@ -6,15 +6,15 @@ class MyWorker extends Worker {
    * Worker lifecycle
    */
 
-  onStart(){ 
+  async onStart(){
 
   }
 
-  onLoop(){
+  async onLoop(){
     console.log("loop");
   }
 
-  onEnd(){
+  async onEnd(){
 
   }
 
@@ -22,22 +22,19 @@ class MyWorker extends Worker {
    * obniz lifecycle
    */
 
-  onObnizConnect(obniz){
+  async onObnizConnect(obniz){
 
   }
 
-  onObnizLoop(obniz){
+  async onObnizLoop(obniz){
 
     console.log("obniz loop");
   }
 
-  onObnizClose(obniz){
+  async onObnizClose(obniz){
 
   }
 
-  async stop(){
-
-  }
 }
 
 const app = new App({

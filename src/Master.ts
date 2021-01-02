@@ -36,7 +36,7 @@ export class Master {
   public adaptor: Adaptor;
   public scaleFactor: number;
 
-  private _appToken:string;
+  private readonly _appToken:string;
   private _startOptions?: AppStartOptionInternal;
   private _syncing: boolean = false;
   private _interval?: any;
@@ -293,19 +293,19 @@ export class Master {
   }
 
   private async synchronize() {
-    let separeted: { [key: string]: InstalledDevice[] } = {};
+    let separated: { [key: string]: InstalledDevice[] } = {};
     for (const id in this._allInstalls) {
       const managedInstall: ManagedInstall = this._allInstalls[id];
       const instanceName = managedInstall.instanceName;
-      if (!separeted[instanceName]) {
-        separeted[instanceName] = []
+      if (!separated[instanceName]) {
+        separated[instanceName] = []
       }
-      separeted[instanceName].push(managedInstall.install);
+      separated[instanceName].push(managedInstall.install);
     }
     //
-    for (const instanceName in separeted) {
-      logger.debug(`synchronize sent to ${instanceName} idsCount=${separeted[instanceName].length}`)
-      await this.adaptor.synchronize(instanceName, separeted[instanceName]);
+    for (const instanceName in separated) {
+      logger.debug(`synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`)
+      await this.adaptor.synchronize(instanceName, separated[instanceName]);
     }
   }
 
@@ -330,11 +330,11 @@ export class Master {
   }
 
   // private _onHealthCheckFailedInstall(managedInstall: ManagedInstall) {
-  //   logger.warn(`healthcheck failed install ${managedInstall.install.id}`)
+  //   logger.warn(`health check failed install ${managedInstall.install.id}`)
   // }
 
   private _onHealthCheckFailedWorkerInstance(workerInstance: WorkerInstance) {
-    logger.warn(`healthcheck failed worker ${workerInstance.name}`)
+    logger.warn(`health check failed worker ${workerInstance.name}`)
     this.onInstanceMissed(workerInstance.name);
   }
 }

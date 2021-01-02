@@ -2,32 +2,29 @@ import {Worker, Obniz} from "../../src/index";
 
 export class MyWorker extends Worker {
 
-  onStart() {
-    console.log("on start");
+  async onStart() {
+    console.log("on start", this.install.id);
   }
 
-  onEnd() {
-    console.log("on end");
+  async onEnd() {
+    console.log("on end", this.install.id);
   }
 
-  onLoop() {
-    console.log("on loop");
+  async onLoop() {
+    console.log("on loop", this.install.id);
   }
 
-  onObnizConnect(obniz: Obniz){
+  async onObnizConnect(obniz: Obniz){
     console.log("on obniz connect");
 
   }
 
-  onObnizLoop(obniz: Obniz){
+  async onObnizLoop(obniz: Obniz){
     console.log("on obniz loop");
   }
 
-  onObnizClose(obniz: Obniz){
+  async onObnizClose(obniz: Obniz){
     console.log("on obniz close");
   }
 
-  async stop(){
-    //TODO;
-  }
 }

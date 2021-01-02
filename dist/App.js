@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.App = exports.AppInstanceType = void 0;
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
@@ -15,16 +16,20 @@ class App {
         this._options = {
             appToken: option.appToken,
             database: option.database || "redis",
+            databaseConfig: option.databaseConfig,
             workerClass: option.workerClass,
             instanceType: option.instanceType || AppInstanceType.WebAndWorker,
             instanceName: option.instanceName || 'master',
             scaleFactor: option.scaleFactor || 0
         };
+        if (this._options.database !== "redis") {
+            throw new Error("Supported database type is only redis now.");
+        }
         if (option.instanceType === AppInstanceType.WebAndWorker) {
-            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor);
+            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
         }
         if (this._options.scaleFactor > 0) {
-            this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false);
+            this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
         }
         else {
             // share same adaptor

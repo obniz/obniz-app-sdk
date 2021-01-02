@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Master = void 0;
 const logger_1 = require("./logger");
 const install_1 = require("./install");
 const Adaptor_1 = require("./adaptor/Adaptor");
@@ -16,14 +17,17 @@ var InstallStatus;
     InstallStatus[InstallStatus["Stopped"] = 3] = "Stopped";
 })(InstallStatus || (InstallStatus = {}));
 class Master {
-    constructor(appToken, instanceName, scaleFactor) {
+    constructor(appToken, instanceName, scaleFactor, database, databaseConfig) {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
         this._appToken = appToken;
         this.scaleFactor = scaleFactor;
+        if (database !== "redis") {
+            throw new Error("Supported database type is only redis now.");
+        }
         if (scaleFactor > 0) {
-            this.adaptor = new RedisAdaptor_1.RedisAdaptor(instanceName, true);
+            this.adaptor = new RedisAdaptor_1.RedisAdaptor(instanceName, true, databaseConfig);
         }
         else {
             this.adaptor = new Adaptor_1.Adaptor();

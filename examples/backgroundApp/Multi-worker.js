@@ -42,7 +42,9 @@ const app = new App({
   workerClass: MyWorker,
   instanceType: AppInstanceType.Worker,
   instanceName: process.env.dynoId || 'worker0',
-  scaleFactor: 1
+  scaleFactor: 1,
+  database: "redis",
+  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379"
 })
 
 app.start();

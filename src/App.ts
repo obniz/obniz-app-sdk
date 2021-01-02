@@ -1,4 +1,3 @@
-import Obniz from 'obniz'
 import express from 'express';
 import {Worker} from './Worker';
 import {logger} from './logger'
@@ -6,26 +5,35 @@ import {Master} from './Master';
 import {RedisAdaptor} from './adaptor/RedisAdaptor';
 import {Adaptor} from './adaptor/Adaptor';
 import {Installed_Device as InstalledDevice, User} from 'obniz-cloud-sdk/sdk';
+import IORedis from "ioredis";
 
-type Database = 'redis';
+
+export interface DatabaseConfig {
+  "redis": IORedis.RedisOptions;
+  "memory": { limit: number };
+}
+
+export type Database = keyof DatabaseConfig;
 
 export enum AppInstanceType {
   WebAndWorker, // Become an web server and Worker
   Worker, // Worker
 }
 
-export interface AppOption {
+export interface AppOption<T extends Database> {
   appToken: string;
-  database?: Database;
+  database?: T;
+  databaseConfig?: DatabaseConfig[T];
   workerClass: new (install: any, app: App) => Worker;
   instanceType: AppInstanceType;
   instanceName?: string;
   scaleFactor?: number; // number of installs.
 }
 
-interface AppOptionInternal extends AppOption {
+interface AppOptionInternal<T extends Database> extends AppOption<T> {
   appToken: string;
-  database: Database;
+  database: T;
+  databaseConfig?: DatabaseConfig[T];  // allow undefined
   workerClass: new (install: any, app: App) => Worker;
   instanceType: AppInstanceType
   instanceName: string;
@@ -40,10 +48,10 @@ export interface AppStartOption {
 }
 
 export class App {
-  private _options: AppOptionInternal;
+  private _options: AppOptionInternal<any>;
 
   // As Master
-  private readonly _master?: Master;
+  private readonly _master?: Master<any>;
 
   // As Worker
   private _adaptor: Adaptor;
@@ -55,21 +63,30 @@ export class App {
   public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
-  constructor(option: AppOption) {
+  constructor(option: AppOption<any>) {
     this._options = {
       appToken: option.appToken,
       database: option.database || "redis",
+      databaseConfig: option.databaseConfig,
       workerClass: option.workerClass,
       instanceType: option.instanceType || AppInstanceType.WebAndWorker,
       instanceName: option.instanceName || 'master',
       scaleFactor: option.scaleFactor || 0
     }
 
+    if(this._options.database !== "redis"){
+      throw new Error("Supported database type is only redis now.");
+    }
     if (option.instanceType === AppInstanceType.WebAndWorker) {
-      this._master = new Master(option.appToken, this._options.instanceName, this._options.scaleFactor);
+      this._master = new Master(
+        option.appToken,
+        this._options.instanceName,
+        this._options.scaleFactor,
+        this._options.database,
+        this._options.databaseConfig);
     }
     if (this._options.scaleFactor > 0) {
-      this._adaptor = new RedisAdaptor(this._options.instanceName, false);
+      this._adaptor = new RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
     } else {
       // share same adaptor
       this._adaptor = this._master!.adaptor
@@ -182,14 +199,14 @@ export class App {
   }
 
   private async _startOrRestartOneWorker(install: InstalledDevice) {
-      const oldWorker = this._workers[install.id];
-      if(oldWorker  && JSON.stringify(oldWorker.install) !== JSON.stringify(install)){
-        logger.info(`App config changed id=${install.id}`);
-        await this._stopOneWorker(install.id);
-        await this._startOneWorker(install);
-      }else if(!oldWorker){
-        await this._startOneWorker(install);
-      }
+    const oldWorker = this._workers[install.id];
+    if (oldWorker && JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
+      logger.info(`App config changed id=${install.id}`);
+      await this._stopOneWorker(install.id);
+      await this._startOneWorker(install);
+    } else if (!oldWorker) {
+      await this._startOneWorker(install);
+    }
 
   }
 
@@ -209,7 +226,6 @@ export class App {
         });
     }
   }
-
 
 
 }

@@ -11,14 +11,15 @@ export class RedisAdaptor extends Adaptor {
   private _redis: IORedis.Redis;
   private _pubRedis: IORedis.Redis;
 
-  constructor(id:string, isMaster: boolean) {
+  constructor(id:string, isMaster: boolean, redisOption: IORedis.RedisOptions) {
     super();
 
     this.id = id;
     this.isMaster = isMaster
 
-    this._redis = new IORedis(process.env.REDIS_URL);
-    this._pubRedis = new IORedis(process.env.REDIS_URL);
+    this._redis = new IORedis(redisOption);
+    this._pubRedis = new IORedis(redisOption);
+    console.log(redisOption)
     this._redis.subscribe("app", () => {
 
     });

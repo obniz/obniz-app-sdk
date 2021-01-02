@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.logger = void 0;
 const client_1 = require("@slack/client");
 const log4js_1 = __importDefault(require("log4js"));
 const SlackToken = "xoxb-4284650420-827006983648-XWsE2R2vcq4br5zMDsxl8PLQ";

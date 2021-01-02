@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Worker = void 0;
 const obniz_1 = __importDefault(require("obniz"));
 const logger_1 = require("./logger");
 /**
@@ -67,7 +68,7 @@ class Worker {
         if (this.state === "starting" || this.state === "started") {
             this.state = "stopping";
             if (this.obniz) {
-                this.obniz.close();
+                this.obniz.close(); //todo: change to closeWait
             }
             this.obniz = undefined;
             await this.onEnd();

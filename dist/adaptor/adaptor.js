@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Adaptor = void 0;
 /**
  * 一方向性のリスト同期
  * Masterからは各Instanceへ分割されたリストを同期
@@ -26,4 +27,4 @@ class Adaptor {
     }
 }
 exports.Adaptor = Adaptor;
-//# sourceMappingURL=adaptor.js.map
+//# sourceMappingURL=Adaptor.js.map

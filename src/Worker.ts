@@ -10,10 +10,10 @@ import {logger} from "./logger";
  */
 export abstract class Worker {
   public install: any;
-  private app: App;
-  private obniz?: Obniz;
+  protected app: App;
+  protected obniz?: Obniz;
   public state: "stopped" | "starting" | "started" | "stopping" = "stopped";
-  private _obnizOption: ObnizOptions;
+  private readonly _obnizOption: ObnizOptions;
 
   constructor(install: any, app: App, option: ObnizOptions = {}) {
     this.install = install;
@@ -91,7 +91,7 @@ export abstract class Worker {
     if (this.state === "starting" || this.state === "started") {
       this.state = "stopping";
       if (this.obniz) {
-        this.obniz.close();
+        this.obniz.close(); //todo: change to closeWait
       }
       this.obniz = undefined;
       await this.onEnd();

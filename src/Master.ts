@@ -1,10 +1,10 @@
 import {logger} from './logger'
 import {getInstallRequest} from "./install";
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import {Installed_Device as InstalledDevice} from 'obniz-cloud-sdk/sdk';
 import {Adaptor} from './adaptor/Adaptor';
 import {RedisAdaptor} from './adaptor/RedisAdaptor';
 import express from 'express';
-import {AppStartOption} from './App'
+import {AppStartOption, Database, DatabaseConfig} from './App'
 
 enum InstallStatus {
   Starting,
@@ -32,22 +32,27 @@ interface AppStartOptionInternal extends AppStartOption {
   port: number;
 }
 
-export class Master {
+export class Master<T extends Database> {
   public adaptor: Adaptor;
   public scaleFactor: number;
 
-  private readonly _appToken:string;
+  private readonly _appToken: string;
   private _startOptions?: AppStartOptionInternal;
   private _syncing: boolean = false;
   private _interval?: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
-  
-  constructor(appToken:string, instanceName: string, scaleFactor: number){
+
+  constructor(appToken: string, instanceName: string, scaleFactor: number, database: T, databaseConfig: DatabaseConfig[T]) {
     this._appToken = appToken;
     this.scaleFactor = scaleFactor;
-    if(scaleFactor > 0) {
-      this.adaptor = new RedisAdaptor(instanceName, true);
+
+
+    if(database !== "redis"){
+      throw new Error("Supported database type is only redis now.");
+    }
+    if (scaleFactor > 0) {
+      this.adaptor = new RedisAdaptor(instanceName, true, databaseConfig as DatabaseConfig["redis"] );
     } else {
       this.adaptor = new Adaptor();
     }
@@ -96,7 +101,7 @@ export class Master {
     // TODO : check Instance and start
     try {
       await this._syncInstalls();
-    } catch(e) {
+    } catch (e) {
       logger.error(e);
       res.status(500).json({});
       return;
@@ -108,7 +113,7 @@ export class Master {
    * 空き状況から最適なWorkerを推測
    */
   private bestWorkerInstance(): WorkerInstance {
-    let installCounts:any = {}
+    let installCounts: any = {}
     for (const name in this._allWorkerInstances) {
       installCounts[name] = 0;
     }
@@ -132,18 +137,18 @@ export class Master {
 
   /**
    * instanceId がidのWorkerが新たに参加した
-   * @param id 
+   * @param id
    */
-  private onInstanceAttached(instanceName :string) {
+  private onInstanceAttached(instanceName: string) {
     const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     // TODO: Overloadのinstanceがあれば引っ越しさせる
   }
 
   /**
    * instanceId がidのWorkerが喪失した
-   * @param id 
+   * @param id
    */
-  private onInstanceMissed(instanceName :string) {
+  private onInstanceMissed(instanceName: string) {
 
     // delete immediately
     const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
@@ -160,16 +165,16 @@ export class Master {
     }
 
     // synchronize
-    this.synchronize().then().catch( e => {
+    this.synchronize().then().catch(e => {
       logger.error(e);
     });
   }
 
   /**
    * instanceId がidのWorkerから新しい情報が届いた（定期的に届く）
-   * @param id 
+   * @param id
    */
-  private onInstanceReported(instanceName :string) {
+  private onInstanceReported(instanceName: string) {
     const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     for (const existId of worker.installIds) {
       const managedInstall = this._allInstalls[existId];
@@ -186,21 +191,21 @@ export class Master {
   private _startSyncing() {
     // every minutes
     if (!this._interval) {
-      this._interval = setInterval( async () => {
+      this._interval = setInterval(async () => {
         try {
           await this._syncInstalls();
         } catch (e) {
           logger.error(e);
         }
       }, 60 * 1000);
-      this._syncInstalls().then().catch(e=>{
+      this._syncInstalls().then().catch(e => {
         logger.error(e);
       });
     }
   }
 
   private _startHealthCheck() {
-    setInterval( async () => {
+    setInterval(async () => {
       try {
         this._healthCheck();
       } catch (e) {
@@ -220,7 +225,7 @@ export class Master {
 
       const installsApi = [];
       try {
-        installsApi.push(... await getInstallRequest(this._appToken));
+        installsApi.push(...await getInstallRequest(this._appToken));
       } catch (e) {
         console.error(e);
         process.exit(-1);
@@ -245,13 +250,13 @@ export class Master {
             break;
           }
         }
-        if (!found){
+        if (!found) {
           mustAdds.push(install);
         }
       }
       for (const id in this._allInstalls) {
         let found = false;
-        for (const install of installsApi){
+        for (const install of installsApi) {
           if (id === install.id) {
             found = true;
             break;
@@ -265,7 +270,7 @@ export class Master {
         logger.debug(`all \t| added \t| updated \t| deleted`);
         logger.debug(`${installsApi.length} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
       }
-      
+
       for (const install of updated) {
         const managedInstall = this._allInstalls[install.id];
         managedInstall.install = install;

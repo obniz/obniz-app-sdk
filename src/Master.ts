@@ -17,13 +17,13 @@ interface ManagedInstall {
   instanceName: string; // Which Instance handling this 
   install: Installed_Device;
   status: InstallStatus;
-  updatedMilissecond: number;
+  updatedMillisecond: number;
 }
 
 interface WorkerInstance {
   name: string
   installIds: string[],
-  updatedMilissecond: number;
+  updatedMillisecond: number;
 }
 
 interface AppStartOptionInternal extends AppStartOption {
@@ -56,12 +56,12 @@ export default class Master {
       const exist = this._allWorkerInstances[instanceName];
       if (exist) {
         exist.installIds = installIds;
-        exist.updatedMilissecond = Date.now().valueOf();
+        exist.updatedMillisecond = Date.now().valueOf();
       } else {
         this._allWorkerInstances[instanceName] = {
           name: instanceName,
           installIds: installIds,
-          updatedMilissecond: Date.now().valueOf()
+          updatedMillisecond: Date.now().valueOf()
         }
         this.onInstanceAttached(instanceName);
       }
@@ -175,7 +175,7 @@ export default class Master {
       const managedInstall = this._allInstalls[existId];
       if (managedInstall) {
         managedInstall.status = InstallStatus.Started;
-        managedInstall.updatedMilissecond = Date.now().valueOf();
+        managedInstall.updatedMillisecond = Date.now().valueOf();
       } else {
         // ghost
         logger.debug(`Ignore ghost ${instanceName}`);
@@ -279,7 +279,7 @@ export default class Master {
         const managedInstall: ManagedInstall = {
           instanceName: instance.name,
           status: InstallStatus.Starting,
-          updatedMilissecond: Date.now().valueOf(),
+          updatedMillisecond: Date.now().valueOf(),
           install
         }
         this._allInstalls[install.id] = managedInstall;
@@ -314,7 +314,7 @@ export default class Master {
     // each install
     // for (const id in this._allInstalls) {
     //   const managedInstall = this._allInstalls[id];
-    //   if (managedInstall.updatedMilissecond + 60 * 1000 < current) {
+    //   if (managedInstall.updatedMillisecond + 60 * 1000 < current) {
     //     // over time.
     //     this._onHealthCheckFailedInstall(managedInstall);
     //   }
@@ -322,7 +322,7 @@ export default class Master {
     // each room
     for (const id in this._allWorkerInstances) {
       const workerInstance = this._allWorkerInstances[id];
-      if (workerInstance.updatedMilissecond + 30 * 1000 < current) {
+      if (workerInstance.updatedMillisecond + 30 * 1000 < current) {
         // over time.
         this._onHealthCheckFailedWorkerInstance(workerInstance);
       }

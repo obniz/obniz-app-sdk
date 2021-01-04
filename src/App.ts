@@ -16,8 +16,8 @@ export interface DatabaseConfig {
 export type Database = keyof DatabaseConfig;
 
 export enum AppInstanceType {
-  WebAndWorker, // Become an web server and Worker
-  Worker, // Worker
+  Master,
+  Slave,
 }
 
 export interface AppOption<T extends Database> {
@@ -69,7 +69,7 @@ export class App {
       database: option.database || "redis",
       databaseConfig: option.databaseConfig,
       workerClass: option.workerClass,
-      instanceType: option.instanceType || AppInstanceType.WebAndWorker,
+      instanceType: option.instanceType || AppInstanceType.Master,
       instanceName: option.instanceName || 'master',
       scaleFactor: option.scaleFactor || 0
     }
@@ -77,7 +77,7 @@ export class App {
     if(this._options.database !== "redis"){
       throw new Error("Supported database type is only redis now.");
     }
-    if (option.instanceType === AppInstanceType.WebAndWorker) {
+    if (option.instanceType === AppInstanceType.Master) {
       this._master = new Master(
         option.appToken,
         this._options.instanceName,

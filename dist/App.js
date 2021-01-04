@@ -6,8 +6,8 @@ const Master_1 = require("./Master");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 var AppInstanceType;
 (function (AppInstanceType) {
-    AppInstanceType[AppInstanceType["WebAndWorker"] = 0] = "WebAndWorker";
-    AppInstanceType[AppInstanceType["Worker"] = 1] = "Worker";
+    AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
+    AppInstanceType[AppInstanceType["Slave"] = 1] = "Slave";
 })(AppInstanceType = exports.AppInstanceType || (exports.AppInstanceType = {}));
 class App {
     constructor(option) {
@@ -18,14 +18,14 @@ class App {
             database: option.database || "redis",
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass,
-            instanceType: option.instanceType || AppInstanceType.WebAndWorker,
+            instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || 'master',
             scaleFactor: option.scaleFactor || 0
         };
         if (this._options.database !== "redis") {
             throw new Error("Supported database type is only redis now.");
         }
-        if (option.instanceType === AppInstanceType.WebAndWorker) {
+        if (option.instanceType === AppInstanceType.Master) {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
         }
         if (this._options.scaleFactor > 0) {

@@ -16,6 +16,11 @@
       "git add"
     ]
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run precommit"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/obniz/obniz-app-sdk.git"

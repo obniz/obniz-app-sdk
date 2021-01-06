@@ -22,4 +22,4 @@ function authMiddleware(option = {}) {
     };
 }
 exports.authMiddleware = authMiddleware;
-//# sourceMappingURL=AuthMiddleware.js.map
+//# sourceMappingURL=authMiddleware.js.map

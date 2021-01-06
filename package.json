@@ -2,11 +2,19 @@
   "name": "obniz-app-sdk",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "_testrun-single": "npm run build && node ./examples/backgroundApp/Single.js",
-    "_testrun-multi-master": "npm run build && node ./examples/backgroundApp/Multi-Master.js"
+    "_testrun-multi-master": "npm run build && node ./examples/backgroundApp/Multi-Master.js",
+    "version": "npm run build",
+    "precommit": "lint-staged && npm run build && git add dist"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "tslint -c tslint.json --fix ",
+      "git add"
+    ]
   },
   "repository": {
     "type": "git",
@@ -31,6 +39,7 @@
     "@slack/client": "^5.0.2",
     "express": "^4.17.1",
     "ioredis": "^4.19.4",
+    "lint-staged": "^10.5.3",
     "log4js": "^6.3.0",
     "obniz": "^3.12.0-beta.0",
     "obniz-cloud-sdk": "^0.1.0"

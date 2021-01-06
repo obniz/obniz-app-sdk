@@ -1,7 +1,7 @@
 import { WebClient } from "@slack/client";
 import log4js from "log4js";
 
-const SlackToken = "xoxb-4284650420-827006983648-XWsE2R2vcq4br5zMDsxl8PLQ";
+let SlackToken = "xxxx"; //TODO: input slack token from app
 const web = new WebClient(SlackToken);
 export const logger: any = log4js.getLogger();
 logger.level = "debug";

@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.logger = void 0;
 const client_1 = require("@slack/client");
 const log4js_1 = __importDefault(require("log4js"));
-const SlackToken = "xoxb-4284650420-827006983648-XWsE2R2vcq4br5zMDsxl8PLQ";
+let SlackToken = "xxxx"; //TODO: input slack token from app
 const web = new client_1.WebClient(SlackToken);
 exports.logger = log4js_1.default.getLogger();
 exports.logger.level = "debug";

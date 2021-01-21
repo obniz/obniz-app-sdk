@@ -1,5 +1,9 @@
+[日本語はこちら](./README-ja.md)
+
+
 This is a framework for node js legs that use obniz.
 Crotch and online / reprocessing are automatic.
+
 
 ## Comparison diagram
 
@@ -8,7 +12,7 @@ Crotch and online / reprocessing are automatic.
 
 ## program
 
-`` `
+```
 const { App, AppInstanceType, Worker, Obniz } = require('../../dist')
 
 class MyWorker extends Worker {
@@ -57,7 +61,7 @@ const app = new App({
 
 app.start();
 
-`` `
+```
 
 
 It's a temporary app

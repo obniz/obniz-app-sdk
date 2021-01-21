@@ -1,10 +1,6 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Worker = void 0;
-const obniz_1 = __importDefault(require("obniz"));
 const logger_1 = require("./logger");
 /**
  * This class is exported from this library
@@ -21,28 +17,22 @@ class Worker {
     /**
      * Worker lifecycle
      */
-    async onStart() {
-    }
-    async onLoop() {
-    }
-    async onEnd() {
-    }
+    async onStart() { }
+    async onLoop() { }
+    async onEnd() { }
     /**
      * obniz lifecycle
      */
-    async onObnizConnect(obniz) {
-    }
-    async onObnizLoop(obniz) {
-    }
-    async onObnizClose(obniz) {
-    }
+    async onObnizConnect(obniz) { }
+    async onObnizLoop(obniz) { }
+    async onObnizClose(obniz) { }
     async start() {
         if (this.state !== "stopped") {
             throw new Error(`invalid state`);
         }
         this.state = "starting";
         await this.onStart();
-        this.obniz = new obniz_1.default(this.install.id, this._obnizOption);
+        this.obniz = new this.app.obnizClass(this.install.id, this._obnizOption);
         this.obniz.onconnect = this.onObnizConnect.bind(this);
         this.obniz.onloop = this.onObnizLoop.bind(this);
         this.obniz.onclose = this.onObnizClose.bind(this);
@@ -68,7 +58,7 @@ class Worker {
         if (this.state === "starting" || this.state === "started") {
             this.state = "stopping";
             if (this.obniz) {
-                this.obniz.close(); //todo: change to closeWait
+                this.obniz.close(); // todo: change to closeWait
             }
             this.obniz = undefined;
             await this.onEnd();

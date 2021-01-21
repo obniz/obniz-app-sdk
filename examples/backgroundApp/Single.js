@@ -41,7 +41,7 @@ class MyWorker extends Worker {
 const app = new App({
   appToken: 'apptoken_Tmj2JMXVXgLBYW6iDlBzQph7L6uwcBYqRmW2NvnKk_kQeiwvnRCnUJePUrsTRtXW',
   workerClass: MyWorker,
-  instanceType: AppInstanceType.WebAndWorker
+  instanceType: AppInstanceType.Master
 })
 
 app.start();

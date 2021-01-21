@@ -1,7 +1,7 @@
-import Obniz from 'obniz'
-import {App} from "./App";
-import {ObnizOptions} from "obniz/dist/src/obniz/ObnizOptions";
-import {logger} from "./logger";
+import Obniz from "obniz";
+import { App } from "./App";
+import { ObnizOptions } from "obniz/dist/src/obniz/ObnizOptions";
+import { logger } from "./logger";
 
 /**
  * This class is exported from this library
@@ -21,40 +21,25 @@ export abstract class Worker {
     this._obnizOption = option;
   }
 
-
   /**
    * Worker lifecycle
    */
 
-  async onStart() {
+  async onStart() {}
 
-  }
+  async onLoop() {}
 
-  async onLoop() {
-
-  }
-
-  async onEnd() {
-
-  }
+  async onEnd() {}
 
   /**
    * obniz lifecycle
    */
 
+  async onObnizConnect(obniz: Obniz) {}
 
-  async onObnizConnect(obniz: Obniz) {
+  async onObnizLoop(obniz: Obniz) {}
 
-  }
-
-  async onObnizLoop(obniz: Obniz) {
-
-  }
-
-  async onObnizClose(obniz: Obniz) {
-
-  }
-
+  async onObnizClose(obniz: Obniz) {}
 
   async start() {
     if (this.state !== "stopped") {
@@ -62,7 +47,7 @@ export abstract class Worker {
     }
     this.state = "starting";
     await this.onStart();
-    this.obniz = new Obniz(this.install.id, this._obnizOption);
+    this.obniz = new this.app.obnizClass(this.install.id, this._obnizOption);
     this.obniz.onconnect = this.onObnizConnect.bind(this);
     this.obniz.onloop = this.onObnizLoop.bind(this);
     this.obniz.onclose = this.onObnizClose.bind(this);
@@ -71,7 +56,6 @@ export abstract class Worker {
     // in background
     // noinspection ES6MissingAwait
     this._loop();
-
   }
 
   private async _loop() {
@@ -91,11 +75,10 @@ export abstract class Worker {
     if (this.state === "starting" || this.state === "started") {
       this.state = "stopping";
       if (this.obniz) {
-        this.obniz.close(); //todo: change to closeWait
+        this.obniz.close(); // todo: change to closeWait
       }
       this.obniz = undefined;
       await this.onEnd();
-
 
       this.state = "stopped";
     }

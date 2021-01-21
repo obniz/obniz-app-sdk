@@ -1,16 +1,16 @@
-import express from 'express';
-import {Worker} from './Worker';
-import {logger} from './logger'
-import {Master} from './Master';
-import {RedisAdaptor} from './adaptor/RedisAdaptor';
-import {Adaptor} from './adaptor/Adaptor';
-import {Installed_Device as InstalledDevice, User} from 'obniz-cloud-sdk/sdk';
+import express from "express";
+import { Worker } from "./Worker";
+import { logger } from "./logger";
+import { Master } from "./Master";
+import { RedisAdaptor } from "./adaptor/RedisAdaptor";
+import { Adaptor } from "./adaptor/Adaptor";
+import { Installed_Device as InstalledDevice, User } from "obniz-cloud-sdk/sdk";
 import IORedis from "ioredis";
-
+import Obniz from "obniz";
 
 export interface DatabaseConfig {
-  "redis": IORedis.RedisOptions;
-  "memory": { limit: number };
+  redis: IORedis.RedisOptions;
+  memory: { limit: number };
 }
 
 export type Database = keyof DatabaseConfig;
@@ -25,6 +25,7 @@ export interface AppOption<T extends Database> {
   database?: T;
   databaseConfig?: DatabaseConfig[T];
   workerClass: new (install: any, app: App) => Worker;
+  obnizClass?: new (obnizId: string, option: any) => Obniz;
   instanceType: AppInstanceType;
   instanceName?: string;
   scaleFactor?: number; // number of installs.
@@ -33,13 +34,13 @@ export interface AppOption<T extends Database> {
 interface AppOptionInternal<T extends Database> extends AppOption<T> {
   appToken: string;
   database: T;
-  databaseConfig?: DatabaseConfig[T];  // allow undefined
+  databaseConfig?: DatabaseConfig[T]; // allow undefined
   workerClass: new (install: any, app: App) => Worker;
-  instanceType: AppInstanceType
+  obnizClass: new (obnizId: string, option: any) => Obniz;
+  instanceType: AppInstanceType;
   instanceName: string;
   scaleFactor: number; // number of installs.
 }
-
 
 export interface AppStartOption {
   express?: express.Express;
@@ -56,9 +57,8 @@ export class App {
   // As Worker
   private _adaptor: Adaptor;
   private _workers: { [key: string]: Worker } = {};
-  private _interval: any
-  private _syncing = false
-
+  private _interval: any;
+  private _syncing = false;
 
   public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
@@ -69,12 +69,13 @@ export class App {
       database: option.database || "redis",
       databaseConfig: option.databaseConfig,
       workerClass: option.workerClass,
+      obnizClass: option.obnizClass || Obniz,
       instanceType: option.instanceType || AppInstanceType.Master,
-      instanceName: option.instanceName || 'master',
-      scaleFactor: option.scaleFactor || 0
-    }
+      instanceName: option.instanceName || "master",
+      scaleFactor: option.scaleFactor || 0,
+    };
 
-    if(this._options.database !== "redis"){
+    if (this._options.database !== "redis") {
       throw new Error("Supported database type is only redis now.");
     }
     if (option.instanceType === AppInstanceType.Master) {
@@ -83,22 +84,23 @@ export class App {
         this._options.instanceName,
         this._options.scaleFactor,
         this._options.database,
-        this._options.databaseConfig);
+        this._options.databaseConfig,
+      );
     }
     if (this._options.scaleFactor > 0) {
       this._adaptor = new RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
     } else {
       // share same adaptor
-      this._adaptor = this._master!.adaptor
+      this._adaptor = this._master!.adaptor;
     }
 
     this._adaptor.onSynchronize = async (installs: InstalledDevice[]) => {
       await this._synchronize(installs);
-    }
+    };
 
     this._adaptor.onReportRequest = async () => {
       await this._reportToMaster();
-    }
+    };
   }
 
   /**
@@ -155,9 +157,11 @@ export class App {
           logger.error(e);
         }
       }, 10 * 1000);
-      this._reportToMaster().then().catch(e => {
-        logger.error(e);
-      });
+      this._reportToMaster()
+        .then()
+        .catch((e) => {
+          logger.error(e);
+        });
     }
   }
 
@@ -168,33 +172,20 @@ export class App {
     this._startSyncing();
   }
 
-  async getAllUsers() {
+  async getAllUsers() {}
 
-  }
+  async getAllObnizes() {}
 
+  async getOnlineObnizes() {}
 
-  async getAllObnizes() {
+  async getOfflineObnizes() {}
 
-  }
-
-
-  async getOnlineObnizes() {
-
-  }
-
-  async getOfflineObnizes() {
-
-  }
-
-  async getObnizesOnThisInstance() {
-
-  }
-
+  async getObnizesOnThisInstance() {}
 
   private async _startOneWorker(install: InstalledDevice) {
     logger.info(`New App Start id=${install.id}`);
     const worker = new this._options.workerClass(install, this);
-    this._workers[install.id] = worker
+    this._workers[install.id] = worker;
     await worker.start();
   }
 
@@ -207,7 +198,6 @@ export class App {
     } else if (!oldWorker) {
       await this._startOneWorker(install);
     }
-
   }
 
   private async _stopOneWorker(installId: string) {
@@ -216,16 +206,17 @@ export class App {
     if (worker) {
       delete this._workers[installId];
 
-      //background
+      // background
       worker
         .stop()
-        .then(() => {
-        })
+        .then(() => {})
         .catch((e) => {
           logger.error(e);
         });
     }
   }
 
-
+  public get obnizClass() {
+    return this._options.obnizClass;
+  }
 }

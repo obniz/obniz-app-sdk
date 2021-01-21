@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.App = exports.AppInstanceType = void 0;
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
+const obniz_1 = __importDefault(require("obniz"));
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
@@ -18,9 +22,10 @@ class App {
             database: option.database || "redis",
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass,
+            obnizClass: option.obnizClass || obniz_1.default,
             instanceType: option.instanceType || AppInstanceType.Master,
-            instanceName: option.instanceName || 'master',
-            scaleFactor: option.scaleFactor || 0
+            instanceName: option.instanceName || "master",
+            scaleFactor: option.scaleFactor || 0,
         };
         if (this._options.database !== "redis") {
             throw new Error("Supported database type is only redis now.");
@@ -91,7 +96,9 @@ class App {
                     logger_1.logger.error(e);
                 }
             }, 10 * 1000);
-            this._reportToMaster().then().catch(e => {
+            this._reportToMaster()
+                .then()
+                .catch((e) => {
                 logger_1.logger.error(e);
             });
         }
@@ -102,16 +109,11 @@ class App {
         }
         this._startSyncing();
     }
-    async getAllUsers() {
-    }
-    async getAllObnizes() {
-    }
-    async getOnlineObnizes() {
-    }
-    async getOfflineObnizes() {
-    }
-    async getObnizesOnThisInstance() {
-    }
+    async getAllUsers() { }
+    async getAllObnizes() { }
+    async getOnlineObnizes() { }
+    async getOfflineObnizes() { }
+    async getObnizesOnThisInstance() { }
     async _startOneWorker(install) {
         logger_1.logger.info(`New App Start id=${install.id}`);
         const worker = new this._options.workerClass(install, this);
@@ -134,15 +136,17 @@ class App {
         const worker = this._workers[installId];
         if (worker) {
             delete this._workers[installId];
-            //background
+            // background
             worker
                 .stop()
-                .then(() => {
-            })
+                .then(() => { })
                 .catch((e) => {
                 logger_1.logger.error(e);
             });
         }
+    }
+    get obnizClass() {
+        return this._options.obnizClass;
     }
 }
 exports.App = App;

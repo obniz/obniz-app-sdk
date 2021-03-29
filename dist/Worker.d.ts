@@ -1,5 +1,6 @@
-import Obniz from 'obniz';
+import Obniz from "obniz";
 import { App } from "./App";
+import { ObnizOptions } from "obniz/dist/src/obniz/ObnizOptions";
 /**
  * This class is exported from this library
  * "Abstract" must be drop
@@ -7,19 +8,24 @@ import { App } from "./App";
  */
 export declare abstract class Worker {
     install: any;
-    private app;
-    constructor(install: any, app: App);
+    protected app: App;
+    protected obniz?: Obniz;
+    state: "stopped" | "starting" | "started" | "stopping";
+    private readonly _obnizOption;
+    constructor(install: any, app: App, option?: ObnizOptions);
     /**
      * Worker lifecycle
      */
-    onStart(): void;
-    onLoop(): void;
-    onEnd(): void;
+    onStart(): Promise<void>;
+    onLoop(): Promise<void>;
+    onEnd(): Promise<void>;
     /**
      * obniz lifecycle
      */
-    onObnizConnect(obniz: Obniz): void;
-    onObnizLoop(obniz: Obniz): void;
-    onObnizClose(obniz: Obniz): void;
+    onObnizConnect(obniz: Obniz): Promise<void>;
+    onObnizLoop(obniz: Obniz): Promise<void>;
+    onObnizClose(obniz: Obniz): Promise<void>;
+    start(): Promise<void>;
+    private _loop;
     stop(): Promise<void>;
 }

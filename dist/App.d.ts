@@ -1,14 +1,25 @@
-import express from 'express';
-import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
-declare type Detabase = 'postgresql';
-export declare enum AppInstanceType {
-    WebAndWorker = 0,
-    Worker = 1
+import express from "express";
+import { Worker } from "./Worker";
+import { Installed_Device as InstalledDevice, User } from "obniz-cloud-sdk/sdk";
+import IORedis from "ioredis";
+import Obniz from "obniz";
+export interface DatabaseConfig {
+    redis: IORedis.RedisOptions;
+    memory: {
+        limit: number;
+    };
 }
-export interface AppOption {
+export declare type Database = keyof DatabaseConfig;
+export declare enum AppInstanceType {
+    Master = 0,
+    Slave = 1
+}
+export interface AppOption<T extends Database> {
     appToken: string;
-    database?: Detabase;
-    workerClass: new (install: any, app: App) => any;
+    database?: T;
+    databaseConfig?: DatabaseConfig[T];
+    workerClass: new (install: any, app: App) => Worker;
+    obnizClass?: new (obnizId: string, option: any) => Obniz;
     instanceType: AppInstanceType;
     instanceName?: string;
     scaleFactor?: number;
@@ -20,12 +31,14 @@ export interface AppStartOption {
 }
 export declare class App {
     private _options;
-    private _master?;
+    private readonly _master?;
     private _adaptor;
     private _workers;
     private _interval;
     private _syncing;
-    constructor(option: AppOption);
+    onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
+    onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
+    constructor(option: AppOption<any>);
     /**
      * Receive Master Generated List and compare current apps.
      * @param installs
@@ -35,17 +48,15 @@ export declare class App {
      * Let Master know worker is working.
      */
     private _reportToMaster;
-    private _startSynching;
-    onInstall(user: User, install: Installed_Device): void;
-    onUninstall(user: User, install: Installed_Device): void;
+    private _startSyncing;
     start(option?: AppStartOption): void;
-    getAllUsers(): void;
-    getAllObnizes(): void;
-    getOnlineObnizes(): void;
-    getOfflineObnizes(): void;
-    getObnizesOnThisInstance(): void;
+    getAllUsers(): Promise<void>;
+    getAllObnizes(): Promise<void>;
+    getOnlineObnizes(): Promise<void>;
+    getOfflineObnizes(): Promise<void>;
+    getObnizesOnThisInstance(): Promise<void>;
     private _startOneWorker;
+    private _startOrRestartOneWorker;
     private _stopOneWorker;
-    private _restartOneWorker;
+    get obnizClass(): new (obnizId: string, option: any) => Obniz;
 }
-export {};

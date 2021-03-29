@@ -1,15 +1,15 @@
-import Adaptor from './adaptor/adaptor';
-import { AppStartOption } from './App';
-export default class Master {
+import { Adaptor } from './adaptor/Adaptor';
+import { AppStartOption, Database, DatabaseConfig } from './App';
+export declare class Master<T extends Database> {
     adaptor: Adaptor;
     scaleFactor: number;
-    private _appToken;
+    private readonly _appToken;
     private _startOptions?;
     private _syncing;
     private _interval?;
     private _allInstalls;
     private _allWorkerInstances;
-    constructor(appToken: string, instanceName: string, scaleFactor: number);
+    constructor(appToken: string, instanceName: string, scaleFactor: number, database: T, databaseConfig: DatabaseConfig[T]);
     start(option?: AppStartOption): void;
     private _startWeb;
     private _webhook;
@@ -18,21 +18,21 @@ export default class Master {
      */
     private bestWorkerInstance;
     /**
-     * incetanceId がidのWorkerが新たに参加した
+     * instanceId がidのWorkerが新たに参加した
      * @param id
      */
     private onInstanceAttached;
     /**
-     * incetanceId がidのWorkerが喪失した
+     * instanceId がidのWorkerが喪失した
      * @param id
      */
     private onInstanceMissed;
     /**
-     * incetanceId がidのWorkerから新しい情報が届いた（定期的に届く）
+     * instanceId がidのWorkerから新しい情報が届いた（定期的に届く）
      * @param id
      */
     private onInstanceReported;
-    private _startSynching;
+    private _startSyncing;
     private _startHealthCheck;
     private _syncInstalls;
     private synchronize;

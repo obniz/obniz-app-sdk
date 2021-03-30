@@ -7,15 +7,19 @@ class MyWorker extends Worker {
    */
 
   async onStart(){
-
+    console.log("onStart");
   }
 
   async onLoop(){
-    console.log("loop");
+    console.log("onLoop");
   }
 
   async onEnd(){
+    console.log("onEnd");
+  }
 
+  async onRequest(key) {
+    return `response from ${this.obniz.id}`
   }
 
   /**
@@ -39,9 +43,13 @@ class MyWorker extends Worker {
 }
 
 const app = new App({
-  appToken: 'apptoken_Tmj2JMXVXgLBYW6iDlBzQph7L6uwcBYqRmW2NvnKk_kQeiwvnRCnUJePUrsTRtXW',
+  appToken: process.env.AppToken,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master
 })
 
 app.start();
+
+setTimeout(async ()=>{
+  console.log(await app.request("something_key"))
+}, 10 * 1000);

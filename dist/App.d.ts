@@ -36,6 +36,7 @@ export declare class App {
     private _workers;
     private _interval;
     private _syncing;
+    isScalableMode: boolean;
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
     constructor(option: AppOption<any>);
@@ -55,6 +56,15 @@ export declare class App {
     getOnlineObnizes(): Promise<void>;
     getOfflineObnizes(): Promise<void>;
     getObnizesOnThisInstance(): Promise<void>;
+    /**
+     * Reqeust a results for specified key for working workers.
+     * This function is useful when asking live information.
+     * @param key string for request
+     * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
+     */
+    request(key: string): Promise<{
+        [key: string]: string;
+    }>;
     private _startOneWorker;
     private _startOrRestartOneWorker;
     private _stopOneWorker;

@@ -60,6 +60,8 @@ export class App {
   private _interval: any;
   private _syncing = false;
 
+  public isScalableMode = false;
+
   public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
@@ -87,7 +89,8 @@ export class App {
         this._options.databaseConfig,
       );
     }
-    if (this._options.scaleFactor > 0) {
+    this.isScalableMode = this._options.scaleFactor > 0;
+    if (this.isScalableMode) {
       this._adaptor = new RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
     } else {
       // share same adaptor
@@ -101,6 +104,14 @@ export class App {
     this._adaptor.onReportRequest = async () => {
       await this._reportToMaster();
     };
+
+    this._adaptor.onRequestRequested = async (key:string): Promise<{[key:string]:string}> => {
+      const results: {[key:string]:string} = {};
+      for (const install_id in this._workers) {
+        results[install_id] = await this._workers[install_id].onRequest(key);
+      }
+      return results
+    }
   }
 
   /**
@@ -181,6 +192,19 @@ export class App {
   async getOfflineObnizes() {}
 
   async getObnizesOnThisInstance() {}
+
+  /**
+   * Reqeust a results for specified key for working workers.
+   * This function is useful when asking live information.
+   * @param key string for request 
+   * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
+   */
+  public async request(key:string): Promise<{[key:string]:string}> {
+    if (this.isScalableMode) {
+      throw new Error(`request for scalableMode is not supported yet`);
+    }
+    return await this._adaptor.request(key);
+  }
 
   private async _startOneWorker(install: InstalledDevice) {
     logger.info(`New App Start id=${install.id}`);

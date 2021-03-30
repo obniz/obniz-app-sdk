@@ -12,6 +12,7 @@ export class Adaptor {
   public onReportRequest?: () => Promise<void>
   public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>
   public onReported?: (instanceName: string, installIds: string[]) => Promise<void>
+  public onRequestRequested?: (key: string) => Promise<{[key:string]: string}>
 
   constructor() {
 
@@ -34,5 +35,13 @@ export class Adaptor {
     if (this.onReported) {
       this.onReported(instanceName, installIds);
     }
+  }
+
+
+  async request(key: string): Promise<{[key:string]: string}> {
+    if (this.onRequestRequested) {
+      return await this.onRequestRequested(key);
+    }
+    return {};
   }
 }

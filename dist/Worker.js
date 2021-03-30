@@ -18,8 +18,19 @@ class Worker {
      * Worker lifecycle
      */
     async onStart() { }
+    /**
+     * This funcion will be called rrepeatedly while App is started.
+     */
     async onLoop() { }
     async onEnd() { }
+    /**
+     *
+     * @param key string key that represents what types of reqeust.
+     * @returns string for requested key
+     */
+    async onRequest(key) {
+        return "";
+    }
     /**
      * obniz lifecycle
      */
@@ -58,7 +69,12 @@ class Worker {
         if (this.state === "starting" || this.state === "started") {
             this.state = "stopping";
             if (this.obniz) {
-                this.obniz.close(); // todo: change to closeWait
+                try {
+                    await this.obniz.closeWait(); // todo: change to closeWait
+                }
+                catch (e) {
+                    console.error(e); // handle close caused error. and promise onEnd() called
+                }
             }
             this.obniz = undefined;
             await this.onEnd();

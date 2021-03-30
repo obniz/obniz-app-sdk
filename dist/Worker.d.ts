@@ -17,8 +17,17 @@ export declare abstract class Worker {
      * Worker lifecycle
      */
     onStart(): Promise<void>;
+    /**
+     * This funcion will be called rrepeatedly while App is started.
+     */
     onLoop(): Promise<void>;
     onEnd(): Promise<void>;
+    /**
+     *
+     * @param key string key that represents what types of reqeust.
+     * @returns string for requested key
+     */
+    onRequest(key: string): Promise<string>;
     /**
      * obniz lifecycle
      */

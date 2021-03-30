@@ -25,6 +25,12 @@ class Adaptor {
             this.onReported(instanceName, installIds);
         }
     }
+    async request(key) {
+        if (this.onRequestRequested) {
+            return await this.onRequestRequested(key);
+        }
+        return {};
+    }
 }
 exports.Adaptor = Adaptor;
 //# sourceMappingURL=Adaptor.js.map

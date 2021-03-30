@@ -76,7 +76,6 @@ class Worker {
                     console.error(e); // handle close caused error. and promise onEnd() called
                 }
             }
-            this.obniz = undefined;
             await this.onEnd();
             this.state = "stopped";
         }

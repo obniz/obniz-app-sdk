@@ -9,7 +9,7 @@ import { ObnizOptions } from "obniz/dist/src/obniz/ObnizOptions";
 export declare abstract class Worker {
     install: any;
     protected app: App;
-    protected obniz?: Obniz;
+    protected obniz: Obniz;
     state: "stopped" | "starting" | "started" | "stopping";
     private readonly _obnizOption;
     constructor(install: any, app: App, option?: ObnizOptions);

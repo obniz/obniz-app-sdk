@@ -11,7 +11,7 @@ import { logger } from "./logger";
 export abstract class Worker {
   public install: any;
   protected app: App;
-  protected obniz?: Obniz;
+  protected obniz!: Obniz;
   public state: "stopped" | "starting" | "started" | "stopping" = "stopped";
   private readonly _obnizOption: ObnizOptions;
 
@@ -93,9 +93,7 @@ export abstract class Worker {
           console.error(e); // handle close caused error. and promise onEnd() called
         }
       }
-      this.obniz = undefined;
       await this.onEnd();
-
       this.state = "stopped";
     }
   }

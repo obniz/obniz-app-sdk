@@ -1,4 +1,4 @@
-import { Installed_Device as InstalledDevice } from "obniz-cloud-sdk/sdk";
+import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 
 /**
  * 一方向性のリスト同期
@@ -9,8 +9,13 @@ import { Installed_Device as InstalledDevice } from "obniz-cloud-sdk/sdk";
 export class Adaptor {
   public onReportRequest?: () => Promise<void>;
   public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
-  public onReported?: (instanceName: string, installIds: string[]) => Promise<void>;
-  public onRequestRequested?: (key: string) => Promise<{ [key: string]: string }>;
+  public onReported?: (
+    instanceName: string,
+    installIds: string[]
+  ) => Promise<void>;
+  public onRequestRequested?: (
+    key: string
+  ) => Promise<{ [key: string]: string }>;
 
   constructor() {}
 

@@ -1,5 +1,3 @@
-
-
 export * from './App';
 export * from './Worker';
 export * from './authMiddleware';
@@ -9,4 +7,4 @@ export * from './authMiddleware';
  * So it must be exported from this library
  */
 import Obniz from 'obniz';
-export {Obniz}
+export { Obniz };

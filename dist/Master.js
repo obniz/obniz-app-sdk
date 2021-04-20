@@ -23,8 +23,8 @@ class Master {
         this._allWorkerInstances = {};
         this._appToken = appToken;
         this.scaleFactor = scaleFactor;
-        if (database !== "redis") {
-            throw new Error("Supported database type is only redis now.");
+        if (database !== 'redis') {
+            throw new Error('Supported database type is only redis now.');
         }
         if (scaleFactor > 0) {
             this.adaptor = new RedisAdaptor_1.RedisAdaptor(instanceName, true, databaseConfig);
@@ -32,22 +32,22 @@ class Master {
         else {
             this.adaptor = new Adaptor_1.Adaptor();
         }
-        this.adaptor.onReported = async (instanceName, installIds) => {
-            // logger.debug(`receive report ${instanceName}`)
-            const exist = this._allWorkerInstances[instanceName];
+        this.adaptor.onReported = async (reportInstanceName, installIds) => {
+            // logger.debug(`receive report ${reportInstanceName}`)
+            const exist = this._allWorkerInstances[reportInstanceName];
             if (exist) {
                 exist.installIds = installIds;
                 exist.updatedMillisecond = Date.now().valueOf();
             }
             else {
-                this._allWorkerInstances[instanceName] = {
-                    name: instanceName,
-                    installIds: installIds,
-                    updatedMillisecond: Date.now().valueOf()
+                this._allWorkerInstances[reportInstanceName] = {
+                    name: reportInstanceName,
+                    installIds,
+                    updatedMillisecond: Date.now().valueOf(),
                 };
-                this.onInstanceAttached(instanceName);
+                this.onInstanceAttached(reportInstanceName);
             }
-            this.onInstanceReported(instanceName);
+            this.onInstanceReported(reportInstanceName);
         };
     }
     start(option) {
@@ -59,8 +59,8 @@ class Master {
         option = option || {};
         this._startOptions = {
             express: option.express || express_1.default(),
-            webhookUrl: option.webhookUrl || "/webhook",
-            port: option.port || 3333
+            webhookUrl: option.webhookUrl || '/webhook',
+            port: option.port || 3333,
         };
         this._startOptions.express.get(this._startOptions.webhookUrl, this._webhook.bind(this));
         this._startOptions.express.post(this._startOptions.webhookUrl, this._webhook.bind(this));
@@ -86,7 +86,7 @@ class Master {
      * 空き状況から最適なWorkerを推測
      */
     bestWorkerInstance() {
-        let installCounts = {};
+        const installCounts = {};
         for (const name in this._allWorkerInstances) {
             installCounts[name] = 0;
         }
@@ -133,7 +133,9 @@ class Master {
             }
         }
         // synchronize
-        this.synchronize().then().catch(e => {
+        this.synchronize()
+            .then()
+            .catch((e) => {
             logger_1.logger.error(e);
         });
     }
@@ -166,7 +168,9 @@ class Master {
                     logger_1.logger.error(e);
                 }
             }, 60 * 1000);
-            this._syncInstalls().then().catch(e => {
+            this._syncInstalls()
+                .then()
+                .catch((e) => {
                 logger_1.logger.error(e);
             });
         }
@@ -190,7 +194,7 @@ class Master {
             // logger.debug("sync api start");
             const installsApi = [];
             try {
-                installsApi.push(...await install_1.getInstallRequest(this._appToken));
+                installsApi.push(...(await install_1.getInstallRequest(this._appToken)));
             }
             catch (e) {
                 console.error(e);
@@ -249,7 +253,7 @@ class Master {
                     instanceName: instance.name,
                     status: InstallStatus.Starting,
                     updatedMillisecond: Date.now().valueOf(),
-                    install
+                    install,
                 };
                 this._allInstalls[install.id] = managedInstall;
             }
@@ -261,7 +265,7 @@ class Master {
         this._syncing = false;
     }
     async synchronize() {
-        let separated = {};
+        const separated = {};
         for (const id in this._allInstalls) {
             const managedInstall = this._allInstalls[id];
             const instanceName = managedInstall.instanceName;

@@ -1,8 +1,8 @@
-import express from "express";
-import { Worker } from "./Worker";
-import { Installed_Device as InstalledDevice, User } from "obniz-cloud-sdk/sdk";
-import IORedis from "ioredis";
-import { ObnizLikeClass } from "./ObnizLike";
+import express from 'express';
+import { Worker } from './Worker';
+import { Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
+import IORedis from 'ioredis';
+import { ObnizLikeClass } from './ObnizLike';
 export interface DatabaseConfig {
     redis: IORedis.RedisOptions;
     memory: {

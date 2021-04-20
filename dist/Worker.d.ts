@@ -1,6 +1,6 @@
-import { App } from "./App";
-import { ObnizOptions } from "obniz/dist/src/obniz/ObnizOptions";
-import { ObnizLike, ObnizLikeClass } from "./ObnizLike";
+import { App } from './App';
+import { ObnizOptions } from 'obniz/dist/src/obniz/ObnizOptions';
+import { ObnizLike, ObnizLikeClass } from './ObnizLike';
 /**
  * This class is exported from this library
  * "Abstract" must be drop
@@ -10,7 +10,7 @@ export declare abstract class Worker<O extends ObnizLikeClass> {
     install: any;
     protected app: App<O>;
     protected obniz: ObnizLike;
-    state: "stopped" | "starting" | "started" | "stopping";
+    state: 'stopped' | 'starting' | 'started' | 'stopping';
     private readonly _obnizOption;
     constructor(install: any, app: App<O>, option?: ObnizOptions);
     /**

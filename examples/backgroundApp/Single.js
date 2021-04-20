@@ -1,4 +1,5 @@
-const { App, AppInstanceType, Worker, Obniz } = require('../../dist')
+const { App, AppInstanceType, Worker } = require('../../dist')
+const Obniz = require("obniz");
 
 class MyWorker extends Worker {
 
@@ -45,7 +46,8 @@ class MyWorker extends Worker {
 const app = new App({
   appToken: process.env.AppToken,
   workerClass: MyWorker,
-  instanceType: AppInstanceType.Master
+  instanceType: AppInstanceType.Master,
+  obnizClass: Obniz
 })
 
 app.start();

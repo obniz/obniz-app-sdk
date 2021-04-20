@@ -1,9 +1,8 @@
-import { getSdk } from "obniz-cloud-sdk";
-import { Installed_Device } from "obniz-cloud-sdk/sdk";
-
+import { getSdk } from 'obniz-cloud-sdk';
+import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 
 // TODO: !を使ってるのを治す
-export async function getInstallRequest(token: string){
+export async function getInstallRequest(token: string) {
   const sdk = getSdk(token);
   const allInstalls: Installed_Device[] = [];
   let skip = 0;

@@ -9,11 +9,14 @@ const logger_1 = require("./logger");
  */
 class Worker {
     constructor(install, app, option = {}) {
-        this.state = "stopped";
+        this.state = 'stopped';
         this.install = install;
         this.app = app;
         this._obnizOption = option;
-        this.obniz = new this.app.obnizClass(this.install.id, this._obnizOption);
+        const overrideOptions = {
+            auto_connect: false,
+        };
+        this.obniz = new this.app.obnizClass(this.install.id, Object.assign(Object.assign({}, this._obnizOption), overrideOptions));
         this.obniz.onconnect = this.onObnizConnect.bind(this);
         this.obniz.onloop = this.onObnizLoop.bind(this);
         this.obniz.onclose = this.onObnizClose.bind(this);
@@ -33,7 +36,7 @@ class Worker {
      * @returns string for requested key
      */
     async onRequest(key) {
-        return "";
+        return '';
     }
     /**
      * obniz lifecycle
@@ -42,18 +45,25 @@ class Worker {
     async onObnizLoop(obniz) { }
     async onObnizClose(obniz) { }
     async start() {
-        if (this.state !== "stopped") {
+        if (this.state !== 'stopped') {
             throw new Error(`invalid state`);
         }
-        this.state = "starting";
+        this.state = 'starting';
         await this.onStart();
-        this.state = "started";
+        this.state = 'started';
+        if (this.obniz.autoConnect) {
+            this.obniz.autoConnect = true;
+        }
+        else {
+            this.obniz.options.auto_connect = true;
+        }
+        this.obniz.connect();
         // in background
         // noinspection ES6MissingAwait
         this._loop();
     }
     async _loop() {
-        while (this.state === "starting" || this.state === "started") {
+        while (this.state === 'starting' || this.state === 'started') {
             try {
                 await this.onLoop();
             }
@@ -66,8 +76,8 @@ class Worker {
         }
     }
     async stop() {
-        if (this.state === "starting" || this.state === "started") {
-            this.state = "stopping";
+        if (this.state === 'starting' || this.state === 'started') {
+            this.state = 'stopping';
             if (this.obniz) {
                 try {
                     await this.obniz.closeWait();
@@ -77,7 +87,7 @@ class Worker {
                 }
             }
             await this.onEnd();
-            this.state = "stopped";
+            this.state = 'stopped';
         }
     }
 }

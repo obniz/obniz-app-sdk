@@ -16,36 +16,41 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         this._redis = new ioredis_1.default(redisOption);
         this._pubRedis = new ioredis_1.default(redisOption);
         console.log(redisOption);
-        this._redis.subscribe("app", () => {
-        });
-        this._redis.on("ready", () => {
-            logger_1.logger.debug("ready");
+        this._redis.subscribe('app', () => { });
+        this._redis.on('ready', () => {
+            logger_1.logger.debug('ready');
             if (this.isMaster) {
-                this.reportRequest().then(() => {
-                }).catch(e => {
+                this.reportRequest()
+                    .then(() => { })
+                    .catch((e) => {
                     logger_1.logger.error(e);
                 });
             }
             else {
-                this.onReportRequest().then(() => {
-                }).catch(e => {
+                this.onReportRequest()
+                    .then(() => { })
+                    .catch((e) => {
                     logger_1.logger.error(e);
                 });
             }
         });
-        this._redis.on("message", (channel, message) => {
+        this._redis.on('message', (channel, message) => {
             const parsed = JSON.parse(message);
             // slave functions
-            if (this.isMaster === parsed.toMaster && this.isMaster === false && (parsed.instanceName === this.id || parsed.instanceName === '*')) {
+            if (this.isMaster === parsed.toMaster &&
+                this.isMaster === false &&
+                (parsed.instanceName === this.id || parsed.instanceName === '*')) {
                 if (parsed.action === 'synchronize') {
-                    this.onSynchronize(parsed.installs).then(() => {
-                    }).catch(e => {
+                    this.onSynchronize(parsed.installs)
+                        .then(() => { })
+                        .catch((e) => {
                         logger_1.logger.error(e);
                     });
                 }
                 else if (parsed.action === 'reportRequest') {
-                    this.onReportRequest().then(() => {
-                    }).catch(e => {
+                    this.onReportRequest()
+                        .then(() => { })
+                        .catch((e) => {
                         logger_1.logger.error(e);
                     });
                 }
@@ -53,36 +58,37 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
             }
             else if (this.isMaster === parsed.toMaster && this.isMaster === true) {
                 if (parsed.action === 'report') {
-                    this.onReported(parsed.instanceName, parsed.installIds).then(() => {
-                    }).catch(e => {
+                    this.onReported(parsed.instanceName, parsed.installIds)
+                        .then(() => { })
+                        .catch((e) => {
                         logger_1.logger.error(e);
                     });
                 }
             }
         });
-        this._redis.on("+node", () => {
+        this._redis.on('+node', () => {
             logger_1.logger.debug('+node');
         });
-        this._redis.on("-node", () => {
+        this._redis.on('-node', () => {
             logger_1.logger.debug('-node');
         });
     }
     async send(json) {
-        await this._pubRedis.publish("app", JSON.stringify(json));
+        await this._pubRedis.publish('app', JSON.stringify(json));
     }
     async synchronize(instanceName, installs) {
         await this.send({
             action: 'synchronize',
             instanceName,
             toMaster: false,
-            installs
+            installs,
         });
     }
     async reportRequest() {
         await this.send({
             action: 'reportRequest',
             instanceName: '*',
-            toMaster: false
+            toMaster: false,
         });
     }
     async report(instanceName, installIds) {
@@ -90,7 +96,7 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
             action: 'report',
             instanceName,
             toMaster: true,
-            installIds
+            installIds,
         });
     }
 }

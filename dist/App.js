@@ -18,22 +18,22 @@ class App {
         this._workers = {};
         this._syncing = false;
         this.isScalableMode = false;
-        const requiredObnizJsVersion = "3.15.0";
+        const requiredObnizJsVersion = '3.14.0';
         if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
-            throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required`);
+            throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
         }
         this._options = {
             appToken: option.appToken,
-            database: option.database || "redis",
+            database: option.database || 'redis',
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass,
             obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
-            instanceName: option.instanceName || "master",
+            instanceName: option.instanceName || 'master',
             scaleFactor: option.scaleFactor || 0,
         };
-        if (this._options.database !== "redis") {
-            throw new Error("Supported database type is only redis now.");
+        if (this._options.database !== 'redis') {
+            throw new Error('Supported database type is only redis now.');
         }
         if (option.instanceType === AppInstanceType.Master) {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
@@ -147,7 +147,8 @@ class App {
     }
     async _startOrRestartOneWorker(install) {
         const oldWorker = this._workers[install.id];
-        if (oldWorker && JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
+        if (oldWorker &&
+            JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
             logger_1.logger.info(`App config changed id=${install.id}`);
             await this._stopOneWorker(install.id);
             await this._startOneWorker(install);

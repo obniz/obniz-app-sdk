@@ -1,28 +1,28 @@
-import {logger} from './logger'
-import {getInstallRequest} from "./install";
-import {Installed_Device as InstalledDevice} from 'obniz-cloud-sdk/sdk';
-import {Adaptor} from './adaptor/Adaptor';
-import {RedisAdaptor} from './adaptor/RedisAdaptor';
+import { logger } from './logger';
+import { getInstallRequest } from './install';
+import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { Adaptor } from './adaptor/Adaptor';
+import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import express from 'express';
-import {AppStartOption, Database, DatabaseConfig} from './App'
+import { AppStartOption, Database, DatabaseConfig } from './App';
 
 enum InstallStatus {
   Starting,
   Started,
   Stopping,
-  Stopped
+  Stopped,
 }
 
 interface ManagedInstall {
-  instanceName: string; // Which Instance handling this 
+  instanceName: string; // Which Instance handling this
   install: InstalledDevice;
   status: InstallStatus;
   updatedMillisecond: number;
 }
 
 interface WorkerInstance {
-  name: string
-  installIds: string[],
+  name: string;
+  installIds: string[];
   updatedMillisecond: number;
 }
 
@@ -38,40 +38,52 @@ export class Master<T extends Database> {
 
   private readonly _appToken: string;
   private _startOptions?: AppStartOptionInternal;
-  private _syncing: boolean = false;
+  private _syncing = false;
   private _interval?: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
 
-  constructor(appToken: string, instanceName: string, scaleFactor: number, database: T, databaseConfig: DatabaseConfig[T]) {
+  constructor(
+    appToken: string,
+    instanceName: string,
+    scaleFactor: number,
+    database: T,
+    databaseConfig: DatabaseConfig[T]
+  ) {
     this._appToken = appToken;
     this.scaleFactor = scaleFactor;
 
-
-    if(database !== "redis"){
-      throw new Error("Supported database type is only redis now.");
+    if (database !== 'redis') {
+      throw new Error('Supported database type is only redis now.');
     }
     if (scaleFactor > 0) {
-      this.adaptor = new RedisAdaptor(instanceName, true, databaseConfig as DatabaseConfig["redis"] );
+      this.adaptor = new RedisAdaptor(
+        instanceName,
+        true,
+        databaseConfig as DatabaseConfig['redis']
+      );
     } else {
       this.adaptor = new Adaptor();
     }
-    this.adaptor.onReported = async (instanceName: string, installIds: string[]) => {
-      // logger.debug(`receive report ${instanceName}`)
-      const exist = this._allWorkerInstances[instanceName];
+    this.adaptor.onReported = async (
+      reportInstanceName: string,
+      installIds: string[]
+    ) => {
+      // logger.debug(`receive report ${reportInstanceName}`)
+      const exist = this._allWorkerInstances[reportInstanceName];
       if (exist) {
         exist.installIds = installIds;
         exist.updatedMillisecond = Date.now().valueOf();
       } else {
-        this._allWorkerInstances[instanceName] = {
-          name: instanceName,
-          installIds: installIds,
-          updatedMillisecond: Date.now().valueOf()
-        }
-        this.onInstanceAttached(instanceName);
+        this._allWorkerInstances[reportInstanceName] = {
+          name: reportInstanceName,
+          installIds,
+          updatedMillisecond: Date.now().valueOf(),
+        };
+        this.onInstanceAttached(reportInstanceName);
       }
-      this.onInstanceReported(instanceName);
-    }
+      this.onInstanceReported(reportInstanceName);
+    };
   }
 
   public start(option?: AppStartOption) {
@@ -84,16 +96,26 @@ export class Master<T extends Database> {
     option = option || {};
     this._startOptions = {
       express: option.express || express(),
-      webhookUrl: option.webhookUrl || "/webhook",
-      port: option.port || 3333
-    }
-    this._startOptions.express.get(this._startOptions.webhookUrl, this._webhook.bind(this));
-    this._startOptions.express.post(this._startOptions.webhookUrl, this._webhook.bind(this));
+      webhookUrl: option.webhookUrl || '/webhook',
+      port: option.port || 3333,
+    };
+    this._startOptions.express.get(
+      this._startOptions.webhookUrl,
+      this._webhook.bind(this)
+    );
+    this._startOptions.express.post(
+      this._startOptions.webhookUrl,
+      this._webhook.bind(this)
+    );
 
     if (!option.express) {
       this._startOptions.express.listen(this._startOptions.port, () => {
-        logger.debug(`App listening on http://localhost:${(this._startOptions || {}).port} `);
-      })
+        logger.debug(
+          `App listening on http://localhost:${
+            (this._startOptions || {}).port
+          } `
+        );
+      });
     }
   }
 
@@ -113,7 +135,7 @@ export class Master<T extends Database> {
    * 空き状況から最適なWorkerを推測
    */
   private bestWorkerInstance(): WorkerInstance {
-    let installCounts: any = {}
+    const installCounts: any = {};
     for (const name in this._allWorkerInstances) {
       installCounts[name] = 0;
     }
@@ -149,7 +171,6 @@ export class Master<T extends Database> {
    * @param id
    */
   private onInstanceMissed(instanceName: string) {
-
     // delete immediately
     const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
     delete this._allWorkerInstances[instanceName];
@@ -158,16 +179,18 @@ export class Master<T extends Database> {
     for (const id in this._allInstalls) {
       const managedInstall = this._allInstalls[id];
       if (managedInstall.instanceName === diedWorker.name) {
-        const nextWorker = this.bestWorkerInstance()
+        const nextWorker = this.bestWorkerInstance();
         managedInstall.instanceName = nextWorker.name;
         managedInstall.status = InstallStatus.Starting;
       }
     }
 
     // synchronize
-    this.synchronize().then().catch(e => {
-      logger.error(e);
-    });
+    this.synchronize()
+      .then()
+      .catch((e) => {
+        logger.error(e);
+      });
   }
 
   /**
@@ -198,9 +221,11 @@ export class Master<T extends Database> {
           logger.error(e);
         }
       }, 60 * 1000);
-      this._syncInstalls().then().catch(e => {
-        logger.error(e);
-      });
+      this._syncInstalls()
+        .then()
+        .catch((e) => {
+          logger.error(e);
+        });
     }
   }
 
@@ -225,7 +250,7 @@ export class Master<T extends Database> {
 
       const installsApi = [];
       try {
-        installsApi.push(...await getInstallRequest(this._appToken));
+        installsApi.push(...(await getInstallRequest(this._appToken)));
       } catch (e) {
         console.error(e);
         process.exit(-1);
@@ -268,7 +293,9 @@ export class Master<T extends Database> {
       }
       if (mustAdds.length + updated.length + deleted.length > 0) {
         logger.debug(`all \t| added \t| updated \t| deleted`);
-        logger.debug(`${installsApi.length} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
+        logger.debug(
+          `${installsApi.length} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`
+        );
       }
 
       for (const install of updated) {
@@ -285,12 +312,11 @@ export class Master<T extends Database> {
           instanceName: instance.name,
           status: InstallStatus.Starting,
           updatedMillisecond: Date.now().valueOf(),
-          install
-        }
+          install,
+        };
         this._allInstalls[install.id] = managedInstall;
       }
       await this.synchronize();
-
     } catch (e) {
       console.error(e);
     }
@@ -298,18 +324,20 @@ export class Master<T extends Database> {
   }
 
   private async synchronize() {
-    let separated: { [key: string]: InstalledDevice[] } = {};
+    const separated: { [key: string]: InstalledDevice[] } = {};
     for (const id in this._allInstalls) {
       const managedInstall: ManagedInstall = this._allInstalls[id];
       const instanceName = managedInstall.instanceName;
       if (!separated[instanceName]) {
-        separated[instanceName] = []
+        separated[instanceName] = [];
       }
       separated[instanceName].push(managedInstall.install);
     }
     //
     for (const instanceName in separated) {
-      logger.debug(`synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`)
+      logger.debug(
+        `synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`
+      );
       await this.adaptor.synchronize(instanceName, separated[instanceName]);
     }
   }
@@ -339,7 +367,7 @@ export class Master<T extends Database> {
   // }
 
   private _onHealthCheckFailedWorkerInstance(workerInstance: WorkerInstance) {
-    logger.warn(`health check failed worker ${workerInstance.name}`)
+    logger.warn(`health check failed worker ${workerInstance.name}`);
     this.onInstanceMissed(workerInstance.name);
   }
 }

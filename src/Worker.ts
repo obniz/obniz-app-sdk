@@ -1,7 +1,7 @@
-import { App } from "./App";
-import { ObnizOptions } from "obniz/dist/src/obniz/ObnizOptions";
-import { logger } from "./logger";
-import { ObnizLike, ObnizLikeClass } from "./ObnizLike";
+import { App } from './App';
+import { ObnizOptions } from 'obniz/dist/src/obniz/ObnizOptions';
+import { logger } from './logger';
+import { ObnizLike, ObnizLikeClass } from './ObnizLike';
 
 /**
  * This class is exported from this library
@@ -12,7 +12,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
   public install: any;
   protected app: App<O>;
   protected obniz: ObnizLike;
-  public state: "stopped" | "starting" | "started" | "stopping" = "stopped";
+  public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
   private readonly _obnizOption: ObnizOptions;
 
   constructor(install: any, app: App<O>, option: ObnizOptions = {}) {
@@ -20,7 +20,13 @@ export abstract class Worker<O extends ObnizLikeClass> {
     this.app = app;
     this._obnizOption = option;
 
-    this.obniz = new this.app.obnizClass(this.install.id, this._obnizOption);
+    const overrideOptions = {
+      auto_connect: false,
+    };
+    this.obniz = new this.app.obnizClass(this.install.id, {
+      ...this._obnizOption,
+      ...overrideOptions,
+    });
     this.obniz.onconnect = this.onObnizConnect.bind(this);
     this.obniz.onloop = this.onObnizLoop.bind(this);
     this.obniz.onclose = this.onObnizClose.bind(this);
@@ -45,7 +51,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
    * @returns string for requested key
    */
   async onRequest(key: string): Promise<string> {
-    return "";
+    return '';
   }
 
   /**
@@ -59,13 +65,20 @@ export abstract class Worker<O extends ObnizLikeClass> {
   async onObnizClose(obniz: ObnizLike) {}
 
   async start() {
-    if (this.state !== "stopped") {
+    if (this.state !== 'stopped') {
       throw new Error(`invalid state`);
     }
-    this.state = "starting";
+    this.state = 'starting';
     await this.onStart();
 
-    this.state = "started";
+    this.state = 'started';
+
+    if (this.obniz.autoConnect) {
+      this.obniz.autoConnect = true;
+    } else {
+      this.obniz.options.auto_connect = true;
+    }
+    this.obniz.connect();
 
     // in background
     // noinspection ES6MissingAwait
@@ -73,7 +86,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
   }
 
   private async _loop() {
-    while (this.state === "starting" || this.state === "started") {
+    while (this.state === 'starting' || this.state === 'started') {
       try {
         await this.onLoop();
       } catch (e) {
@@ -86,8 +99,8 @@ export abstract class Worker<O extends ObnizLikeClass> {
   }
 
   async stop() {
-    if (this.state === "starting" || this.state === "started") {
-      this.state = "stopping";
+    if (this.state === 'starting' || this.state === 'started') {
+      this.state = 'stopping';
       if (this.obniz) {
         try {
           await this.obniz.closeWait();
@@ -96,7 +109,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
         }
       }
       await this.onEnd();
-      this.state = "stopped";
+      this.state = 'stopped';
     }
   }
 }

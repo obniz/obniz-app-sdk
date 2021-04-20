@@ -1,13 +1,13 @@
-import express from "express";
-import { Worker } from "./Worker";
-import { logger } from "./logger";
-import { Master } from "./Master";
-import { RedisAdaptor } from "./adaptor/RedisAdaptor";
-import { Adaptor } from "./adaptor/Adaptor";
-import { Installed_Device as InstalledDevice, User } from "obniz-cloud-sdk/sdk";
-import IORedis from "ioredis";
-import { ObnizLikeClass } from "./ObnizLike";
-import semver from "semver";
+import express from 'express';
+import { Worker } from './Worker';
+import { logger } from './logger';
+import { Master as MasterClass } from './Master';
+import { RedisAdaptor } from './adaptor/RedisAdaptor';
+import { Adaptor } from './adaptor/Adaptor';
+import { Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
+import IORedis from 'ioredis';
+import { ObnizLikeClass } from './ObnizLike';
+import semver from 'semver';
 
 export interface DatabaseConfig {
   redis: IORedis.RedisOptions;
@@ -32,7 +32,9 @@ export interface AppOption<T extends Database, O extends ObnizLikeClass> {
   scaleFactor?: number; // number of installs.
 }
 
-type AppOptionInternal<T extends Database, O extends ObnizLikeClass> = Required<AppOption<T, O>>;
+type AppOptionInternal<T extends Database, O extends ObnizLikeClass> = Required<
+  AppOption<T, O>
+>;
 
 export interface AppStartOption {
   express?: express.Express;
@@ -44,7 +46,7 @@ export class App<O extends ObnizLikeClass> {
   private _options: AppOptionInternal<any, O>;
 
   // As Master
-  private readonly _master?: Master<any>;
+  private readonly _master?: MasterClass<any>;
 
   // As Worker
   private _adaptor: Adaptor;
@@ -58,37 +60,45 @@ export class App<O extends ObnizLikeClass> {
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
   constructor(option: AppOption<any, any>) {
-    const requiredObnizJsVersion = "3.15.0";
+    const requiredObnizJsVersion = '3.14.0';
 
-    if (semver.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
-      throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required`);
+    if (
+      semver.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)
+    ) {
+      throw new Error(
+        `obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`
+      );
     }
     this._options = {
       appToken: option.appToken,
-      database: option.database || "redis",
+      database: option.database || 'redis',
       databaseConfig: option.databaseConfig,
       workerClass: option.workerClass,
       obnizClass: option.obnizClass,
       instanceType: option.instanceType || AppInstanceType.Master,
-      instanceName: option.instanceName || "master",
+      instanceName: option.instanceName || 'master',
       scaleFactor: option.scaleFactor || 0,
     };
 
-    if (this._options.database !== "redis") {
-      throw new Error("Supported database type is only redis now.");
+    if (this._options.database !== 'redis') {
+      throw new Error('Supported database type is only redis now.');
     }
     if (option.instanceType === AppInstanceType.Master) {
-      this._master = new Master(
+      this._master = new MasterClass(
         option.appToken,
         this._options.instanceName,
         this._options.scaleFactor,
         this._options.database,
-        this._options.databaseConfig,
+        this._options.databaseConfig
       );
     }
     this.isScalableMode = this._options.scaleFactor > 0;
     if (this.isScalableMode) {
-      this._adaptor = new RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
+      this._adaptor = new RedisAdaptor(
+        this._options.instanceName,
+        false,
+        this._options.databaseConfig
+      );
     } else {
       // share same adaptor
       this._adaptor = this._master!.adaptor;
@@ -102,7 +112,9 @@ export class App<O extends ObnizLikeClass> {
       await this._reportToMaster();
     };
 
-    this._adaptor.onRequestRequested = async (key: string): Promise<{ [key: string]: string }> => {
+    this._adaptor.onRequestRequested = async (
+      key: string
+    ): Promise<{ [key: string]: string }> => {
       const results: { [key: string]: string } = {};
       for (const install_id in this._workers) {
         results[install_id] = await this._workers[install_id].onRequest(key);
@@ -212,7 +224,10 @@ export class App<O extends ObnizLikeClass> {
 
   private async _startOrRestartOneWorker(install: InstalledDevice) {
     const oldWorker = this._workers[install.id];
-    if (oldWorker && JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
+    if (
+      oldWorker &&
+      JSON.stringify(oldWorker.install) !== JSON.stringify(install)
+    ) {
       logger.info(`App config changed id=${install.id}`);
       await this._stopOneWorker(install.id);
       await this._startOneWorker(install);

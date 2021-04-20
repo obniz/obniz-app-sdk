@@ -112,7 +112,7 @@ class Master {
      * @param id
      */
     onInstanceAttached(instanceName) {
-        const worker = this._allWorkerInstances[instanceName];
+        // const worker: WorkerInstance = this._allWorkerInstances[instanceName];
         // TODO: Overloadのinstanceがあれば引っ越しさせる
     }
     /**

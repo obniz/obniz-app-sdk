@@ -33,11 +33,13 @@ export class RedisAdaptor extends Adaptor {
             logger.error(e);
           });
       } else {
-        this.onReportRequest!()
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
+        if (this.onReportRequest) {
+          this.onReportRequest()
+            .then(() => {})
+            .catch((e) => {
+              logger.error(e);
+            });
+        }
       }
     });
     this._redis.on('message', (channel: string, message: string) => {
@@ -49,26 +51,32 @@ export class RedisAdaptor extends Adaptor {
         (parsed.instanceName === this.id || parsed.instanceName === '*')
       ) {
         if (parsed.action === 'synchronize') {
-          this.onSynchronize!(parsed.installs)
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
+          if (this.onSynchronize) {
+            this.onSynchronize(parsed.installs)
+              .then(() => {})
+              .catch((e) => {
+                logger.error(e);
+              });
+          }
         } else if (parsed.action === 'reportRequest') {
-          this.onReportRequest!()
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
+          if (this.onReportRequest) {
+            this.onReportRequest()
+              .then(() => {})
+              .catch((e) => {
+                logger.error(e);
+              });
+          }
         }
         // master functions
       } else if (this.isMaster === parsed.toMaster && this.isMaster === true) {
         if (parsed.action === 'report') {
-          this.onReported!(parsed.instanceName, parsed.installIds)
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
+          if (this.onReported) {
+            this.onReported(parsed.instanceName, parsed.installIds)
+              .then(() => {})
+              .catch((e) => {
+                logger.error(e);
+              });
+          }
         }
       }
     });
@@ -80,11 +88,15 @@ export class RedisAdaptor extends Adaptor {
     });
   }
 
-  async send(json: any) {
+  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+  async send(json: any): Promise<void> {
     await this._pubRedis.publish('app', JSON.stringify(json));
   }
 
-  async synchronize(instanceName: string, installs: Installed_Device[]) {
+  async synchronize(
+    instanceName: string,
+    installs: Installed_Device[]
+  ): Promise<void> {
     await this.send({
       action: 'synchronize',
       instanceName,
@@ -93,7 +105,7 @@ export class RedisAdaptor extends Adaptor {
     });
   }
 
-  async reportRequest() {
+  async reportRequest(): Promise<void> {
     await this.send({
       action: 'reportRequest',
       instanceName: '*',
@@ -101,7 +113,7 @@ export class RedisAdaptor extends Adaptor {
     });
   }
 
-  async report(instanceName: string, installIds: string[]) {
+  async report(instanceName: string, installIds: string[]): Promise<void> {
     await this.send({
       action: 'report',
       instanceName,

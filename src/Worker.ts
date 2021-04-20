@@ -2,6 +2,7 @@ import { App } from './App';
 import { ObnizOptions } from 'obniz/dist/src/obniz/ObnizOptions';
 import { logger } from './logger';
 import { ObnizLike, ObnizLikeClass } from './ObnizLike';
+import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 
 /**
  * This class is exported from this library
@@ -9,13 +10,17 @@ import { ObnizLike, ObnizLikeClass } from './ObnizLike';
  * Example: https://qiita.com/okdyy75/items/610623943979cf422775#%E3%81%BE%E3%81%82%E3%81%A8%E3%82%8A%E3%81%82%E3%81%88%E3%81%9A%E3%81%A9%E3%82%93%E3%81%AA%E6%84%9F%E3%81%98%E3%81%AB%E6%9B%B8%E3%81%8F%E3%81%AE
  */
 export abstract class Worker<O extends ObnizLikeClass> {
-  public install: any;
+  public install: Installed_Device;
   protected app: App<O>;
   protected obniz: ObnizLike;
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
   private readonly _obnizOption: ObnizOptions;
 
-  constructor(install: any, app: App<O>, option: ObnizOptions = {}) {
+  constructor(
+    install: Installed_Device,
+    app: App<O>,
+    option: ObnizOptions = {}
+  ) {
     this.install = install;
     this.app = app;
     this._obnizOption = option;
@@ -36,14 +41,14 @@ export abstract class Worker<O extends ObnizLikeClass> {
    * Worker lifecycle
    */
 
-  async onStart() {}
+  async onStart(): Promise<void> {}
 
   /**
    * This funcion will be called rrepeatedly while App is started.
    */
-  async onLoop() {}
+  async onLoop(): Promise<void> {}
 
-  async onEnd() {}
+  async onEnd(): Promise<void> {}
 
   /**
    *
@@ -58,13 +63,13 @@ export abstract class Worker<O extends ObnizLikeClass> {
    * obniz lifecycle
    */
 
-  async onObnizConnect(obniz: ObnizLike) {}
+  async onObnizConnect(obniz: ObnizLike): Promise<void> {}
 
-  async onObnizLoop(obniz: ObnizLike) {}
+  async onObnizLoop(obniz: ObnizLike): Promise<void> {}
 
-  async onObnizClose(obniz: ObnizLike) {}
+  async onObnizClose(obniz: ObnizLike): Promise<void> {}
 
-  async start() {
+  async start(): Promise<void> {
     if (this.state !== 'stopped') {
       throw new Error(`invalid state`);
     }
@@ -85,7 +90,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
     this._loop();
   }
 
-  private async _loop() {
+  private async _loop(): Promise<void> {
     while (this.state === 'starting' || this.state === 'started') {
       try {
         await this.onLoop();
@@ -98,7 +103,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
     }
   }
 
-  async stop() {
+  async stop(): Promise<void> {
     if (this.state === 'starting' || this.state === 'started') {
       this.state = 'stopping';
       if (this.obniz) {

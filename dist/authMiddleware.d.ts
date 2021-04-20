@@ -4,4 +4,4 @@ export interface AuthMiddlewareOption {
     tokenKeyName?: 'token';
     addUserObjectToRequest?: boolean;
 }
-export declare function authMiddleware(option?: AuthMiddlewareOption): (req: express.Request, res: express.Response, next: express.NextFunction) => Promise<void>;
+export declare function authMiddleware(option?: AuthMiddlewareOption): (req: express.Request, res: express.Response, next: express.NextFunction) => void;

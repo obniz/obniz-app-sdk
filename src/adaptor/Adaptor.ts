@@ -19,19 +19,22 @@ export class Adaptor {
 
   constructor() {}
 
-  async synchronize(instanceName: string, installs: InstalledDevice[]) {
+  async synchronize(
+    instanceName: string,
+    installs: InstalledDevice[]
+  ): Promise<void> {
     if (this.onSynchronize) {
       await this.onSynchronize(installs);
     }
   }
 
-  async reportRequest() {
+  async reportRequest(): Promise<void> {
     if (this.onReportRequest) {
       await this.onReportRequest();
     }
   }
 
-  async report(instanceName: string, installIds: string[]) {
+  async report(instanceName: string, installIds: string[]): Promise<void> {
     if (this.onReported) {
       this.onReported(instanceName, installIds);
     }

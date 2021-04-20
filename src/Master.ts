@@ -86,13 +86,13 @@ export class Master<T extends Database> {
     };
   }
 
-  public start(option?: AppStartOption) {
+  public start(option?: AppStartOption): void {
     this._startWeb(option);
     this._startSyncing();
     this._startHealthCheck();
   }
 
-  private _startWeb(option?: AppStartOption) {
+  private _startWeb(option?: AppStartOption): void {
     option = option || {};
     this._startOptions = {
       express: option.express || express(),
@@ -161,8 +161,8 @@ export class Master<T extends Database> {
    * instanceId がidのWorkerが新たに参加した
    * @param id
    */
-  private onInstanceAttached(instanceName: string) {
-    const worker: WorkerInstance = this._allWorkerInstances[instanceName];
+  private onInstanceAttached(instanceName: string): void {
+    // const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     // TODO: Overloadのinstanceがあれば引っ越しさせる
   }
 

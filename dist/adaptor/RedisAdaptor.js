@@ -27,11 +27,13 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
                 });
             }
             else {
-                this.onReportRequest()
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
+                if (this.onReportRequest) {
+                    this.onReportRequest()
+                        .then(() => { })
+                        .catch((e) => {
+                        logger_1.logger.error(e);
+                    });
+                }
             }
         });
         this._redis.on('message', (channel, message) => {
@@ -41,28 +43,34 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
                 this.isMaster === false &&
                 (parsed.instanceName === this.id || parsed.instanceName === '*')) {
                 if (parsed.action === 'synchronize') {
-                    this.onSynchronize(parsed.installs)
-                        .then(() => { })
-                        .catch((e) => {
-                        logger_1.logger.error(e);
-                    });
+                    if (this.onSynchronize) {
+                        this.onSynchronize(parsed.installs)
+                            .then(() => { })
+                            .catch((e) => {
+                            logger_1.logger.error(e);
+                        });
+                    }
                 }
                 else if (parsed.action === 'reportRequest') {
-                    this.onReportRequest()
-                        .then(() => { })
-                        .catch((e) => {
-                        logger_1.logger.error(e);
-                    });
+                    if (this.onReportRequest) {
+                        this.onReportRequest()
+                            .then(() => { })
+                            .catch((e) => {
+                            logger_1.logger.error(e);
+                        });
+                    }
                 }
                 // master functions
             }
             else if (this.isMaster === parsed.toMaster && this.isMaster === true) {
                 if (parsed.action === 'report') {
-                    this.onReported(parsed.instanceName, parsed.installIds)
-                        .then(() => { })
-                        .catch((e) => {
-                        logger_1.logger.error(e);
-                    });
+                    if (this.onReported) {
+                        this.onReported(parsed.instanceName, parsed.installIds)
+                            .then(() => { })
+                            .catch((e) => {
+                            logger_1.logger.error(e);
+                        });
+                    }
                 }
             }
         });
@@ -73,6 +81,7 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
             logger_1.logger.debug('-node');
         });
     }
+    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
     async send(json) {
         await this._pubRedis.publish('app', JSON.stringify(json));
     }

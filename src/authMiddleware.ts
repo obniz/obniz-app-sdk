@@ -13,7 +13,13 @@ interface AuthMiddlewareOptionInternal {
   addUserObjectToRequest: boolean;
 }
 
-export function authMiddleware(option: AuthMiddlewareOption = {}) {
+export function authMiddleware(
+  option: AuthMiddlewareOption = {}
+): (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => void {
   const _option: AuthMiddlewareOptionInternal = {
     tokenType: option.tokenType || 'cookie',
     tokenKeyName: option.tokenKeyName || 'token',

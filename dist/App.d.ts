@@ -39,7 +39,7 @@ export declare class App<O extends ObnizLikeClass> {
     isScalableMode: boolean;
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
-    constructor(option: AppOption<any, any>);
+    constructor(option: AppOption<any, O>);
     /**
      * Receive Master Generated List and compare current apps.
      * @param installs
@@ -51,13 +51,13 @@ export declare class App<O extends ObnizLikeClass> {
     private _reportToMaster;
     private _startSyncing;
     start(option?: AppStartOption): void;
-    getAllUsers(): Promise<void>;
-    getAllObnizes(): Promise<void>;
-    getOnlineObnizes(): Promise<void>;
-    getOfflineObnizes(): Promise<void>;
-    getObnizesOnThisInstance(): Promise<void>;
+    getAllUsers(): Promise<User[]>;
+    getAllObnizes(): Promise<O[]>;
+    getOnlineObnizes(): Promise<O[]>;
+    getOfflineObnizes(): Promise<O[]>;
+    getObnizesOnThisInstance(): Promise<O[]>;
     /**
-     * Reqeust a results for specified key for working workers.
+     * Request a results for specified key for working workers.
      * This function is useful when asking live information.
      * @param key string for request
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}

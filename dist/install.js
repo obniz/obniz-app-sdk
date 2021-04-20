@@ -11,8 +11,13 @@ async function getInstallRequest(token) {
     while (true) {
         try {
             const result = await sdk.app({ skip });
+            if (!result.app || !result.app.installs) {
+                break;
+            }
             for (const edge of result.app.installs.edges) {
-                allInstalls.push(edge.node);
+                if (edge) {
+                    allInstalls.push(edge.node);
+                }
             }
             if (!result.app.installs.pageInfo.hasNextPage) {
                 break;

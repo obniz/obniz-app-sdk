@@ -42,9 +42,12 @@ class App {
         if (this.isScalableMode) {
             this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
         }
-        else {
+        else if (this._master) {
             // share same adaptor
             this._adaptor = this._master.adaptor;
+        }
+        else {
+            throw new Error('invalid options');
         }
         this._adaptor.onSynchronize = async (installs) => {
             await this._synchronize(installs);
@@ -122,13 +125,23 @@ class App {
         }
         this._startSyncing();
     }
-    async getAllUsers() { }
-    async getAllObnizes() { }
-    async getOnlineObnizes() { }
-    async getOfflineObnizes() { }
-    async getObnizesOnThisInstance() { }
+    async getAllUsers() {
+        throw new Error('TODO');
+    }
+    async getAllObnizes() {
+        throw new Error('TODO');
+    }
+    async getOnlineObnizes() {
+        throw new Error('TODO');
+    }
+    async getOfflineObnizes() {
+        throw new Error('TODO');
+    }
+    async getObnizesOnThisInstance() {
+        throw new Error('TODO');
+    }
     /**
-     * Reqeust a results for specified key for working workers.
+     * Request a results for specified key for working workers.
      * This function is useful when asking live information.
      * @param key string for request
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}

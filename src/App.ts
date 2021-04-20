@@ -56,10 +56,12 @@ export class App<O extends ObnizLikeClass> {
 
   public isScalableMode = false;
 
+  // eslint-disable-next-line no-unused-vars
   public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
+  // eslint-disable-next-line no-unused-vars
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
-  constructor(option: AppOption<any, any>) {
+  constructor(option: AppOption<any, O>) {
     const requiredObnizJsVersion = '3.14.0';
 
     if (
@@ -99,9 +101,11 @@ export class App<O extends ObnizLikeClass> {
         false,
         this._options.databaseConfig
       );
-    } else {
+    } else if (this._master) {
       // share same adaptor
-      this._adaptor = this._master!.adaptor;
+      this._adaptor = this._master.adaptor;
+    } else {
+      throw new Error('invalid options');
     }
 
     this._adaptor.onSynchronize = async (installs: InstalledDevice[]) => {
@@ -185,25 +189,35 @@ export class App<O extends ObnizLikeClass> {
     }
   }
 
-  start(option?: AppStartOption) {
+  start(option?: AppStartOption): void {
     if (this._master) {
       this._master.start(option);
     }
     this._startSyncing();
   }
 
-  async getAllUsers() {}
+  async getAllUsers(): Promise<User[]> {
+    throw new Error('TODO');
+  }
 
-  async getAllObnizes() {}
+  async getAllObnizes(): Promise<O[]> {
+    throw new Error('TODO');
+  }
 
-  async getOnlineObnizes() {}
+  async getOnlineObnizes(): Promise<O[]> {
+    throw new Error('TODO');
+  }
 
-  async getOfflineObnizes() {}
+  async getOfflineObnizes(): Promise<O[]> {
+    throw new Error('TODO');
+  }
 
-  async getObnizesOnThisInstance() {}
+  async getObnizesOnThisInstance(): Promise<O[]> {
+    throw new Error('TODO');
+  }
 
   /**
-   * Reqeust a results for specified key for working workers.
+   * Request a results for specified key for working workers.
    * This function is useful when asking live information.
    * @param key string for request
    * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
@@ -252,7 +266,7 @@ export class App<O extends ObnizLikeClass> {
     }
   }
 
-  public get obnizClass() {
+  public get obnizClass(): O {
     return this._options.obnizClass;
   }
 }

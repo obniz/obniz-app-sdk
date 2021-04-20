@@ -7,7 +7,7 @@ exports.App = exports.AppInstanceType = void 0;
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
-const obniz_1 = __importDefault(require("obniz"));
+const semver_1 = __importDefault(require("semver"));
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
@@ -17,12 +17,17 @@ class App {
     constructor(option) {
         this._workers = {};
         this._syncing = false;
+        this.isScalableMode = false;
+        const requiredObnizJsVersion = "3.15.0";
+        if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
+            throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required`);
+        }
         this._options = {
             appToken: option.appToken,
             database: option.database || "redis",
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass,
-            obnizClass: option.obnizClass || obniz_1.default,
+            obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || "master",
             scaleFactor: option.scaleFactor || 0,
@@ -33,7 +38,8 @@ class App {
         if (option.instanceType === AppInstanceType.Master) {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
         }
-        if (this._options.scaleFactor > 0) {
+        this.isScalableMode = this._options.scaleFactor > 0;
+        if (this.isScalableMode) {
             this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
         }
         else {
@@ -45,6 +51,13 @@ class App {
         };
         this._adaptor.onReportRequest = async () => {
             await this._reportToMaster();
+        };
+        this._adaptor.onRequestRequested = async (key) => {
+            const results = {};
+            for (const install_id in this._workers) {
+                results[install_id] = await this._workers[install_id].onRequest(key);
+            }
+            return results;
         };
     }
     /**
@@ -114,6 +127,18 @@ class App {
     async getOnlineObnizes() { }
     async getOfflineObnizes() { }
     async getObnizesOnThisInstance() { }
+    /**
+     * Reqeust a results for specified key for working workers.
+     * This function is useful when asking live information.
+     * @param key string for request
+     * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
+     */
+    async request(key) {
+        if (this.isScalableMode) {
+            throw new Error(`request for scalableMode is not supported yet`);
+        }
+        return await this._adaptor.request(key);
+    }
     async _startOneWorker(install) {
         logger_1.logger.info(`New App Start id=${install.id}`);
         const worker = new this._options.workerClass(install, this);

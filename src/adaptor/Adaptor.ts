@@ -1,5 +1,4 @@
-import { Installed_Device as InstalledDevice} from "obniz-cloud-sdk/sdk";
-
+import { Installed_Device as InstalledDevice } from "obniz-cloud-sdk/sdk";
 
 /**
  * 一方向性のリスト同期
@@ -8,20 +7,17 @@ import { Installed_Device as InstalledDevice} from "obniz-cloud-sdk/sdk";
  * Cassandraと同じく「時間が経てば正しくなる」方式を採用。
  */
 export class Adaptor {
+  public onReportRequest?: () => Promise<void>;
+  public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
+  public onReported?: (instanceName: string, installIds: string[]) => Promise<void>;
+  public onRequestRequested?: (key: string) => Promise<{ [key: string]: string }>;
 
-  public onReportRequest?: () => Promise<void>
-  public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>
-  public onReported?: (instanceName: string, installIds: string[]) => Promise<void>
-
-  constructor() {
-
-  }
+  constructor() {}
 
   async synchronize(instanceName: string, installs: InstalledDevice[]) {
     if (this.onSynchronize) {
       await this.onSynchronize(installs);
     }
-
   }
 
   async reportRequest() {
@@ -34,5 +30,12 @@ export class Adaptor {
     if (this.onReported) {
       this.onReported(instanceName, installIds);
     }
+  }
+
+  async request(key: string): Promise<{ [key: string]: string }> {
+    if (this.onRequestRequested) {
+      return await this.onRequestRequested(key);
+    }
+    return {};
   }
 }

@@ -13,13 +13,28 @@ class Worker {
         this.install = install;
         this.app = app;
         this._obnizOption = option;
+        this.obniz = new this.app.obnizClass(this.install.id, this._obnizOption);
+        this.obniz.onconnect = this.onObnizConnect.bind(this);
+        this.obniz.onloop = this.onObnizLoop.bind(this);
+        this.obniz.onclose = this.onObnizClose.bind(this);
     }
     /**
      * Worker lifecycle
      */
     async onStart() { }
+    /**
+     * This funcion will be called rrepeatedly while App is started.
+     */
     async onLoop() { }
     async onEnd() { }
+    /**
+     *
+     * @param key string key that represents what types of reqeust.
+     * @returns string for requested key
+     */
+    async onRequest(key) {
+        return "";
+    }
     /**
      * obniz lifecycle
      */
@@ -32,10 +47,6 @@ class Worker {
         }
         this.state = "starting";
         await this.onStart();
-        this.obniz = new this.app.obnizClass(this.install.id, this._obnizOption);
-        this.obniz.onconnect = this.onObnizConnect.bind(this);
-        this.obniz.onloop = this.onObnizLoop.bind(this);
-        this.obniz.onclose = this.onObnizClose.bind(this);
         this.state = "started";
         // in background
         // noinspection ES6MissingAwait
@@ -58,9 +69,13 @@ class Worker {
         if (this.state === "starting" || this.state === "started") {
             this.state = "stopping";
             if (this.obniz) {
-                this.obniz.close(); // todo: change to closeWait
+                try {
+                    await this.obniz.closeWait();
+                }
+                catch (e) {
+                    console.error(e); // handle close caused error. and promise onEnd() called
+                }
             }
-            this.obniz = undefined;
             await this.onEnd();
             this.state = "stopped";
         }

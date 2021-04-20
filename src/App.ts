@@ -6,7 +6,8 @@ import { RedisAdaptor } from "./adaptor/RedisAdaptor";
 import { Adaptor } from "./adaptor/Adaptor";
 import { Installed_Device as InstalledDevice, User } from "obniz-cloud-sdk/sdk";
 import IORedis from "ioredis";
-import Obniz from "obniz";
+import { ObnizLikeClass } from "./ObnizLike";
+import semver from "semver";
 
 export interface DatabaseConfig {
   redis: IORedis.RedisOptions;
@@ -20,27 +21,18 @@ export enum AppInstanceType {
   Slave,
 }
 
-export interface AppOption<T extends Database> {
+export interface AppOption<T extends Database, O extends ObnizLikeClass> {
   appToken: string;
   database?: T;
   databaseConfig?: DatabaseConfig[T];
-  workerClass: new (install: any, app: App) => Worker;
-  obnizClass?: new (obnizId: string, option: any) => Obniz;
+  workerClass: new (install: any, app: App<O>) => Worker<O>;
+  obnizClass: O;
   instanceType: AppInstanceType;
   instanceName?: string;
   scaleFactor?: number; // number of installs.
 }
 
-interface AppOptionInternal<T extends Database> extends AppOption<T> {
-  appToken: string;
-  database: T;
-  databaseConfig?: DatabaseConfig[T]; // allow undefined
-  workerClass: new (install: any, app: App) => Worker;
-  obnizClass: new (obnizId: string, option: any) => Obniz;
-  instanceType: AppInstanceType;
-  instanceName: string;
-  scaleFactor: number; // number of installs.
-}
+type AppOptionInternal<T extends Database, O extends ObnizLikeClass> = Required<AppOption<T, O>>;
 
 export interface AppStartOption {
   express?: express.Express;
@@ -48,28 +40,35 @@ export interface AppStartOption {
   port?: number;
 }
 
-export class App {
-  private _options: AppOptionInternal<any>;
+export class App<O extends ObnizLikeClass> {
+  private _options: AppOptionInternal<any, O>;
 
   // As Master
   private readonly _master?: Master<any>;
 
   // As Worker
   private _adaptor: Adaptor;
-  private _workers: { [key: string]: Worker } = {};
+  private _workers: { [key: string]: Worker<O> } = {};
   private _interval: any;
   private _syncing = false;
+
+  public isScalableMode = false;
 
   public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
-  constructor(option: AppOption<any>) {
+  constructor(option: AppOption<any, any>) {
+    const requiredObnizJsVersion = "3.15.0";
+
+    if (semver.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
+      throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required`);
+    }
     this._options = {
       appToken: option.appToken,
       database: option.database || "redis",
       databaseConfig: option.databaseConfig,
       workerClass: option.workerClass,
-      obnizClass: option.obnizClass || Obniz,
+      obnizClass: option.obnizClass,
       instanceType: option.instanceType || AppInstanceType.Master,
       instanceName: option.instanceName || "master",
       scaleFactor: option.scaleFactor || 0,
@@ -87,7 +86,8 @@ export class App {
         this._options.databaseConfig,
       );
     }
-    if (this._options.scaleFactor > 0) {
+    this.isScalableMode = this._options.scaleFactor > 0;
+    if (this.isScalableMode) {
       this._adaptor = new RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
     } else {
       // share same adaptor
@@ -100,6 +100,14 @@ export class App {
 
     this._adaptor.onReportRequest = async () => {
       await this._reportToMaster();
+    };
+
+    this._adaptor.onRequestRequested = async (key: string): Promise<{ [key: string]: string }> => {
+      const results: { [key: string]: string } = {};
+      for (const install_id in this._workers) {
+        results[install_id] = await this._workers[install_id].onRequest(key);
+      }
+      return results;
     };
   }
 
@@ -181,6 +189,19 @@ export class App {
   async getOfflineObnizes() {}
 
   async getObnizesOnThisInstance() {}
+
+  /**
+   * Reqeust a results for specified key for working workers.
+   * This function is useful when asking live information.
+   * @param key string for request
+   * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
+   */
+  public async request(key: string): Promise<{ [key: string]: string }> {
+    if (this.isScalableMode) {
+      throw new Error(`request for scalableMode is not supported yet`);
+    }
+    return await this._adaptor.request(key);
+  }
 
   private async _startOneWorker(install: InstalledDevice) {
     logger.info(`New App Start id=${install.id}`);

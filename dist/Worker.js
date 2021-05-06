@@ -51,12 +51,7 @@ class Worker {
         this.state = 'starting';
         await this.onStart();
         this.state = 'started';
-        if (this.obniz.autoConnect) {
-            this.obniz.autoConnect = true;
-        }
-        else {
-            this.obniz.options.auto_connect = true;
-        }
+        this.obniz.autoConnect = true;
         this.obniz.connect();
         // in background
         // noinspection ES6MissingAwait

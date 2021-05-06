@@ -1,7 +1,7 @@
 import { App } from './App';
 import { ObnizOptions } from 'obniz/dist/src/obniz/ObnizOptions';
 import { logger } from './logger';
-import { ObnizLike, ObnizLikeClass } from './ObnizLike';
+import { IObniz } from './Obniz.interface';
 import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 
 /**
@@ -9,10 +9,10 @@ import { Installed_Device } from 'obniz-cloud-sdk/sdk';
  * "Abstract" must be drop
  * Example: https://qiita.com/okdyy75/items/610623943979cf422775#%E3%81%BE%E3%81%82%E3%81%A8%E3%82%8A%E3%81%82%E3%81%88%E3%81%9A%E3%81%A9%E3%82%93%E3%81%AA%E6%84%9F%E3%81%98%E3%81%AB%E6%9B%B8%E3%81%8F%E3%81%AE
  */
-export abstract class Worker<O extends ObnizLikeClass> {
+export abstract class Worker<O extends IObniz> {
   public install: Installed_Device;
   protected app: App<O>;
-  protected obniz: ObnizLike;
+  protected obniz: O;
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
   private readonly _obnizOption: ObnizOptions;
 
@@ -63,11 +63,11 @@ export abstract class Worker<O extends ObnizLikeClass> {
    * obniz lifecycle
    */
 
-  async onObnizConnect(obniz: ObnizLike): Promise<void> {}
+  async onObnizConnect(obniz: O): Promise<void> {}
 
-  async onObnizLoop(obniz: ObnizLike): Promise<void> {}
+  async onObnizLoop(obniz: O): Promise<void> {}
 
-  async onObnizClose(obniz: ObnizLike): Promise<void> {}
+  async onObnizClose(obniz: O): Promise<void> {}
 
   async start(): Promise<void> {
     if (this.state !== 'stopped') {
@@ -78,11 +78,7 @@ export abstract class Worker<O extends ObnizLikeClass> {
 
     this.state = 'started';
 
-    if (this.obniz.autoConnect) {
-      this.obniz.autoConnect = true;
-    } else {
-      this.obniz.options.auto_connect = true;
-    }
+    this.obniz.autoConnect = true;
     this.obniz.connect();
 
     // in background

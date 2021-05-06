@@ -1,7 +1,6 @@
 import { getSdk } from 'obniz-cloud-sdk';
 import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 
-// TODO: !を使ってるのを治す
 export async function getInstallRequest(
   token: string
 ): Promise<Installed_Device[]> {

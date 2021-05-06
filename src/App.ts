@@ -4,9 +4,13 @@ import { logger } from './logger';
 import { Master as MasterClass } from './Master';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { Adaptor } from './adaptor/Adaptor';
-import { Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
+import {
+  Installed_Device,
+  Installed_Device as InstalledDevice,
+  User,
+} from 'obniz-cloud-sdk/sdk';
 import IORedis from 'ioredis';
-import { ObnizLikeClass } from './ObnizLike';
+import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import semver from 'semver';
 
 export interface DatabaseConfig {
@@ -21,18 +25,18 @@ export enum AppInstanceType {
   Slave,
 }
 
-export interface AppOption<T extends Database, O extends ObnizLikeClass> {
+export interface AppOption<T extends Database, O extends IObniz> {
   appToken: string;
   database?: T;
   databaseConfig?: DatabaseConfig[T];
-  workerClass: new (install: any, app: App<O>) => Worker<O>;
-  obnizClass: O;
+  workerClass: new (install: Installed_Device, app: App<O>) => Worker<O>;
+  obnizClass: IObnizStatic<O>;
   instanceType: AppInstanceType;
   instanceName?: string;
   scaleFactor?: number; // number of installs.
 }
 
-type AppOptionInternal<T extends Database, O extends ObnizLikeClass> = Required<
+type AppOptionInternal<T extends Database, O extends IObniz> = Required<
   AppOption<T, O>
 >;
 
@@ -42,7 +46,7 @@ export interface AppStartOption {
   port?: number;
 }
 
-export class App<O extends ObnizLikeClass> {
+export class App<O extends IObniz> {
   private _options: AppOptionInternal<any, O>;
 
   // As Master
@@ -51,7 +55,7 @@ export class App<O extends ObnizLikeClass> {
   // As Worker
   private _adaptor: Adaptor;
   private _workers: { [key: string]: Worker<O> } = {};
-  private _interval: any;
+  private _interval: ReturnType<typeof setTimeout> | null = null;
   private _syncing = false;
 
   public isScalableMode = false;
@@ -62,7 +66,7 @@ export class App<O extends ObnizLikeClass> {
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
   constructor(option: AppOption<any, O>) {
-    const requiredObnizJsVersion = '3.14.0';
+    const requiredObnizJsVersion = '3.15.0-alpha.1';
 
     if (
       semver.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)
@@ -266,7 +270,7 @@ export class App<O extends ObnizLikeClass> {
     }
   }
 
-  public get obnizClass(): O {
+  public get obnizClass(): IObnizStatic<O> {
     return this._options.obnizClass;
   }
 }

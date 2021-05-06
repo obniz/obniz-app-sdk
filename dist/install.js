@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInstallRequest = void 0;
 const obniz_cloud_sdk_1 = require("obniz-cloud-sdk");
-// TODO: !を使ってるのを治す
 async function getInstallRequest(token) {
     const sdk = obniz_cloud_sdk_1.getSdk(token);
     const allInstalls = [];

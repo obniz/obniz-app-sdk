@@ -1,7 +1,8 @@
-import {Worker, Obniz} from "../../src/index";
+import {Worker} from "../../src/index";
+import Obniz = require("obniz");
 import {App, AppInstanceType} from '../../src/index'
 
-export class MyWorker extends Worker {
+export class MyWorker extends Worker<Obniz> {
 
   async onStart() {
     console.log("on start", this.install.id);
@@ -41,7 +42,8 @@ const app = new App({
   instanceType: AppInstanceType.Master,
   scaleFactor: 1,
   database: "redis",
-  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379"
+  databaseConfig: process.env.REDIS_URL || "redis://localhost:6379",
+  obnizClass: Obniz
 
 });
 

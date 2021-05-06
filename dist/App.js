@@ -16,9 +16,10 @@ var AppInstanceType;
 class App {
     constructor(option) {
         this._workers = {};
+        this._interval = null;
         this._syncing = false;
         this.isScalableMode = false;
-        const requiredObnizJsVersion = '3.14.0';
+        const requiredObnizJsVersion = '3.15.0-alpha.1';
         if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
             throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
         }

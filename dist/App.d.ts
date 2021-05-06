@@ -1,8 +1,8 @@
 import express from 'express';
 import { Worker } from './Worker';
-import { Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
+import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
 import IORedis from 'ioredis';
-import { ObnizLikeClass } from './ObnizLike';
+import { IObnizStatic, IObniz } from './Obniz.interface';
 export interface DatabaseConfig {
     redis: IORedis.RedisOptions;
     memory: {
@@ -14,12 +14,12 @@ export declare enum AppInstanceType {
     Master = 0,
     Slave = 1
 }
-export interface AppOption<T extends Database, O extends ObnizLikeClass> {
+export interface AppOption<T extends Database, O extends IObniz> {
     appToken: string;
     database?: T;
     databaseConfig?: DatabaseConfig[T];
-    workerClass: new (install: any, app: App<O>) => Worker<O>;
-    obnizClass: O;
+    workerClass: new (install: Installed_Device, app: App<O>) => Worker<O>;
+    obnizClass: IObnizStatic<O>;
     instanceType: AppInstanceType;
     instanceName?: string;
     scaleFactor?: number;
@@ -29,7 +29,7 @@ export interface AppStartOption {
     webhookUrl?: string;
     port?: number;
 }
-export declare class App<O extends ObnizLikeClass> {
+export declare class App<O extends IObniz> {
     private _options;
     private readonly _master?;
     private _adaptor;
@@ -68,5 +68,5 @@ export declare class App<O extends ObnizLikeClass> {
     private _startOneWorker;
     private _startOrRestartOneWorker;
     private _stopOneWorker;
-    get obnizClass(): O;
+    get obnizClass(): IObnizStatic<O>;
 }

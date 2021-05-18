@@ -3,9 +3,9 @@ export interface IObnizOptions {
 }
 
 export interface IObniz {
-  onconnect?: (obniz: this) => Promise<void> | void;
-  onloop?: (obniz: this) => Promise<void> | void;
-  onclose?: (obniz: this) => Promise<void> | void;
+  onconnect?: (obniz: any) => Promise<void> | void;
+  onloop?: (obniz: any) => Promise<void> | void;
+  onclose?: (obniz: any) => Promise<void> | void;
   closeWait: () => Promise<void>;
   connect: () => void;
   autoConnect: boolean;

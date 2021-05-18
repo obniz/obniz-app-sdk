@@ -4,10 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.App = exports.AppInstanceType = void 0;
+const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
-const obniz_1 = __importDefault(require("obniz"));
+const semver_1 = __importDefault(require("semver"));
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
@@ -16,20 +17,29 @@ var AppInstanceType;
 class App {
     constructor(option) {
         this._workers = {};
+        this._interval = null;
         this._syncing = false;
         this.isScalableMode = false;
+        const requiredObnizJsVersion = '3.15.0-alpha.1';
+        if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
+            throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
+        }
         this._options = {
             appToken: option.appToken,
-            database: option.database || "redis",
+            database: option.database || 'redis',
             databaseConfig: option.databaseConfig,
-            workerClass: option.workerClass,
-            obnizClass: option.obnizClass || obniz_1.default,
+            workerClass: option.workerClass || Worker_1.Worker,
+            workerClassFunction: option.workerClassFunction ||
+                (() => {
+                    return this._options.workerClass;
+                }),
+            obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
-            instanceName: option.instanceName || "master",
+            instanceName: option.instanceName || 'master',
             scaleFactor: option.scaleFactor || 0,
         };
-        if (this._options.database !== "redis") {
-            throw new Error("Supported database type is only redis now.");
+        if (this._options.database !== 'redis') {
+            throw new Error('Supported database type is only redis now.');
         }
         if (option.instanceType === AppInstanceType.Master) {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
@@ -38,9 +48,12 @@ class App {
         if (this.isScalableMode) {
             this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
         }
-        else {
+        else if (this._master) {
             // share same adaptor
             this._adaptor = this._master.adaptor;
+        }
+        else {
+            throw new Error('invalid options');
         }
         this._adaptor.onSynchronize = async (installs) => {
             await this._synchronize(installs);
@@ -118,13 +131,23 @@ class App {
         }
         this._startSyncing();
     }
-    async getAllUsers() { }
-    async getAllObnizes() { }
-    async getOnlineObnizes() { }
-    async getOfflineObnizes() { }
-    async getObnizesOnThisInstance() { }
+    async getAllUsers() {
+        throw new Error('TODO');
+    }
+    async getAllObnizes() {
+        throw new Error('TODO');
+    }
+    async getOnlineObnizes() {
+        throw new Error('TODO');
+    }
+    async getOfflineObnizes() {
+        throw new Error('TODO');
+    }
+    async getObnizesOnThisInstance() {
+        throw new Error('TODO');
+    }
     /**
-     * Reqeust a results for specified key for working workers.
+     * Request a results for specified key for working workers.
      * This function is useful when asking live information.
      * @param key string for request
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
@@ -137,13 +160,15 @@ class App {
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New App Start id=${install.id}`);
-        const worker = new this._options.workerClass(install, this);
+        const wclass = this._options.workerClassFunction(install);
+        const worker = new wclass(install, this);
         this._workers[install.id] = worker;
         await worker.start();
     }
     async _startOrRestartOneWorker(install) {
         const oldWorker = this._workers[install.id];
-        if (oldWorker && JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
+        if (oldWorker &&
+            JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
             logger_1.logger.info(`App config changed id=${install.id}`);
             await this._stopOneWorker(install.id);
             await this._startOneWorker(install);

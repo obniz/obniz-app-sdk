@@ -8,8 +8,7 @@ exports.Adaptor = void 0;
  * Cassandraと同じく「時間が経てば正しくなる」方式を採用。
  */
 class Adaptor {
-    constructor() {
-    }
+    constructor() { }
     async synchronize(instanceName, installs) {
         if (this.onSynchronize) {
             await this.onSynchronize(installs);

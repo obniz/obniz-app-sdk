@@ -20,6 +20,7 @@ class Worker {
         this.obniz.onconnect = this.onObnizConnect.bind(this);
         this.obniz.onloop = this.onObnizLoop.bind(this);
         this.obniz.onclose = this.onObnizClose.bind(this);
+        this.user = this.install.user;
     }
     /**
      * Worker lifecycle

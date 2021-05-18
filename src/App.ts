@@ -1,5 +1,5 @@
 import express from 'express';
-import { Worker } from './Worker';
+import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Master as MasterClass } from './Master';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
@@ -29,7 +29,8 @@ export interface AppOption<T extends Database, O extends IObniz> {
   appToken: string;
   database?: T;
   databaseConfig?: DatabaseConfig[T];
-  workerClass: new (install: Installed_Device, app: App<O>) => Worker<O>;
+  workerClass?: WorkerStatic<O>;
+  workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
   obnizClass: IObnizStatic<O>;
   instanceType: AppInstanceType;
   instanceName?: string;
@@ -79,7 +80,12 @@ export class App<O extends IObniz> {
       appToken: option.appToken,
       database: option.database || 'redis',
       databaseConfig: option.databaseConfig,
-      workerClass: option.workerClass,
+      workerClass: option.workerClass || Worker,
+      workerClassFunction:
+        option.workerClassFunction ||
+        (() => {
+          return this._options.workerClass;
+        }),
       obnizClass: option.obnizClass,
       instanceType: option.instanceType || AppInstanceType.Master,
       instanceName: option.instanceName || 'master',
@@ -235,7 +241,10 @@ export class App<O extends IObniz> {
 
   private async _startOneWorker(install: InstalledDevice) {
     logger.info(`New App Start id=${install.id}`);
-    const worker = new this._options.workerClass(install, this);
+
+    const wclass = this._options.workerClassFunction(install);
+    const worker = new wclass(install, this);
+
     this._workers[install.id] = worker;
     await worker.start();
   }

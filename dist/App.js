@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.App = exports.AppInstanceType = void 0;
+const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
@@ -27,7 +28,11 @@ class App {
             appToken: option.appToken,
             database: option.database || 'redis',
             databaseConfig: option.databaseConfig,
-            workerClass: option.workerClass,
+            workerClass: option.workerClass || Worker_1.Worker,
+            workerClassFunction: option.workerClassFunction ||
+                (() => {
+                    return this._options.workerClass;
+                }),
             obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || 'master',
@@ -155,7 +160,8 @@ class App {
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New App Start id=${install.id}`);
-        const worker = new this._options.workerClass(install, this);
+        const wclass = this._options.workerClassFunction(install);
+        const worker = new wclass(install, this);
         this._workers[install.id] = worker;
         await worker.start();
     }

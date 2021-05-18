@@ -1,5 +1,5 @@
 import express from 'express';
-import { Worker } from './Worker';
+import { WorkerStatic } from './Worker';
 import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
 import IORedis from 'ioredis';
 import { IObnizStatic, IObniz } from './Obniz.interface';
@@ -18,7 +18,8 @@ export interface AppOption<T extends Database, O extends IObniz> {
     appToken: string;
     database?: T;
     databaseConfig?: DatabaseConfig[T];
-    workerClass: new (install: Installed_Device, app: App<O>) => Worker<O>;
+    workerClass?: WorkerStatic<O>;
+    workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
     obnizClass: IObnizStatic<O>;
     instanceType: AppInstanceType;
     instanceName?: string;

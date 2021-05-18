@@ -1,4 +1,4 @@
-import { Installed_Device as InstalledDevice } from "obniz-cloud-sdk/sdk";
+import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 /**
  * 一方向性のリスト同期
  * Masterからは各Instanceへ分割されたリストを同期

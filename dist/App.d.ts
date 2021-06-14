@@ -45,12 +45,12 @@ export declare class App<O extends IObniz> {
      * Receive Master Generated List and compare current apps.
      * @param installs
      */
-    private _synchronize;
+    protected _synchronize(installs: InstalledDevice[]): Promise<void>;
     /**
      * Let Master know worker is working.
      */
-    private _reportToMaster;
-    private _startSyncing;
+    protected _reportToMaster(): Promise<void>;
+    protected _startSyncing(): void;
     start(option?: AppStartOption): void;
     getAllUsers(): Promise<User[]>;
     getAllObnizes(): Promise<O[]>;
@@ -66,8 +66,8 @@ export declare class App<O extends IObniz> {
     request(key: string): Promise<{
         [key: string]: string;
     }>;
-    private _startOneWorker;
-    private _startOrRestartOneWorker;
-    private _stopOneWorker;
+    protected _startOneWorker(install: InstalledDevice): Promise<void>;
+    protected _startOrRestartOneWorker(install: InstalledDevice): Promise<void>;
+    protected _stopOneWorker(installId: string): Promise<void>;
     get obnizClass(): IObnizStatic<O>;
 }

@@ -141,7 +141,7 @@ export class App<O extends IObniz> {
    * Receive Master Generated List and compare current apps.
    * @param installs
    */
-  private async _synchronize(installs: InstalledDevice[]) {
+  protected async _synchronize(installs: InstalledDevice[]) {
     try {
       if (this._syncing) {
         return;
@@ -176,12 +176,12 @@ export class App<O extends IObniz> {
   /**
    * Let Master know worker is working.
    */
-  private async _reportToMaster() {
+  protected async _reportToMaster() {
     const keys = Object.keys(this._workers);
     await this._adaptor.report(this._options.instanceName, keys);
   }
 
-  private _startSyncing() {
+  protected _startSyncing() {
     // every minutes
     if (!this._interval) {
       this._interval = setInterval(async () => {
@@ -239,7 +239,7 @@ export class App<O extends IObniz> {
     return await this._adaptor.request(key);
   }
 
-  private async _startOneWorker(install: InstalledDevice) {
+  protected async _startOneWorker(install: InstalledDevice) {
     logger.info(`New App Start id=${install.id}`);
 
     const wclass = this._options.workerClassFunction(install);
@@ -249,7 +249,7 @@ export class App<O extends IObniz> {
     await worker.start();
   }
 
-  private async _startOrRestartOneWorker(install: InstalledDevice) {
+  protected async _startOrRestartOneWorker(install: InstalledDevice) {
     const oldWorker = this._workers[install.id];
     if (
       oldWorker &&
@@ -263,7 +263,7 @@ export class App<O extends IObniz> {
     }
   }
 
-  private async _stopOneWorker(installId: string) {
+  protected async _stopOneWorker(installId: string) {
     logger.info(`App Deleted id=${installId}`);
     const worker = this._workers[installId];
     if (worker) {

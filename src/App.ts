@@ -202,6 +202,12 @@ export class App<O extends IObniz> {
     }
   }
 
+  expressWebhook = this._expressWebhook.bind(this);
+
+  private _expressWebhook(req: express.Request, res: express.Response) {
+    this._master?.webhook(req, res);
+  }
+
   start(option?: AppStartOption): void {
     if (this._master) {
       this._master.start(option);

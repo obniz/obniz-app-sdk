@@ -55,6 +55,8 @@ export declare class App<O extends IObniz> {
      */
     protected _reportToMaster(): Promise<void>;
     protected _startSyncing(): void;
+    expressWebhook: (req: express.Request, res: express.Response) => void;
+    private _expressWebhook;
     start(option?: AppStartOption): void;
     getAllUsers(): Promise<User[]>;
     getAllObnizes(): Promise<O[]>;

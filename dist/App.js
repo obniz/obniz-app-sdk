@@ -20,6 +20,7 @@ class App {
         this._interval = null;
         this._syncing = false;
         this.isScalableMode = false;
+        this.expressWebhook = this._expressWebhook.bind(this);
         const requiredObnizJsVersion = '3.15.0-alpha.1';
         if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
             throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
@@ -126,6 +127,10 @@ class App {
                 logger_1.logger.error(e);
             });
         }
+    }
+    _expressWebhook(req, res) {
+        var _a;
+        (_a = this._master) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
     }
     start(option) {
         if (this._master) {

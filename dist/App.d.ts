@@ -1,13 +1,14 @@
 import express from 'express';
-import { WorkerStatic } from './Worker';
+import { Worker, WorkerStatic } from './Worker';
+import { Master as MasterClass } from './Master';
+import { RedisAdaptorOptions } from './adaptor/RedisAdaptor';
+import { Adaptor } from './adaptor/Adaptor';
 import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
-import IORedis from 'ioredis';
 import { IObnizStatic, IObniz } from './Obniz.interface';
+import { MemoryAdaptorOptions } from './adaptor/MemoryAdaptor';
 export interface DatabaseConfig {
-    redis: IORedis.RedisOptions;
-    memory: {
-        limit: number;
-    };
+    redis: RedisAdaptorOptions;
+    memory: MemoryAdaptorOptions;
 }
 export declare type Database = keyof DatabaseConfig;
 export declare enum AppInstanceType {
@@ -25,18 +26,21 @@ export interface AppOption<T extends Database, O extends IObniz> {
     instanceName?: string;
     scaleFactor?: number;
 }
+declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
 export interface AppStartOption {
-    express?: express.Express;
+    express?: express.Express | false;
     webhookUrl?: string;
     port?: number;
 }
 export declare class App<O extends IObniz> {
-    private _options;
-    private readonly _master?;
-    private _adaptor;
-    private _workers;
-    private _interval;
-    private _syncing;
+    protected _options: AppOptionInternal<any, O>;
+    protected readonly _master?: MasterClass<any>;
+    protected _adaptor: Adaptor;
+    protected _workers: {
+        [key: string]: Worker<O>;
+    };
+    protected _interval: ReturnType<typeof setTimeout> | null;
+    protected _syncing: boolean;
     isScalableMode: boolean;
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
@@ -71,3 +75,4 @@ export declare class App<O extends IObniz> {
     protected _stopOneWorker(installId: string): Promise<void>;
     get obnizClass(): IObnizStatic<O>;
 }
+export {};

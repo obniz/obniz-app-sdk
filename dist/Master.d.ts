@@ -1,4 +1,5 @@
 import { Adaptor } from './adaptor/Adaptor';
+import express from 'express';
 import { AppStartOption, Database, DatabaseConfig } from './App';
 export declare class Master<T extends Database> {
     adaptor: Adaptor;
@@ -12,6 +13,7 @@ export declare class Master<T extends Database> {
     constructor(appToken: string, instanceName: string, scaleFactor: number, database: T, databaseConfig: DatabaseConfig[T]);
     start(option?: AppStartOption): void;
     private _startWeb;
+    webhook: (_: express.Request, res: express.Response) => Promise<void>;
     private _webhook;
     /**
      * 空き状況から最適なWorkerを推測

@@ -38,15 +38,17 @@ class App {
             instanceName: option.instanceName || 'master',
             scaleFactor: option.scaleFactor || 0,
         };
-        if (this._options.database !== 'redis') {
-            throw new Error('Supported database type is only redis now.');
-        }
         if (option.instanceType === AppInstanceType.Master) {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
         }
         this.isScalableMode = this._options.scaleFactor > 0;
         if (this.isScalableMode) {
-            this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
+            if (this._options.database === 'redis') {
+                this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
+            }
+            else {
+                throw new Error('Supported database type is only redis when you use ScalableMode.');
+            }
         }
         else if (this._master) {
             // share same adaptor

@@ -3,6 +3,7 @@ import { Adaptor } from './Adaptor';
 import IORedis from 'ioredis';
 import { logger } from '../logger';
 
+export type RedisAdaptorOptions = IORedis.RedisOptions;
 export class RedisAdaptor extends Adaptor {
   public isMaster = false;
 
@@ -10,11 +11,7 @@ export class RedisAdaptor extends Adaptor {
   private _redis: IORedis.Redis;
   private _pubRedis: IORedis.Redis;
 
-  constructor(
-    id: string,
-    isMaster: boolean,
-    redisOption: IORedis.RedisOptions
-  ) {
+  constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions) {
     super();
 
     this.id = id;

@@ -2,20 +2,20 @@ import express from 'express';
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Master as MasterClass } from './Master';
-import { RedisAdaptor } from './adaptor/RedisAdaptor';
+import { RedisAdaptor, RedisAdaptorOptions } from './adaptor/RedisAdaptor';
 import { Adaptor } from './adaptor/Adaptor';
 import {
   Installed_Device,
   Installed_Device as InstalledDevice,
   User,
 } from 'obniz-cloud-sdk/sdk';
-import IORedis from 'ioredis';
 import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import semver from 'semver';
+import { MemoryAdaptor, MemoryAdaptorOptions } from './adaptor/MemoryAdaptor';
 
 export interface DatabaseConfig {
-  redis: IORedis.RedisOptions;
-  memory: { limit: number };
+  redis: RedisAdaptorOptions;
+  memory: MemoryAdaptorOptions;
 }
 
 export type Database = keyof DatabaseConfig;
@@ -42,22 +42,22 @@ type AppOptionInternal<T extends Database, O extends IObniz> = Required<
 >;
 
 export interface AppStartOption {
-  express?: express.Express;
+  express?: express.Express | false;
   webhookUrl?: string;
   port?: number;
 }
 
 export class App<O extends IObniz> {
-  private _options: AppOptionInternal<any, O>;
+  protected _options: AppOptionInternal<any, O>;
 
   // As Master
-  private readonly _master?: MasterClass<any>;
+  protected readonly _master?: MasterClass<any>;
 
   // As Worker
-  private _adaptor: Adaptor;
-  private _workers: { [key: string]: Worker<O> } = {};
-  private _interval: ReturnType<typeof setTimeout> | null = null;
-  private _syncing = false;
+  protected _adaptor: Adaptor;
+  protected _workers: { [key: string]: Worker<O> } = {};
+  protected _interval: ReturnType<typeof setTimeout> | null = null;
+  protected _syncing = false;
 
   public isScalableMode = false;
 
@@ -92,9 +92,6 @@ export class App<O extends IObniz> {
       scaleFactor: option.scaleFactor || 0,
     };
 
-    if (this._options.database !== 'redis') {
-      throw new Error('Supported database type is only redis now.');
-    }
     if (option.instanceType === AppInstanceType.Master) {
       this._master = new MasterClass(
         option.appToken,
@@ -106,11 +103,17 @@ export class App<O extends IObniz> {
     }
     this.isScalableMode = this._options.scaleFactor > 0;
     if (this.isScalableMode) {
-      this._adaptor = new RedisAdaptor(
-        this._options.instanceName,
-        false,
-        this._options.databaseConfig
-      );
+      if (this._options.database === 'redis') {
+        this._adaptor = new RedisAdaptor(
+          this._options.instanceName,
+          false,
+          this._options.databaseConfig
+        );
+      } else {
+        throw new Error(
+          'Supported database type is only redis when you use ScalableMode.'
+        );
+      }
     } else if (this._master) {
       // share same adaptor
       this._adaptor = this._master.adaptor;

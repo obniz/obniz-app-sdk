@@ -6,9 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Master = void 0;
 const logger_1 = require("./logger");
 const install_1 = require("./install");
-const Adaptor_1 = require("./adaptor/Adaptor");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const express_1 = __importDefault(require("express"));
+const MemoryAdaptor_1 = require("./adaptor/MemoryAdaptor");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -21,16 +21,20 @@ class Master {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
+        this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
         this.scaleFactor = scaleFactor;
-        if (database !== 'redis') {
-            throw new Error('Supported database type is only redis now.');
-        }
         if (scaleFactor > 0) {
+            if (database !== 'redis') {
+                throw new Error('Supported database type is only redis now.');
+            }
             this.adaptor = new RedisAdaptor_1.RedisAdaptor(instanceName, true, databaseConfig);
         }
+        else if (database === 'memory') {
+            this.adaptor = new MemoryAdaptor_1.MemoryAdaptor(instanceName, true, databaseConfig);
+        }
         else {
-            this.adaptor = new Adaptor_1.Adaptor();
+            throw new Error('Unsupported database type: ' + database);
         }
         this.adaptor.onReported = async (reportInstanceName, installIds) => {
             // logger.debug(`receive report ${reportInstanceName}`)
@@ -57,13 +61,17 @@ class Master {
     }
     _startWeb(option) {
         option = option || {};
+        if (option.express === false) {
+            // nothing
+            return;
+        }
         this._startOptions = {
             express: option.express || express_1.default(),
             webhookUrl: option.webhookUrl || '/webhook',
             port: option.port || 3333,
         };
-        this._startOptions.express.get(this._startOptions.webhookUrl, this._webhook.bind(this));
-        this._startOptions.express.post(this._startOptions.webhookUrl, this._webhook.bind(this));
+        this._startOptions.express.get(this._startOptions.webhookUrl, this.webhook);
+        this._startOptions.express.post(this._startOptions.webhookUrl, this.webhook);
         if (!option.express) {
             this._startOptions.express.listen(this._startOptions.port, () => {
                 logger_1.logger.debug(`App listening on http://localhost:${(this._startOptions || {}).port} `);

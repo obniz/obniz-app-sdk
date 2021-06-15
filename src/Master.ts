@@ -5,6 +5,7 @@ import { Adaptor } from './adaptor/Adaptor';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import express from 'express';
 import { AppStartOption, Database, DatabaseConfig } from './App';
+import { MemoryAdaptor } from './adaptor/MemoryAdaptor';
 
 enum InstallStatus {
   Starting,
@@ -53,17 +54,23 @@ export class Master<T extends Database> {
     this._appToken = appToken;
     this.scaleFactor = scaleFactor;
 
-    if (database !== 'redis') {
-      throw new Error('Supported database type is only redis now.');
-    }
     if (scaleFactor > 0) {
+      if (database !== 'redis') {
+        throw new Error('Supported database type is only redis now.');
+      }
       this.adaptor = new RedisAdaptor(
         instanceName,
         true,
         databaseConfig as DatabaseConfig['redis']
       );
+    } else if (database === 'memory') {
+      this.adaptor = new MemoryAdaptor(
+        instanceName,
+        true,
+        databaseConfig as DatabaseConfig['memory']
+      );
     } else {
-      this.adaptor = new Adaptor();
+      throw new Error('Unsupported database type: ' + database);
     }
     this.adaptor.onReported = async (
       reportInstanceName: string,
@@ -94,18 +101,19 @@ export class Master<T extends Database> {
 
   private _startWeb(option?: AppStartOption): void {
     option = option || {};
+    if (option.express === false) {
+      // nothing
+      return;
+    }
     this._startOptions = {
       express: option.express || express(),
       webhookUrl: option.webhookUrl || '/webhook',
       port: option.port || 3333,
     };
-    this._startOptions.express.get(
-      this._startOptions.webhookUrl,
-      this._webhook.bind(this)
-    );
+    this._startOptions.express.get(this._startOptions.webhookUrl, this.webhook);
     this._startOptions.express.post(
       this._startOptions.webhookUrl,
-      this._webhook.bind(this)
+      this.webhook
     );
 
     if (!option.express) {
@@ -118,6 +126,8 @@ export class Master<T extends Database> {
       });
     }
   }
+
+  webhook = this._webhook.bind(this);
 
   private async _webhook(_: express.Request, res: express.Response) {
     // TODO : check Instance and start

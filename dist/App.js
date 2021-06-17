@@ -7,8 +7,8 @@ exports.App = exports.AppInstanceType = void 0;
 const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
-const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const semver_1 = __importDefault(require("semver"));
+const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
@@ -43,17 +43,15 @@ class App {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
         }
         this.isScalableMode = this._options.scaleFactor > 0;
-        if (this.isScalableMode) {
-            if (this._options.database === 'redis') {
-                this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
-            }
-            else {
-                throw new Error('Supported database type is only redis when you use ScalableMode.');
-            }
-        }
-        else if (this._master) {
+        if (this._master) {
             // share same adaptor
             this._adaptor = this._master.adaptor;
+        }
+        else if (this.isScalableMode) {
+            if (this._options.database !== 'redis') {
+                throw new Error('only support database redis when using scalable mode');
+            }
+            this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
         }
         else {
             throw new Error('invalid options');

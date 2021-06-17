@@ -35,6 +35,8 @@ export class Worker<O extends IObniz> {
     this.obniz.onconnect = this.onObnizConnect.bind(this);
     this.obniz.onloop = this.onObnizLoop.bind(this);
     this.obniz.onclose = this.onObnizClose.bind(this);
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.user = this.install.user!;
   }
 

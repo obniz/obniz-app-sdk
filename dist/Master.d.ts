@@ -1,6 +1,7 @@
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
-import { AppStartOption, Database, DatabaseConfig } from './App';
+import { AppStartOption } from './App';
+import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 export declare class Master<T extends Database> {
     adaptor: Adaptor;
     scaleFactor: number;

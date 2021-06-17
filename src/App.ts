@@ -2,23 +2,19 @@ import express from 'express';
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Master as MasterClass } from './Master';
-import { RedisAdaptor, RedisAdaptorOptions } from './adaptor/RedisAdaptor';
 import { Adaptor } from './adaptor/Adaptor';
 import {
   Installed_Device,
   Installed_Device as InstalledDevice,
   User,
 } from 'obniz-cloud-sdk/sdk';
-import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
+import { IObnizStatic, IObniz } from './Obniz.interface';
 import semver from 'semver';
-import { MemoryAdaptor, MemoryAdaptorOptions } from './adaptor/MemoryAdaptor';
-
-export interface DatabaseConfig {
-  redis: RedisAdaptorOptions;
-  memory: MemoryAdaptorOptions;
-}
-
-export type Database = keyof DatabaseConfig;
+import {
+  AdaptorFactory,
+  Database,
+  DatabaseConfig,
+} from './adaptor/AdaptorFactory';
 
 export enum AppInstanceType {
   Master,
@@ -102,21 +98,19 @@ export class App<O extends IObniz> {
       );
     }
     this.isScalableMode = this._options.scaleFactor > 0;
-    if (this.isScalableMode) {
-      if (this._options.database === 'redis') {
-        this._adaptor = new RedisAdaptor(
-          this._options.instanceName,
-          false,
-          this._options.databaseConfig
-        );
-      } else {
-        throw new Error(
-          'Supported database type is only redis when you use ScalableMode.'
-        );
-      }
-    } else if (this._master) {
+    if (this._master) {
       // share same adaptor
       this._adaptor = this._master.adaptor;
+    } else if (this.isScalableMode) {
+      if (this._options.database !== 'redis') {
+        throw new Error('only support database redis when using scalable mode');
+      }
+      this._adaptor = new AdaptorFactory().create(
+        this._options.database,
+        this._options.instanceName,
+        false,
+        this._options.databaseConfig
+      );
     } else {
       throw new Error('invalid options');
     }
@@ -144,7 +138,7 @@ export class App<O extends IObniz> {
    * Receive Master Generated List and compare current apps.
    * @param installs
    */
-  protected async _synchronize(installs: InstalledDevice[]) {
+  protected async _synchronize(installs: InstalledDevice[]): Promise<void> {
     try {
       if (this._syncing) {
         return;
@@ -179,12 +173,12 @@ export class App<O extends IObniz> {
   /**
    * Let Master know worker is working.
    */
-  protected async _reportToMaster() {
+  protected async _reportToMaster(): Promise<void> {
     const keys = Object.keys(this._workers);
     await this._adaptor.report(this._options.instanceName, keys);
   }
 
-  protected _startSyncing() {
+  protected _startSyncing(): void {
     // every minutes
     if (!this._interval) {
       this._interval = setInterval(async () => {
@@ -204,7 +198,7 @@ export class App<O extends IObniz> {
 
   expressWebhook = this._expressWebhook.bind(this);
 
-  private _expressWebhook(req: express.Request, res: express.Response) {
+  private _expressWebhook(req: express.Request, res: express.Response): void {
     this._master?.webhook(req, res);
   }
 
@@ -248,7 +242,7 @@ export class App<O extends IObniz> {
     return await this._adaptor.request(key);
   }
 
-  protected async _startOneWorker(install: InstalledDevice) {
+  protected async _startOneWorker(install: InstalledDevice): Promise<void> {
     logger.info(`New App Start id=${install.id}`);
 
     const wclass = this._options.workerClassFunction(install);
@@ -258,7 +252,9 @@ export class App<O extends IObniz> {
     await worker.start();
   }
 
-  protected async _startOrRestartOneWorker(install: InstalledDevice) {
+  protected async _startOrRestartOneWorker(
+    install: InstalledDevice
+  ): Promise<void> {
     const oldWorker = this._workers[install.id];
     if (
       oldWorker &&
@@ -272,7 +268,7 @@ export class App<O extends IObniz> {
     }
   }
 
-  protected async _stopOneWorker(installId: string) {
+  protected async _stopOneWorker(installId: string): Promise<void> {
     logger.info(`App Deleted id=${installId}`);
     const worker = this._workers[installId];
     if (worker) {

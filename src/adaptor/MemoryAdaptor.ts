@@ -1,116 +1,36 @@
-import { Installed_Device } from 'obniz-cloud-sdk/sdk';
-import { Adaptor } from './Adaptor';
-import { logger } from '../logger';
+import { Adaptor, MessageBetweenInstance } from './Adaptor';
 
 export interface MemoryAdaptorOptions {
   limit: number;
 }
 
+const memoryAdaptorList: MemoryAdaptor[] = [];
+
 export class MemoryAdaptor extends Adaptor {
-  public isMaster = false;
-
-  public id: string;
-  public readonly options: MemoryAdaptorOptions;
-
-  constructor(id: string, isMaster: boolean, options: MemoryAdaptorOptions) {
-    super();
-
-    this.id = id;
-    this.isMaster = isMaster;
-    this.options = options;
-
-    this.onReady().catch((e) => logger.error(e));
+  constructor(
+    id: string,
+    isMaster: boolean,
+    memoryOption: MemoryAdaptorOptions
+  ) {
+    super(id, isMaster);
+    console.log(memoryOption);
+    memoryAdaptorList.push(this);
+    this._onReady();
   }
 
-  async onReady() {
-    if (this.isMaster) {
-      this.reportRequest()
-        .then(() => {})
-        .catch((e) => {
-          logger.error(e);
-        });
-    } else {
-      if (this.onReportRequest) {
-        this.onReportRequest()
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
-      }
-    }
+  private _onRedisReady() {
+    this._onReady();
   }
 
-  async onMessage(message: string) {
-    const parsed = JSON.parse(message);
+  private _onRedisMessage(channel: string, message: string) {
+    const parsed = JSON.parse(message) as MessageBetweenInstance;
     // slave functions
-    if (
-      this.isMaster === parsed.toMaster &&
-      this.isMaster === false &&
-      (parsed.instanceName === this.id || parsed.instanceName === '*')
-    ) {
-      if (parsed.action === 'synchronize') {
-        if (this.onSynchronize) {
-          this.onSynchronize(parsed.installs)
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
-        }
-      } else if (parsed.action === 'reportRequest') {
-        if (this.onReportRequest) {
-          this.onReportRequest()
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
-        }
-      }
-      // master functions
-    } else if (this.isMaster === parsed.toMaster && this.isMaster === true) {
-      if (parsed.action === 'report') {
-        if (this.onReported) {
-          this.onReported(parsed.instanceName, parsed.installIds)
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
-        }
-      }
+    this.onMessage(parsed);
+  }
+
+  async _send(json: MessageBetweenInstance): Promise<void> {
+    for (const one of memoryAdaptorList) {
+      one.onMessage(json);
     }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  async send(json: any): Promise<void> {
-    const data = JSON.stringify(json);
-    await this.onMessage(data);
-  }
-
-  async synchronize(
-    instanceName: string,
-    installs: Installed_Device[]
-  ): Promise<void> {
-    await this.send({
-      action: 'synchronize',
-      instanceName,
-      toMaster: false,
-      installs,
-    });
-  }
-
-  async reportRequest(): Promise<void> {
-    await this.send({
-      action: 'reportRequest',
-      instanceName: '*',
-      toMaster: false,
-    });
-  }
-
-  async report(instanceName: string, installIds: string[]): Promise<void> {
-    await this.send({
-      action: 'report',
-      instanceName,
-      toMaster: true,
-      installIds,
-    });
   }
 }

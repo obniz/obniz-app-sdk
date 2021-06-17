@@ -2,10 +2,13 @@ import { logger } from './logger';
 import { getInstallRequest } from './install';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
-import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import express from 'express';
-import { AppStartOption, Database, DatabaseConfig } from './App';
-import { MemoryAdaptor } from './adaptor/MemoryAdaptor';
+import { AppStartOption } from './App';
+import {
+  AdaptorFactory,
+  Database,
+  DatabaseConfig,
+} from './adaptor/AdaptorFactory';
 
 enum InstallStatus {
   Starting,
@@ -58,20 +61,21 @@ export class Master<T extends Database> {
       if (database !== 'redis') {
         throw new Error('Supported database type is only redis now.');
       }
-      this.adaptor = new RedisAdaptor(
+      this.adaptor = new AdaptorFactory().create<T>(
+        database,
         instanceName,
         true,
-        databaseConfig as DatabaseConfig['redis']
-      );
-    } else if (database === 'memory') {
-      this.adaptor = new MemoryAdaptor(
-        instanceName,
-        true,
-        databaseConfig as DatabaseConfig['memory']
+        databaseConfig
       );
     } else {
-      throw new Error('Unsupported database type: ' + database);
+      this.adaptor = new AdaptorFactory().create<T>(
+        database,
+        instanceName,
+        true,
+        databaseConfig
+      );
     }
+
     this.adaptor.onReported = async (
       reportInstanceName: string,
       installIds: string[]

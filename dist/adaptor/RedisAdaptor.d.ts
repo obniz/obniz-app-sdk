@@ -1,15 +1,12 @@
-import { Installed_Device } from 'obniz-cloud-sdk/sdk';
-import { Adaptor } from './Adaptor';
+import { Adaptor, MessageBetweenInstance } from './Adaptor';
 import IORedis from 'ioredis';
 export declare type RedisAdaptorOptions = IORedis.RedisOptions;
 export declare class RedisAdaptor extends Adaptor {
-    isMaster: boolean;
-    id: string;
     private _redis;
     private _pubRedis;
     constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions);
-    send(json: any): Promise<void>;
-    synchronize(instanceName: string, installs: Installed_Device[]): Promise<void>;
-    reportRequest(): Promise<void>;
-    report(instanceName: string, installIds: string[]): Promise<void>;
+    private _onRedisReady;
+    private _onRedisMessage;
+    private _bindRedisEvents;
+    _send(json: MessageBetweenInstance): Promise<void>;
 }

@@ -6,9 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Master = void 0;
 const logger_1 = require("./logger");
 const install_1 = require("./install");
-const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const express_1 = __importDefault(require("express"));
-const MemoryAdaptor_1 = require("./adaptor/MemoryAdaptor");
+const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -28,13 +27,10 @@ class Master {
             if (database !== 'redis') {
                 throw new Error('Supported database type is only redis now.');
             }
-            this.adaptor = new RedisAdaptor_1.RedisAdaptor(instanceName, true, databaseConfig);
-        }
-        else if (database === 'memory') {
-            this.adaptor = new MemoryAdaptor_1.MemoryAdaptor(instanceName, true, databaseConfig);
+            this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
         }
         else {
-            throw new Error('Unsupported database type: ' + database);
+            this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
         }
         this.adaptor.onReported = async (reportInstanceName, installIds) => {
             // logger.debug(`receive report ${reportInstanceName}`)

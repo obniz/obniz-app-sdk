@@ -1,16 +1,10 @@
 import express from 'express';
 import { Worker, WorkerStatic } from './Worker';
 import { Master as MasterClass } from './Master';
-import { RedisAdaptorOptions } from './adaptor/RedisAdaptor';
 import { Adaptor } from './adaptor/Adaptor';
 import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
 import { IObnizStatic, IObniz } from './Obniz.interface';
-import { MemoryAdaptorOptions } from './adaptor/MemoryAdaptor';
-export interface DatabaseConfig {
-    redis: RedisAdaptorOptions;
-    memory: MemoryAdaptorOptions;
-}
-export declare type Database = keyof DatabaseConfig;
+import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 export declare enum AppInstanceType {
     Master = 0,
     Slave = 1

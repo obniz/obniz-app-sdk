@@ -18,7 +18,7 @@ export interface AppOption<T extends Database, O extends IObniz> {
     obnizClass: IObnizStatic<O>;
     instanceType: AppInstanceType;
     instanceName?: string;
-    scaleFactor?: number;
+    maxWorkerNumPerInstance?: number;
 }
 declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
 export interface AppStartOption {

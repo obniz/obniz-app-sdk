@@ -38,7 +38,7 @@ interface AppStartOptionInternal extends AppStartOption {
 
 export class Master<T extends Database> {
   public adaptor: Adaptor;
-  public scaleFactor: number;
+  public maxWorkerNumPerInstance: number;
 
   private readonly _appToken: string;
   private _startOptions?: AppStartOptionInternal;
@@ -50,14 +50,14 @@ export class Master<T extends Database> {
   constructor(
     appToken: string,
     instanceName: string,
-    scaleFactor: number,
+    maxWorkerNumPerInstance: number,
     database: T,
     databaseConfig: DatabaseConfig[T]
   ) {
     this._appToken = appToken;
-    this.scaleFactor = scaleFactor;
+    this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
 
-    if (scaleFactor > 0) {
+    if (maxWorkerNumPerInstance > 0) {
       if (database !== 'redis') {
         throw new Error('Supported database type is only redis now.');
       }

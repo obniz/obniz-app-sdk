@@ -30,7 +30,7 @@ export interface AppOption<T extends Database, O extends IObniz> {
   obnizClass: IObnizStatic<O>;
   instanceType: AppInstanceType;
   instanceName?: string;
-  scaleFactor?: number; // number of installs.
+  maxWorkerNumPerInstance?: number; // number of installs.
 }
 
 type AppOptionInternal<T extends Database, O extends IObniz> = Required<
@@ -85,19 +85,19 @@ export class App<O extends IObniz> {
       obnizClass: option.obnizClass,
       instanceType: option.instanceType || AppInstanceType.Master,
       instanceName: option.instanceName || 'master',
-      scaleFactor: option.scaleFactor || 0,
+      maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
     };
 
     if (option.instanceType === AppInstanceType.Master) {
       this._master = new MasterClass(
         option.appToken,
         this._options.instanceName,
-        this._options.scaleFactor,
+        this._options.maxWorkerNumPerInstance,
         this._options.database,
         this._options.databaseConfig
       );
     }
-    this.isScalableMode = this._options.scaleFactor > 0;
+    this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
     if (this._master) {
       // share same adaptor
       this._adaptor = this._master.adaptor;

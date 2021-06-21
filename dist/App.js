@@ -37,12 +37,12 @@ class App {
             obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || 'master',
-            scaleFactor: option.scaleFactor || 0,
+            maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
         };
         if (option.instanceType === AppInstanceType.Master) {
-            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
+            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.maxWorkerNumPerInstance, this._options.database, this._options.databaseConfig);
         }
-        this.isScalableMode = this._options.scaleFactor > 0;
+        this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
         if (this._master) {
             // share same adaptor
             this._adaptor = this._master.adaptor;

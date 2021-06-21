@@ -4,14 +4,14 @@ import { AppStartOption } from './App';
 import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 export declare class Master<T extends Database> {
     adaptor: Adaptor;
-    scaleFactor: number;
+    maxWorkerNumPerInstance: number;
     private readonly _appToken;
     private _startOptions?;
     private _syncing;
     private _interval?;
     private _allInstalls;
     private _allWorkerInstances;
-    constructor(appToken: string, instanceName: string, scaleFactor: number, database: T, databaseConfig: DatabaseConfig[T]);
+    constructor(appToken: string, instanceName: string, maxWorkerNumPerInstance: number, database: T, databaseConfig: DatabaseConfig[T]);
     start(option?: AppStartOption): void;
     private _startWeb;
     webhook: (_: express.Request, res: express.Response) => Promise<void>;

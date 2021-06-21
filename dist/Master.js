@@ -16,14 +16,14 @@ var InstallStatus;
     InstallStatus[InstallStatus["Stopped"] = 3] = "Stopped";
 })(InstallStatus || (InstallStatus = {}));
 class Master {
-    constructor(appToken, instanceName, scaleFactor, database, databaseConfig) {
+    constructor(appToken, instanceName, maxWorkerNumPerInstance, database, databaseConfig) {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
         this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
-        this.scaleFactor = scaleFactor;
-        if (scaleFactor > 0) {
+        this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
+        if (maxWorkerNumPerInstance > 0) {
             if (database !== 'redis') {
                 throw new Error('Supported database type is only redis now.');
             }

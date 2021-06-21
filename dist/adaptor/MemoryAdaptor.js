@@ -6,7 +6,6 @@ const memoryAdaptorList = [];
 class MemoryAdaptor extends Adaptor_1.Adaptor {
     constructor(id, isMaster, memoryOption) {
         super(id, isMaster);
-        console.log(memoryOption);
         memoryAdaptorList.push(this);
         this._onReady();
     }

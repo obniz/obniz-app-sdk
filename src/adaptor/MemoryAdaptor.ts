@@ -13,7 +13,6 @@ export class MemoryAdaptor extends Adaptor {
     memoryOption: MemoryAdaptorOptions
   ) {
     super(id, isMaster);
-    console.log(memoryOption);
     memoryAdaptorList.push(this);
     this._onReady();
   }

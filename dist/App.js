@@ -27,7 +27,7 @@ class App {
         }
         this._options = {
             appToken: option.appToken,
-            database: option.database || 'redis',
+            database: option.database || 'memory',
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass || Worker_1.Worker,
             workerClassFunction: option.workerClassFunction ||

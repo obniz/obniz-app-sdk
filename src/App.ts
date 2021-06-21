@@ -74,7 +74,7 @@ export class App<O extends IObniz> {
     }
     this._options = {
       appToken: option.appToken,
-      database: option.database || 'redis',
+      database: option.database || 'memory',
       databaseConfig: option.databaseConfig,
       workerClass: option.workerClass || Worker,
       workerClassFunction:

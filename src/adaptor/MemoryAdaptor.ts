@@ -4,31 +4,20 @@ export interface MemoryAdaptorOptions {
   limit: number;
 }
 
-const memoryAdaptorList: MemoryAdaptor[] = [];
-
 export class MemoryAdaptor extends Adaptor {
+  static memoryAdaptorList: MemoryAdaptor[] = [];
   constructor(
     id: string,
     isMaster: boolean,
     memoryOption: MemoryAdaptorOptions
   ) {
     super(id, isMaster);
-    memoryAdaptorList.push(this);
+    MemoryAdaptor.memoryAdaptorList.push(this);
     this._onReady();
-  }
-
-  private _onRedisReady() {
-    this._onReady();
-  }
-
-  private _onRedisMessage(channel: string, message: string) {
-    const parsed = JSON.parse(message) as MessageBetweenInstance;
-    // slave functions
-    this.onMessage(parsed);
   }
 
   async _send(json: MessageBetweenInstance): Promise<void> {
-    for (const one of memoryAdaptorList) {
+    for (const one of MemoryAdaptor.memoryAdaptorList) {
       one.onMessage(json);
     }
   }

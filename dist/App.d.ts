@@ -27,7 +27,7 @@ export interface AppStartOption {
     port?: number;
 }
 export declare class App<O extends IObniz> {
-    protected _options: AppOptionInternal<any, O>;
+    readonly _options: AppOptionInternal<any, O>;
     protected readonly _master?: MasterClass<any>;
     protected _adaptor: Adaptor;
     protected _workers: {

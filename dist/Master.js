@@ -198,7 +198,7 @@ class Master {
             // logger.debug("sync api start");
             const installsApi = [];
             try {
-                installsApi.push(...(await install_1.getInstallRequest(this._appToken)));
+                installsApi.push(...(await install_1.sharedInstalledDeviceManager.getListFromObnizCloud(this._appToken)));
             }
             catch (e) {
                 console.error(e);

@@ -1,2 +1,5 @@
 import { Installed_Device } from 'obniz-cloud-sdk/sdk';
-export declare function getInstallRequest(token: string): Promise<Installed_Device[]>;
+export declare class InstalledDeviceManager {
+    getListFromObnizCloud(token: string): Promise<Installed_Device[]>;
+}
+export declare const sharedInstalledDeviceManager: InstalledDeviceManager;

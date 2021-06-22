@@ -44,7 +44,7 @@ export interface AppStartOption {
 }
 
 export class App<O extends IObniz> {
-  protected _options: AppOptionInternal<any, O>;
+  readonly _options: AppOptionInternal<any, O>;
 
   // As Master
   protected readonly _master?: MasterClass<any>;
@@ -243,7 +243,7 @@ export class App<O extends IObniz> {
   }
 
   protected async _startOneWorker(install: InstalledDevice): Promise<void> {
-    logger.info(`New App Start id=${install.id}`);
+    logger.info(`New Worker Start id=${install.id}`);
 
     const wclass = this._options.workerClassFunction(install);
     const worker = new wclass(install, this);

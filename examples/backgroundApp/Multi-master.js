@@ -1,4 +1,5 @@
-const { App, AppInstanceType, Worker, Obniz } = require('../../dist')
+const { App, AppInstanceType, Worker } = require('../../dist')
+const Obniz = require("obniz"); //specific obnizjs version
 
 class MyWorker extends Worker {
 

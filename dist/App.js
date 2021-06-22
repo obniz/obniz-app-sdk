@@ -164,7 +164,7 @@ class App {
         return await this._adaptor.request(key);
     }
     async _startOneWorker(install) {
-        logger_1.logger.info(`New App Start id=${install.id}`);
+        logger_1.logger.info(`New Worker Start id=${install.id}`);
         const wclass = this._options.workerClassFunction(install);
         const worker = new wclass(install, this);
         this._workers[install.id] = worker;

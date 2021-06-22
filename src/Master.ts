@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { getInstallRequest } from './install';
+import { sharedInstalledDeviceManager } from './install';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
@@ -264,7 +264,11 @@ export class Master<T extends Database> {
 
       const installsApi = [];
       try {
-        installsApi.push(...(await getInstallRequest(this._appToken)));
+        installsApi.push(
+          ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
+            this._appToken
+          ))
+        );
       } catch (e) {
         console.error(e);
         process.exit(-1);

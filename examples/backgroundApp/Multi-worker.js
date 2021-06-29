@@ -43,7 +43,7 @@ const app = new App({
   workerClass: MyWorker,
   instanceType: AppInstanceType.Slave,
   instanceName: process.env.dynoId || 'worker0',
-  scaleFactor: 1,
+  maxWorkerNumPerInstance: 1,
   database: "redis",
   databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379",
   obnizClass: Obniz

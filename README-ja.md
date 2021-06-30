@@ -11,7 +11,8 @@ obnizを使用したnodejsアプリを作る際のフレームワークです。
 ## プログラム
 
 ```
-const { App, AppInstanceType, Worker, Obniz } = require('../../dist')
+const { App, AppInstanceType, Worker } = require('obniz-app-sdk')
+const Obniz = require("obniz");
 
 class MyWorker extends Worker {
 
@@ -70,6 +71,7 @@ Appの引数はこちらのとおりです
 | workerClass |  各デバイスの処理を記載したMyWorkerクラスを指定します|
 | appToken |  obnizCloud上でホステッドアプリを作成し、そのアプリのトークンを指定します|
 | instanceType |  オートスケール時のために必要です。1台目をMaster、2台目以降はSlaveを指定してください。|
+| obnizClass |  Workerで使用するobnizクラスを指定してください。 |
 
 その他、オプションのパラメータはプログラム内を参照してください。
 
@@ -80,7 +82,7 @@ Appの引数はこちらのとおりです
 
 ## ライフサイクル
 
-バックグラウンド部分のライフサイクル
+workerのライフサイクルです。
 ![](./doc/images/lifecycle.png)
 
 

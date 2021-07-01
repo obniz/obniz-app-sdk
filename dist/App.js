@@ -7,8 +7,8 @@ exports.App = exports.AppInstanceType = void 0;
 const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
-const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const semver_1 = __importDefault(require("semver"));
+const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
@@ -20,13 +20,14 @@ class App {
         this._interval = null;
         this._syncing = false;
         this.isScalableMode = false;
+        this.expressWebhook = this._expressWebhook.bind(this);
         const requiredObnizJsVersion = '3.15.0-alpha.1';
         if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
             throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
         }
         this._options = {
             appToken: option.appToken,
-            database: option.database || 'redis',
+            database: option.database || 'memory',
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass || Worker_1.Worker,
             workerClassFunction: option.workerClassFunction ||
@@ -36,21 +37,21 @@ class App {
             obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || 'master',
-            scaleFactor: option.scaleFactor || 0,
+            maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
         };
-        if (this._options.database !== 'redis') {
-            throw new Error('Supported database type is only redis now.');
-        }
         if (option.instanceType === AppInstanceType.Master) {
-            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.scaleFactor, this._options.database, this._options.databaseConfig);
+            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.maxWorkerNumPerInstance, this._options.database, this._options.databaseConfig);
         }
-        this.isScalableMode = this._options.scaleFactor > 0;
-        if (this.isScalableMode) {
-            this._adaptor = new RedisAdaptor_1.RedisAdaptor(this._options.instanceName, false, this._options.databaseConfig);
-        }
-        else if (this._master) {
+        this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
+        if (this._master) {
             // share same adaptor
             this._adaptor = this._master.adaptor;
+        }
+        else if (this.isScalableMode) {
+            if (this._options.database !== 'redis') {
+                throw new Error('only support database redis when using scalable mode');
+            }
+            this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
         }
         else {
             throw new Error('invalid options');
@@ -125,6 +126,10 @@ class App {
             });
         }
     }
+    _expressWebhook(req, res) {
+        var _a;
+        (_a = this._master) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
+    }
     start(option) {
         if (this._master) {
             this._master.start(option);
@@ -159,7 +164,7 @@ class App {
         return await this._adaptor.request(key);
     }
     async _startOneWorker(install) {
-        logger_1.logger.info(`New App Start id=${install.id}`);
+        logger_1.logger.info(`New Worker Start id=${install.id}`);
         const wclass = this._options.workerClassFunction(install);
         const worker = new wclass(install, this);
         this._workers[install.id] = worker;

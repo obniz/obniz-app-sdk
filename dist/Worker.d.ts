@@ -1,6 +1,5 @@
 import { App } from './App';
-import { ObnizOptions } from 'obniz/dist/src/obniz/ObnizOptions';
-import { IObniz } from './Obniz.interface';
+import { IObniz, IObnizOptions } from './Obniz.interface';
 import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
 /**
  * This class is exported from this library
@@ -14,7 +13,7 @@ export declare class Worker<O extends IObniz> {
     state: 'stopped' | 'starting' | 'started' | 'stopping';
     private readonly _obnizOption;
     user: User;
-    constructor(install: Installed_Device, app: App<O>, option?: ObnizOptions);
+    constructor(install: Installed_Device, app: App<O>, option?: IObnizOptions);
     /**
      * Worker lifecycle
      */

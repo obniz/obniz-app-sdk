@@ -1,7 +1,6 @@
 import { App } from './App';
-import { ObnizOptions } from 'obniz/dist/src/obniz/ObnizOptions';
 import { logger } from './logger';
-import { IObniz } from './Obniz.interface';
+import { IObniz, IObnizOptions } from './Obniz.interface';
 import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
 
 /**
@@ -14,13 +13,13 @@ export class Worker<O extends IObniz> {
   protected app: App<O>;
   protected obniz: O;
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
-  private readonly _obnizOption: ObnizOptions;
+  private readonly _obnizOption: IObnizOptions;
   public user: User;
 
   constructor(
     install: Installed_Device,
     app: App<O>,
-    option: ObnizOptions = {}
+    option: IObnizOptions = {}
   ) {
     this.install = install;
     this.app = app;
@@ -36,6 +35,8 @@ export class Worker<O extends IObniz> {
     this.obniz.onconnect = this.onObnizConnect.bind(this);
     this.obniz.onloop = this.onObnizLoop.bind(this);
     this.obniz.onclose = this.onObnizClose.bind(this);
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.user = this.install.user!;
   }
 

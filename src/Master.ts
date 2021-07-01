@@ -1,10 +1,14 @@
 import { logger } from './logger';
-import { getInstallRequest } from './install';
+import { sharedInstalledDeviceManager } from './install';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
-import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import express from 'express';
-import { AppStartOption, Database, DatabaseConfig } from './App';
+import { AppStartOption } from './App';
+import {
+  AdaptorFactory,
+  Database,
+  DatabaseConfig,
+} from './adaptor/AdaptorFactory';
 
 enum InstallStatus {
   Starting,
@@ -34,7 +38,7 @@ interface AppStartOptionInternal extends AppStartOption {
 
 export class Master<T extends Database> {
   public adaptor: Adaptor;
-  public scaleFactor: number;
+  public maxWorkerNumPerInstance: number;
 
   private readonly _appToken: string;
   private _startOptions?: AppStartOptionInternal;
@@ -46,25 +50,32 @@ export class Master<T extends Database> {
   constructor(
     appToken: string,
     instanceName: string,
-    scaleFactor: number,
+    maxWorkerNumPerInstance: number,
     database: T,
     databaseConfig: DatabaseConfig[T]
   ) {
     this._appToken = appToken;
-    this.scaleFactor = scaleFactor;
+    this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
 
-    if (database !== 'redis') {
-      throw new Error('Supported database type is only redis now.');
-    }
-    if (scaleFactor > 0) {
-      this.adaptor = new RedisAdaptor(
+    if (maxWorkerNumPerInstance > 0) {
+      if (database !== 'redis') {
+        throw new Error('Supported database type is only redis now.');
+      }
+      this.adaptor = new AdaptorFactory().create<T>(
+        database,
         instanceName,
         true,
-        databaseConfig as DatabaseConfig['redis']
+        databaseConfig
       );
     } else {
-      this.adaptor = new Adaptor();
+      this.adaptor = new AdaptorFactory().create<T>(
+        database,
+        instanceName,
+        true,
+        databaseConfig
+      );
     }
+
     this.adaptor.onReported = async (
       reportInstanceName: string,
       installIds: string[]
@@ -94,18 +105,19 @@ export class Master<T extends Database> {
 
   private _startWeb(option?: AppStartOption): void {
     option = option || {};
+    if (option.express === false) {
+      // nothing
+      return;
+    }
     this._startOptions = {
       express: option.express || express(),
       webhookUrl: option.webhookUrl || '/webhook',
       port: option.port || 3333,
     };
-    this._startOptions.express.get(
-      this._startOptions.webhookUrl,
-      this._webhook.bind(this)
-    );
+    this._startOptions.express.get(this._startOptions.webhookUrl, this.webhook);
     this._startOptions.express.post(
       this._startOptions.webhookUrl,
-      this._webhook.bind(this)
+      this.webhook
     );
 
     if (!option.express) {
@@ -118,6 +130,8 @@ export class Master<T extends Database> {
       });
     }
   }
+
+  webhook = this._webhook.bind(this);
 
   private async _webhook(_: express.Request, res: express.Response) {
     // TODO : check Instance and start
@@ -250,7 +264,11 @@ export class Master<T extends Database> {
 
       const installsApi = [];
       try {
-        installsApi.push(...(await getInstallRequest(this._appToken)));
+        installsApi.push(
+          ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
+            this._appToken
+          ))
+        );
       } catch (e) {
         console.error(e);
         process.exit(-1);

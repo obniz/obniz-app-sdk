@@ -1,4 +1,5 @@
-const { App, AppInstanceType, Worker, Obniz } = require('../../dist')
+const { App, AppInstanceType, Worker } = require('../../dist')
+const Obniz = require("obniz"); //specific obnizjs version
 
 class MyWorker extends Worker {
 
@@ -42,7 +43,7 @@ const app = new App({
   appToken: 'apptoken_Tmj2JMXVXgLBYW6iDlBzQph7L6uwcBYqRmW2NvnKk_kQeiwvnRCnUJePUrsTRtXW',
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
-  scaleFactor: 1,
+  maxWorkerNumPerInstance: 1,
   database: "redis",
   databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379"
 })

@@ -21,13 +21,13 @@ class App {
         this._syncing = false;
         this.isScalableMode = false;
         this.expressWebhook = this._expressWebhook.bind(this);
-        const requiredObnizJsVersion = "3.15.0-alpha.1";
+        const requiredObnizJsVersion = '3.15.0-alpha.1';
         if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
             throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
         }
         this._options = {
             appToken: option.appToken,
-            database: option.database || "memory",
+            database: option.database || 'memory',
             databaseConfig: option.databaseConfig,
             workerClass: option.workerClass || Worker_1.Worker,
             workerClassFunction: option.workerClassFunction ||
@@ -36,10 +36,10 @@ class App {
                 }),
             obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
-            instanceName: option.instanceName || "master",
+            instanceName: option.instanceName || 'master',
             maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
             obnizOption: option.obnizOption || {},
-            obnizCloudSdkOption: option.obnizCloudSdkOption || {}
+            obnizCloudSdkOption: option.obnizCloudSdkOption || {},
         };
         if (option.instanceType === AppInstanceType.Master) {
             this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.maxWorkerNumPerInstance, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
@@ -50,13 +50,13 @@ class App {
             this._adaptor = this._master.adaptor;
         }
         else if (this.isScalableMode) {
-            if (this._options.database !== "redis") {
-                throw new Error("only support database redis when using scalable mode");
+            if (this._options.database !== 'redis') {
+                throw new Error('only support database redis when using scalable mode');
             }
             this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
         }
         else {
-            throw new Error("invalid options");
+            throw new Error('invalid options');
         }
         this._adaptor.onSynchronize = async (installs) => {
             await this._synchronize(installs);
@@ -123,7 +123,7 @@ class App {
             }, 10 * 1000);
             this._reportToMaster()
                 .then()
-                .catch(e => {
+                .catch((e) => {
                 logger_1.logger.error(e);
             });
         }
@@ -139,19 +139,19 @@ class App {
         this._startSyncing();
     }
     async getAllUsers() {
-        throw new Error("TODO");
+        throw new Error('TODO');
     }
     async getAllObnizes() {
-        throw new Error("TODO");
+        throw new Error('TODO');
     }
     async getOnlineObnizes() {
-        throw new Error("TODO");
+        throw new Error('TODO');
     }
     async getOfflineObnizes() {
-        throw new Error("TODO");
+        throw new Error('TODO');
     }
     async getObnizesOnThisInstance() {
-        throw new Error("TODO");
+        throw new Error('TODO');
     }
     /**
      * Request a results for specified key for working workers.
@@ -193,7 +193,7 @@ class App {
             worker
                 .stop()
                 .then(() => { })
-                .catch(e => {
+                .catch((e) => {
                 logger_1.logger.error(e);
             });
         }

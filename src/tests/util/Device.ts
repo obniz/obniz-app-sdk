@@ -52,3 +52,31 @@ export const deviceB: Installed_Device = {
   },
   __typename: 'installed_device',
 };
+
+export const deviceC: Installed_Device = {
+  id: '8469-1805',
+  access_token:
+    '6MVmB37HkMaANQHnBAB9l67_NuXLpSHKJWn3Kc6vji9tQNT4zhj9bkMePN1FAEUs',
+  description: 'ユーザーの要望により削除',
+  hardware: 'esp32p',
+  os: 'esp32w',
+  devicekey: '84691805&30920268b090d64eab754583e937522f2783f9bf11bbe2af',
+  metadata: '{"description":"ユーザー2236 の要望により削除"}',
+  osVersion: '2.1.0',
+  region: 'jp',
+  status: 'inactive',
+  createdAt: '2019-08-19T02:16:45.641Z',
+  configs:
+    '{"type":"relay_gw","values":[],"sensor_group_id":"5d961872-e9ed-4d3b-b5f0-0737417714ef"}',
+  user: {
+    id: 'usr_Mw==',
+    name: 'kidof',
+    email: 'koheikido@cambrianrobotics.com',
+    picture:
+      'https://s3-ap-northeast-1.amazonaws.com/obniz-uploads/dfcd65403be18f361602211642117',
+    plan: 'biz',
+    credit: '0',
+    createdAt: '2018-02-28T19:43:19.191Z',
+  },
+  __typename: 'installed_device',
+};

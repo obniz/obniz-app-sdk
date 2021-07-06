@@ -2,7 +2,7 @@ import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
 import { AppStartOption } from './App';
 import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
-import { SdkOption } from "obniz-cloud-sdk";
+import { SdkOption } from 'obniz-cloud-sdk';
 export declare class Master<T extends Database> {
     adaptor: Adaptor;
     maxWorkerNumPerInstance: number;

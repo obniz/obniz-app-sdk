@@ -1,11 +1,11 @@
-import express from "express";
-import { Worker, WorkerStatic } from "./Worker";
-import { Master as MasterClass } from "./Master";
-import { Adaptor } from "./adaptor/Adaptor";
-import { Installed_Device, Installed_Device as InstalledDevice, User } from "obniz-cloud-sdk/sdk";
-import { IObnizStatic, IObniz, IObnizOptions } from "./Obniz.interface";
-import { Database, DatabaseConfig } from "./adaptor/AdaptorFactory";
-import { SdkOption } from "obniz-cloud-sdk/index";
+import express from 'express';
+import { Worker, WorkerStatic } from './Worker';
+import { Master as MasterClass } from './Master';
+import { Adaptor } from './adaptor/Adaptor';
+import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
+import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
+import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
+import { SdkOption } from 'obniz-cloud-sdk/index';
 export declare enum AppInstanceType {
     Master = 0,
     Slave = 1

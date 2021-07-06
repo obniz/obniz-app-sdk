@@ -17,6 +17,7 @@ export declare class LogWorker extends Worker<DummyObniz> {
     __addedLoopEvent: boolean;
     static __reset(): void;
     constructor(install: Installed_Device, app: App<DummyObniz>, option?: IObnizOptions);
+    __getOption(): IObnizOptions;
     onStart(): Promise<void>;
     onLoop(): Promise<void>;
     onEnd(): Promise<void>;

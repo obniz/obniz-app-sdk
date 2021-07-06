@@ -2,10 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DummyObniz = void 0;
 class DummyObniz {
-    constructor(id) {
+    constructor(id, options) {
         this.__logs = [];
         this.__autoConnect = false;
         this.id = id;
+        this.options = options;
         DummyObniz.obnizes.push(this);
     }
     static __reset() {

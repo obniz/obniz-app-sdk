@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.sharedInstalledDeviceManager = exports.InstalledDeviceManager = void 0;
 const obniz_cloud_sdk_1 = require("obniz-cloud-sdk");
 class InstalledDeviceManager {
-    async getListFromObnizCloud(token) {
-        const sdk = obniz_cloud_sdk_1.getSdk(token);
+    async getListFromObnizCloud(token, option) {
+        const sdk = obniz_cloud_sdk_1.getSdk(token, option);
         const allInstalls = [];
         let skip = 0;
         let failCount = 0;

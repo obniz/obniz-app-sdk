@@ -9,6 +9,7 @@ import {
   Database,
   DatabaseConfig,
 } from './adaptor/AdaptorFactory';
+import { SdkOption } from 'obniz-cloud-sdk';
 
 enum InstallStatus {
   Starting,
@@ -41,6 +42,7 @@ export class Master<T extends Database> {
   public maxWorkerNumPerInstance: number;
 
   private readonly _appToken: string;
+  private readonly _obnizSdkOption: SdkOption;
   private _startOptions?: AppStartOptionInternal;
   private _syncing = false;
   private _interval?: any;
@@ -52,10 +54,12 @@ export class Master<T extends Database> {
     instanceName: string,
     maxWorkerNumPerInstance: number,
     database: T,
-    databaseConfig: DatabaseConfig[T]
+    databaseConfig: DatabaseConfig[T],
+    obnizSdkOption: SdkOption
   ) {
     this._appToken = appToken;
     this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
+    this._obnizSdkOption = obnizSdkOption;
 
     if (maxWorkerNumPerInstance > 0) {
       if (database !== 'redis') {
@@ -266,7 +270,8 @@ export class Master<T extends Database> {
       try {
         installsApi.push(
           ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
-            this._appToken
+            this._appToken,
+            this._obnizSdkOption
           ))
         );
       } catch (e) {

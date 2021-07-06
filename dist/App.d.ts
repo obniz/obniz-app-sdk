@@ -3,8 +3,9 @@ import { Worker, WorkerStatic } from './Worker';
 import { Master as MasterClass } from './Master';
 import { Adaptor } from './adaptor/Adaptor';
 import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
-import { IObnizStatic, IObniz } from './Obniz.interface';
+import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
+import { SdkOption } from 'obniz-cloud-sdk/index';
 export declare enum AppInstanceType {
     Master = 0,
     Slave = 1
@@ -19,6 +20,8 @@ export interface AppOption<T extends Database, O extends IObniz> {
     instanceType: AppInstanceType;
     instanceName?: string;
     maxWorkerNumPerInstance?: number;
+    obnizOption?: IObnizOptions;
+    obnizCloudSdkOption?: SdkOption;
 }
 declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
 export interface AppStartOption {

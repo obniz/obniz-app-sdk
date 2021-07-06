@@ -13,6 +13,9 @@ class LogWorker extends Worker_1.Worker {
     static __reset() {
         LogWorker.workers = [];
     }
+    __getOption() {
+        return this._obnizOption;
+    }
     async onStart() {
         this.__addedLoopEvent = false;
         this.__addLog('onStart');

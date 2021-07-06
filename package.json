@@ -1,6 +1,6 @@
 {
   "name": "obniz-app-sdk",
-  "version": "0.3.0-alpha.2",
+  "version": "1.0.0",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
@@ -65,7 +65,7 @@
     "ioredis": "^4.19.4",
     "lint-staged": "^10.5.3",
     "log4js": "^6.3.0",
-    "obniz-cloud-sdk": "^0.1.0",
+    "obniz-cloud-sdk": "^1.1.0",
     "semver": "^7.3.5"
   }
 }

@@ -11,7 +11,7 @@ export declare class Worker<O extends IObniz> {
     protected app: App<O>;
     protected obniz: O;
     state: 'stopped' | 'starting' | 'started' | 'stopping';
-    private readonly _obnizOption;
+    protected readonly _obnizOption: IObnizOptions;
     user: User;
     constructor(install: Installed_Device, app: App<O>, option?: IObnizOptions);
     /**
@@ -39,4 +39,4 @@ export declare class Worker<O extends IObniz> {
     private _loop;
     stop(): Promise<void>;
 }
-export declare type WorkerStatic<O extends IObniz> = new (install: Installed_Device, app: App<O>) => Worker<O>;
+export declare type WorkerStatic<O extends IObniz> = new (install: Installed_Device, app: App<O>, option: IObnizOptions) => Worker<O>;

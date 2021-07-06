@@ -1,4 +1,4 @@
-import { IObniz } from '../../Obniz.interface';
+import { IObniz, IObnizOptions } from '../../Obniz.interface';
 export interface DummyObnizLog {
     date: Date;
     eventType: 'close' | 'connect' | 'autoConnectOn' | 'autoConnectOff';
@@ -9,8 +9,9 @@ export declare class DummyObniz implements IObniz {
     __logs: DummyObnizLog[];
     __autoConnect: boolean;
     id: string;
+    options: IObnizOptions;
     static __reset(): void;
-    constructor(id: string);
+    constructor(id: string, options: IObnizOptions);
     get autoConnect(): boolean;
     set autoConnect(val: boolean);
     closeWait(): Promise<void>;

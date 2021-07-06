@@ -1,9 +1,12 @@
-import { getSdk } from 'obniz-cloud-sdk';
+import { getSdk, SdkOption } from 'obniz-cloud-sdk';
 import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 
 export class InstalledDeviceManager {
-  async getListFromObnizCloud(token: string): Promise<Installed_Device[]> {
-    const sdk = getSdk(token);
+  async getListFromObnizCloud(
+    token: string,
+    option: SdkOption
+  ): Promise<Installed_Device[]> {
+    const sdk = getSdk(token, option);
     const allInstalls: Installed_Device[] = [];
     let skip = 0;
     let failCount = 0;

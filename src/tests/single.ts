@@ -213,8 +213,9 @@ describe('single', () => {
   });
 
   it('access token', async () => {
+    const cloudSdkToken = '989786r7tyghjnkooyfvasdfa';
     const app = new App<DummyObniz>({
-      appToken: process.env.AppToken || '',
+      appToken: cloudSdkToken,
       workerClass: LogWorker,
       instanceType: AppInstanceType.Master,
       obnizClass: DummyObniz,
@@ -241,7 +242,7 @@ describe('single', () => {
     expect(DummyObniz.obnizes.length).to.be.equal(1);
 
     const obnizC = DummyObniz.obnizes[0];
-    expect(obnizC.options.access_token).to.be.equal(deviceC.access_token);
+    expect(obnizC.options.access_token).to.be.equal(cloudSdkToken);
     expect(obnizC.options.auto_connect).to.be.equal(false);
   });
 

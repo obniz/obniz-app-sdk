@@ -15,7 +15,6 @@ class Worker {
         this._obnizOption = option;
         const overrideOptions = {
             auto_connect: false,
-            access_token: this.install.access_token,
         };
         this.obniz = new this.app.obnizClass(this.install.id, Object.assign(Object.assign({}, this._obnizOption), overrideOptions));
         this.obniz.onconnect = this.onObnizConnect.bind(this);

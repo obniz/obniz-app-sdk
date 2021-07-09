@@ -168,7 +168,7 @@ class App {
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);
         const wclass = this._options.workerClassFunction(install);
-        const worker = new wclass(install, this, this._options.obnizOption);
+        const worker = new wclass(install, this, Object.assign(Object.assign({}, this._options.obnizOption), { access_token: this._options.appToken }));
         this._workers[install.id] = worker;
         await worker.start();
     }

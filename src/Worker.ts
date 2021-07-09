@@ -27,7 +27,6 @@ export class Worker<O extends IObniz> {
 
     const overrideOptions: IObnizOptions = {
       auto_connect: false,
-      access_token: this.install.access_token,
     };
     this.obniz = new this.app.obnizClass(this.install.id, {
       ...this._obnizOption,

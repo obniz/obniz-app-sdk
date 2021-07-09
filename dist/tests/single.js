@@ -158,8 +158,9 @@ mocha_1.describe('single', () => {
         chai_1.expect(LogWorker_1.LogWorker.workers[0].obniz.id).to.be.equal(Device_1.deviceB.id);
     });
     mocha_1.it('access token', async () => {
+        const cloudSdkToken = '989786r7tyghjnkooyfvasdfa';
         const app = new index_1.App({
-            appToken: process.env.AppToken || '',
+            appToken: cloudSdkToken,
             workerClass: LogWorker_1.LogWorker,
             instanceType: index_1.AppInstanceType.Master,
             obnizClass: DummyObniz_1.DummyObniz,
@@ -178,7 +179,7 @@ mocha_1.describe('single', () => {
         chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
         chai_1.expect(DummyObniz_1.DummyObniz.obnizes.length).to.be.equal(1);
         const obnizC = DummyObniz_1.DummyObniz.obnizes[0];
-        chai_1.expect(obnizC.options.access_token).to.be.equal(Device_1.deviceC.access_token);
+        chai_1.expect(obnizC.options.access_token).to.be.equal(cloudSdkToken);
         chai_1.expect(obnizC.options.auto_connect).to.be.equal(false);
     });
     mocha_1.it('different env', async () => {
@@ -209,7 +210,7 @@ mocha_1.describe('single', () => {
         chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
         chai_1.expect(DummyObniz_1.DummyObniz.obnizes.length).to.be.equal(1);
         const obnizA = DummyObniz_1.DummyObniz.obnizes[0];
-        chai_1.expect(!!obnizA.options.access_token).to.be.equal(false);
+        chai_1.expect(obnizA.options.access_token).to.be.equal(cloudSdkToken);
         chai_1.expect(obnizA.options.auto_connect).to.be.equal(false);
         chai_1.expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
     });

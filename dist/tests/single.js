@@ -210,7 +210,7 @@ mocha_1.describe('single', () => {
         chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
         chai_1.expect(DummyObniz_1.DummyObniz.obnizes.length).to.be.equal(1);
         const obnizA = DummyObniz_1.DummyObniz.obnizes[0];
-        chai_1.expect(!!obnizA.options.access_token).to.be.equal(false);
+        chai_1.expect(obnizA.options.access_token).to.be.equal(cloudSdkToken);
         chai_1.expect(obnizA.options.auto_connect).to.be.equal(false);
         chai_1.expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
     });

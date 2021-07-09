@@ -288,7 +288,7 @@ describe('single', () => {
     expect(DummyObniz.obnizes.length).to.be.equal(1);
 
     const obnizA = DummyObniz.obnizes[0];
-    expect(!!obnizA.options.access_token).to.be.equal(false);
+    expect(obnizA.options.access_token).to.be.equal(cloudSdkToken);
     expect(obnizA.options.auto_connect).to.be.equal(false);
     expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
   });

@@ -39,6 +39,10 @@ export class LogWorker extends Worker<DummyObniz> {
     LogWorker.workers.push(this);
   }
 
+  __getOption() {
+    return this._obnizOption;
+  }
+
   async onStart(): Promise<void> {
     this.__addedLoopEvent = false;
     this.__addLog('onStart');

@@ -8,13 +8,14 @@ import {
   Installed_Device as InstalledDevice,
   User,
 } from 'obniz-cloud-sdk/sdk';
-import { IObnizStatic, IObniz } from './Obniz.interface';
+import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import semver from 'semver';
 import {
   AdaptorFactory,
   Database,
   DatabaseConfig,
 } from './adaptor/AdaptorFactory';
+import { SdkOption } from 'obniz-cloud-sdk/index';
 
 export enum AppInstanceType {
   Master,
@@ -31,6 +32,9 @@ export interface AppOption<T extends Database, O extends IObniz> {
   instanceType: AppInstanceType;
   instanceName?: string;
   maxWorkerNumPerInstance?: number; // number of installs.
+
+  obnizOption?: IObnizOptions;
+  obnizCloudSdkOption?: SdkOption;
 }
 
 type AppOptionInternal<T extends Database, O extends IObniz> = Required<
@@ -86,6 +90,8 @@ export class App<O extends IObniz> {
       instanceType: option.instanceType || AppInstanceType.Master,
       instanceName: option.instanceName || 'master',
       maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
+      obnizOption: option.obnizOption || {},
+      obnizCloudSdkOption: option.obnizCloudSdkOption || {},
     };
 
     if (option.instanceType === AppInstanceType.Master) {
@@ -94,7 +100,8 @@ export class App<O extends IObniz> {
         this._options.instanceName,
         this._options.maxWorkerNumPerInstance,
         this._options.database,
-        this._options.databaseConfig
+        this._options.databaseConfig,
+        this._options.obnizCloudSdkOption
       );
     }
     this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
@@ -246,7 +253,10 @@ export class App<O extends IObniz> {
     logger.info(`New Worker Start id=${install.id}`);
 
     const wclass = this._options.workerClassFunction(install);
-    const worker = new wclass(install, this);
+    const worker = new wclass(install, this, {
+      ...this._options.obnizOption,
+      access_token: this._options.appToken,
+    });
 
     this._workers[install.id] = worker;
     await worker.start();

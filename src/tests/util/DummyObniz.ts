@@ -1,4 +1,4 @@
-import { IObniz } from '../../Obniz.interface';
+import { IObniz, IObnizOptions } from '../../Obniz.interface';
 
 export interface DummyObnizLog {
   date: Date;
@@ -11,13 +11,15 @@ export class DummyObniz implements IObniz {
   __logs: DummyObnizLog[] = [];
   __autoConnect = false;
   id: string;
+  options: IObnizOptions;
 
   static __reset(): void {
     DummyObniz.obnizes = [];
   }
 
-  constructor(id: string) {
+  constructor(id: string, options: IObnizOptions) {
     this.id = id;
+    this.options = options;
     DummyObniz.obnizes.push(this);
   }
 

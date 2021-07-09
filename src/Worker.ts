@@ -13,7 +13,7 @@ export class Worker<O extends IObniz> {
   protected app: App<O>;
   protected obniz: O;
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
-  private readonly _obnizOption: IObnizOptions;
+  protected readonly _obnizOption: IObnizOptions;
   public user: User;
 
   constructor(
@@ -25,7 +25,7 @@ export class Worker<O extends IObniz> {
     this.app = app;
     this._obnizOption = option;
 
-    const overrideOptions = {
+    const overrideOptions: IObnizOptions = {
       auto_connect: false,
     };
     this.obniz = new this.app.obnizClass(this.install.id, {
@@ -120,5 +120,6 @@ export class Worker<O extends IObniz> {
 
 export type WorkerStatic<O extends IObniz> = new (
   install: Installed_Device,
-  app: App<O>
+  app: App<O>,
+  option: IObnizOptions
 ) => Worker<O>;

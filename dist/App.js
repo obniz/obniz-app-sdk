@@ -38,9 +38,11 @@ class App {
             instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || 'master',
             maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
+            obnizOption: option.obnizOption || {},
+            obnizCloudSdkOption: option.obnizCloudSdkOption || {},
         };
         if (option.instanceType === AppInstanceType.Master) {
-            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.maxWorkerNumPerInstance, this._options.database, this._options.databaseConfig);
+            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.maxWorkerNumPerInstance, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
         }
         this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
         if (this._master) {
@@ -166,7 +168,7 @@ class App {
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);
         const wclass = this._options.workerClassFunction(install);
-        const worker = new wclass(install, this);
+        const worker = new wclass(install, this, Object.assign(Object.assign({}, this._options.obnizOption), { access_token: this._options.appToken }));
         this._workers[install.id] = worker;
         await worker.start();
     }

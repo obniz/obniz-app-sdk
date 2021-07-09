@@ -157,5 +157,62 @@ mocha_1.describe('single', () => {
         chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
         chai_1.expect(LogWorker_1.LogWorker.workers[0].obniz.id).to.be.equal(Device_1.deviceB.id);
     });
+    mocha_1.it('access token', async () => {
+        const cloudSdkToken = '989786r7tyghjnkooyfvasdfa';
+        const app = new index_1.App({
+            appToken: cloudSdkToken,
+            workerClass: LogWorker_1.LogWorker,
+            instanceType: index_1.AppInstanceType.Master,
+            obnizClass: DummyObniz_1.DummyObniz,
+        });
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
+        const getListFromObnizCloudStub = sinon_1.default.stub();
+        getListFromObnizCloudStub.returns([Device_1.deviceC]);
+        install_1.sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+        // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
+        chai_1.expect(install_1.sharedInstalledDeviceManager.getListFromObnizCloud
+            .callCount).to.be.equal(0);
+        app.start({ express: false });
+        chai_1.expect(install_1.sharedInstalledDeviceManager.getListFromObnizCloud
+            .callCount).to.be.equal(1);
+        await tools_1.wait(10);
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
+        chai_1.expect(DummyObniz_1.DummyObniz.obnizes.length).to.be.equal(1);
+        const obnizC = DummyObniz_1.DummyObniz.obnizes[0];
+        chai_1.expect(obnizC.options.access_token).to.be.equal(cloudSdkToken);
+        chai_1.expect(obnizC.options.auto_connect).to.be.equal(false);
+    });
+    mocha_1.it('different env', async () => {
+        const cloudSdkToken = '989786r7tyghjnkooyfvasdfa';
+        const app = new index_1.App({
+            appToken: cloudSdkToken,
+            workerClass: LogWorker_1.LogWorker,
+            instanceType: index_1.AppInstanceType.Master,
+            obnizClass: DummyObniz_1.DummyObniz,
+            obnizOption: { obniz_server: 'ws://localhost:9999' },
+            obnizCloudSdkOption: { baseUrl: 'http://localhost:8888' },
+        });
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
+        const getListFromObnizCloudStub = sinon_1.default.stub();
+        getListFromObnizCloudStub.returns([Device_1.deviceA]);
+        install_1.sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+        // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
+        chai_1.expect(install_1.sharedInstalledDeviceManager.getListFromObnizCloud
+            .callCount).to.be.equal(0);
+        app.start({ express: false });
+        chai_1.expect(install_1.sharedInstalledDeviceManager.getListFromObnizCloud
+            .callCount).to.be.equal(1);
+        chai_1.expect(install_1.sharedInstalledDeviceManager.getListFromObnizCloud
+            .args[0][0]).to.be.equal(cloudSdkToken);
+        chai_1.expect(install_1.sharedInstalledDeviceManager.getListFromObnizCloud
+            .args[0][1]).to.be.deep.equal({ baseUrl: 'http://localhost:8888' });
+        await tools_1.wait(10);
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
+        chai_1.expect(DummyObniz_1.DummyObniz.obnizes.length).to.be.equal(1);
+        const obnizA = DummyObniz_1.DummyObniz.obnizes[0];
+        chai_1.expect(obnizA.options.access_token).to.be.equal(cloudSdkToken);
+        chai_1.expect(obnizA.options.auto_connect).to.be.equal(false);
+        chai_1.expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
+    });
 });
 //# sourceMappingURL=single.js.map

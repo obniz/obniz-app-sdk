@@ -40,9 +40,6 @@ const app = new App({
   appToken: "apptoken_daef3nDzxvShd8ArRkuzV82kqOm5RsxlnAShGahE3oxvZC8StwC6UOcvhB7wwNFL",
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
-  maxWorkerNumPerInstance: 1,
-  database: "redis",
-  databaseConfig: process.env.REDIS_URL || "redis://localhost:6379",
   obnizClass: Obniz
 
 });

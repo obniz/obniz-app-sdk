@@ -45,7 +45,8 @@ const app = new App({
   instanceType: AppInstanceType.Master,
   maxWorkerNumPerInstance: 1,
   database: "redis",
-  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379"
+  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379",
+  obnizClass: Obniz
 })
 
 app.start();

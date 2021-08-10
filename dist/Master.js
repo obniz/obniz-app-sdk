@@ -38,13 +38,13 @@ class Master {
             const exist = this._allWorkerInstances[reportInstanceName];
             if (exist) {
                 exist.installIds = installIds;
-                exist.updatedMillisecond = Date.now().valueOf();
+                exist.updatedMillisecond = Date.now();
             }
             else {
                 this._allWorkerInstances[reportInstanceName] = {
                     name: reportInstanceName,
                     installIds,
-                    updatedMillisecond: Date.now().valueOf(),
+                    updatedMillisecond: Date.now(),
                 };
                 this.onInstanceAttached(reportInstanceName);
             }
@@ -154,7 +154,7 @@ class Master {
             const managedInstall = this._allInstalls[existId];
             if (managedInstall) {
                 managedInstall.status = InstallStatus.Started;
-                managedInstall.updatedMillisecond = Date.now().valueOf();
+                managedInstall.updatedMillisecond = Date.now();
             }
             else {
                 // ghost
@@ -257,7 +257,7 @@ class Master {
                 const managedInstall = {
                     instanceName: instance.name,
                     status: InstallStatus.Starting,
-                    updatedMillisecond: Date.now().valueOf(),
+                    updatedMillisecond: Date.now(),
                     install,
                 };
                 this._allInstalls[install.id] = managedInstall;
@@ -286,7 +286,7 @@ class Master {
         }
     }
     _healthCheck() {
-        const current = Date.now().valueOf();
+        const current = Date.now();
         // each install
         // for (const id in this._allInstalls) {
         //   const managedInstall = this._allInstalls[id];

@@ -88,12 +88,12 @@ export class Master<T extends Database> {
       const exist = this._allWorkerInstances[reportInstanceName];
       if (exist) {
         exist.installIds = installIds;
-        exist.updatedMillisecond = Date.now().valueOf();
+        exist.updatedMillisecond = Date.now();
       } else {
         this._allWorkerInstances[reportInstanceName] = {
           name: reportInstanceName,
           installIds,
-          updatedMillisecond: Date.now().valueOf(),
+          updatedMillisecond: Date.now(),
         };
         this.onInstanceAttached(reportInstanceName);
       }
@@ -221,7 +221,7 @@ export class Master<T extends Database> {
       const managedInstall = this._allInstalls[existId];
       if (managedInstall) {
         managedInstall.status = InstallStatus.Started;
-        managedInstall.updatedMillisecond = Date.now().valueOf();
+        managedInstall.updatedMillisecond = Date.now();
       } else {
         // ghost
         logger.debug(`Ignore ghost ${instanceName}`);
@@ -334,7 +334,7 @@ export class Master<T extends Database> {
         const managedInstall: ManagedInstall = {
           instanceName: instance.name,
           status: InstallStatus.Starting,
-          updatedMillisecond: Date.now().valueOf(),
+          updatedMillisecond: Date.now(),
           install,
         };
         this._allInstalls[install.id] = managedInstall;
@@ -366,7 +366,7 @@ export class Master<T extends Database> {
   }
 
   private _healthCheck() {
-    const current = Date.now().valueOf();
+    const current = Date.now();
     // each install
     // for (const id in this._allInstalls) {
     //   const managedInstall = this._allInstalls[id];

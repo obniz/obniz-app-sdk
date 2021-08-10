@@ -22,6 +22,7 @@ export enum AppInstanceType {
   Slave,
 }
 
+import * as os from 'os';
 export interface AppOption<T extends Database, O extends IObniz> {
   appToken: string;
   database?: T;
@@ -30,7 +31,18 @@ export interface AppOption<T extends Database, O extends IObniz> {
   workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
   obnizClass: IObnizStatic<O>;
   instanceType: AppInstanceType;
+
+  /**
+   * Define Instance Name instead of default os.hostname()
+   */
   instanceName?: string;
+
+  /**
+   * Maximum number of workers single instance handle.
+   * This may exceed if not enough instances are avaialble.
+   * Too much number may use machine cpu/memory/bandwidh resources.
+   * This very depends on worker code. 10-2000 are estimated range. you may starts from 100 and adjust that number by resource usage.
+   */
   maxWorkerNumPerInstance?: number; // number of installs.
 
   obnizOption?: IObnizOptions;
@@ -67,8 +79,8 @@ export class App<O extends IObniz> {
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
   constructor(option: AppOption<any, O>) {
+    // validate obniz.js
     const requiredObnizJsVersion = '3.15.0-alpha.1';
-
     if (
       semver.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)
     ) {
@@ -76,6 +88,8 @@ export class App<O extends IObniz> {
         `obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`
       );
     }
+
+    // bind default values.
     this._options = {
       appToken: option.appToken,
       database: option.database || 'memory',
@@ -88,7 +102,7 @@ export class App<O extends IObniz> {
         }),
       obnizClass: option.obnizClass,
       instanceType: option.instanceType || AppInstanceType.Master,
-      instanceName: option.instanceName || 'master',
+      instanceName: option.instanceName || os.hostname(),
       maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
       obnizOption: option.obnizOption || {},
       obnizCloudSdkOption: option.obnizCloudSdkOption || {},

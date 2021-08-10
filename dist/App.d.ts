@@ -18,7 +18,16 @@ export interface AppOption<T extends Database, O extends IObniz> {
     workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
     obnizClass: IObnizStatic<O>;
     instanceType: AppInstanceType;
+    /**
+     * Define Instance Name instead of default os.hostname()
+     */
     instanceName?: string;
+    /**
+     * Maximum number of workers single instance handle.
+     * This may exceed if not enough instances are avaialble.
+     * Too much number may use machine cpu/memory/bandwidh resources.
+     * This very depends on worker code. 10-2000 are estimated range. you may starts from 100 and adjust that number by resource usage.
+     */
     maxWorkerNumPerInstance?: number;
     obnizOption?: IObnizOptions;
     obnizCloudSdkOption?: SdkOption;

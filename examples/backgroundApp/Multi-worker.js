@@ -1,49 +1,25 @@
 const { App, AppInstanceType, Worker } = require('../../dist')
-const Obniz = require("obniz"); //specific obnizjs version
+const Obniz = require("obniz");
 
 class MyWorker extends Worker {
 
-  /**
-   * Worker lifecycle
-   */
-
-  async onStart(){
-
-  }
-
-  async onLoop(){
-    console.log("loop");
-  }
-
-  async onEnd(){
-
-  }
-
-  /**
-   * obniz lifecycle
-   */
+  // Simple Example
 
   async onObnizConnect(obniz){
-
+    console.log(`connected to obniz ${obniz.id} ${obniz.metadata.description}`);
   }
 
   async onObnizLoop(obniz){
-
-    console.log("obniz loop");
-  }
-
-  async onObnizClose(obniz){
-
+    console.log(`obniz loop ${obniz.id} ${obniz.metadata.description}`);
   }
 
 }
-
 const app = new App({
-  appToken: 'apptoken_Tmj2JMXVXgLBYW6iDlBzQph7L6uwcBYqRmW2NvnKk_kQeiwvnRCnUJePUrsTRtXW',
+  appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Slave,
   instanceName: process.env.dynoId || 'worker0',
-  maxWorkerNumPerInstance: 1,
+  maxWorkerNumPerInstance: 100,
   database: "redis",
   databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379",
   obnizClass: Obniz

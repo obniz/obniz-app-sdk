@@ -27,17 +27,16 @@ class MyWorker extends Worker {
    * obniz lifecycle
    */
 
-  async onObnizConnect(obniz){
-
+   async onObnizConnect(obniz){
+    console.log(`connected to obniz ${obniz.id} ${obniz.metadata.description}`);
   }
 
   async onObnizLoop(obniz){
-
-    console.log("obniz loop");
+    console.log(`obniz loop ${obniz.id} ${obniz.metadata.description}`);
   }
 
   async onObnizClose(obniz){
-
+    console.log(`obniz disconnected from ${obniz.id} ${obniz.metadata.description}`);
   }
 
 

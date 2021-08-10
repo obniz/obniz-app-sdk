@@ -12,7 +12,6 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         super(id, isMaster);
         this._redis = new ioredis_1.default(redisOption);
         this._pubRedis = new ioredis_1.default(redisOption);
-        console.log(redisOption);
         this._bindRedisEvents(this._redis);
     }
     _onRedisReady() {

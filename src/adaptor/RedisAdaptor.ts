@@ -12,7 +12,6 @@ export class RedisAdaptor extends Adaptor {
     super(id, isMaster);
     this._redis = new IORedis(redisOption);
     this._pubRedis = new IORedis(redisOption);
-    console.log(redisOption);
     this._bindRedisEvents(this._redis);
   }
 

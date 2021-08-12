@@ -123,8 +123,13 @@ export class App<O extends IObniz> {
       // share same adaptor
       this._adaptor = this._master.adaptor;
     } else if (this.isScalableMode) {
-      if (this._options.database !== 'redis') {
-        throw new Error('only support database redis when using scalable mode');
+      if (
+        this._options.database !== 'redis' &&
+        this._options.database !== 'mqtt'
+      ) {
+        throw new Error(
+          `only support database 'redis' or 'mqtt' when using scalable mode`
+        );
       }
       this._adaptor = new AdaptorFactory().create(
         this._options.database,

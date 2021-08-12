@@ -45,7 +45,7 @@ export class Master<T extends Database> {
   private readonly _obnizSdkOption: SdkOption;
   private _startOptions?: AppStartOptionInternal;
   private _syncing = false;
-  private _interval?: any;
+  private _syncTimeout: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
 
@@ -62,8 +62,10 @@ export class Master<T extends Database> {
     this._obnizSdkOption = obnizSdkOption;
 
     if (maxWorkerNumPerInstance > 0) {
-      if (database !== 'redis') {
-        throw new Error('Supported database type is only redis now.');
+      if (database !== 'redis' && database !== 'mqtt') {
+        throw new Error(
+          `Supported database type for clustering enabled is only 'redis' or 'mqtt' now.`
+        );
       }
       this.adaptor = new AdaptorFactory().create<T>(
         database,
@@ -84,7 +86,6 @@ export class Master<T extends Database> {
       reportInstanceName: string,
       installIds: string[]
     ) => {
-      // logger.debug(`receive report ${reportInstanceName}`)
       const exist = this._allWorkerInstances[reportInstanceName];
       if (exist) {
         exist.installIds = installIds;
@@ -182,6 +183,7 @@ export class Master<T extends Database> {
   private onInstanceAttached(instanceName: string): void {
     // const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     // TODO: Overloadのinstanceがあれば引っ越しさせる
+    logger.info(`new worker recognized ${instanceName}`);
   }
 
   /**
@@ -189,6 +191,7 @@ export class Master<T extends Database> {
    * @param id
    */
   private onInstanceMissed(instanceName: string) {
+    logger.info(`worker lost ${instanceName}`);
     // delete immediately
     const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
     delete this._allWorkerInstances[instanceName];
@@ -218,32 +221,31 @@ export class Master<T extends Database> {
   private onInstanceReported(instanceName: string) {
     const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     for (const existId of worker.installIds) {
-      const managedInstall = this._allInstalls[existId];
+      const managedInstall: ManagedInstall = this._allInstalls[existId];
       if (managedInstall) {
         managedInstall.status = InstallStatus.Started;
         managedInstall.updatedMillisecond = Date.now();
       } else {
         // ghost
-        logger.debug(`Ignore ghost ${instanceName}`);
+        logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
       }
     }
   }
 
-  private _startSyncing() {
+  private _startSyncing(timeout?: number) {
     // every minutes
-    if (!this._interval) {
-      this._interval = setInterval(async () => {
+    if (!this._syncTimeout) {
+      this._syncTimeout = setTimeout(async () => {
+        this._syncTimeout = undefined;
+        let success = false;
         try {
-          await this._syncInstalls();
+          success = await this._syncInstalls();
         } catch (e) {
           logger.error(e);
+        } finally {
+          this._startSyncing(success ? 60 * 1000 : 3 * 1000);
         }
-      }, 60 * 1000);
-      this._syncInstalls()
-        .then()
-        .catch((e) => {
-          logger.error(e);
-        });
+      }, timeout || 0);
     }
   }
 
@@ -258,13 +260,15 @@ export class Master<T extends Database> {
   }
 
   private async _syncInstalls() {
+    let success = false;
     try {
-      if (this._syncing) {
-        return;
+      if (this._syncing || !this.adaptor.isReady) {
+        return success;
       }
       this._syncing = true;
 
-      // logger.debug("sync api start");
+      const startedTime = Date.now();
+      logger.debug('API Sync Start');
 
       const installsApi = [];
       try {
@@ -278,6 +282,12 @@ export class Master<T extends Database> {
         console.error(e);
         process.exit(-1);
       }
+
+      logger.debug(
+        `API Sync Finished Count=${installsApi.length} duration=${
+          Date.now() - startedTime
+        }msec`
+      );
 
       /**
        * Compare with currents
@@ -340,10 +350,12 @@ export class Master<T extends Database> {
         this._allInstalls[install.id] = managedInstall;
       }
       await this.synchronize();
+      success = true;
     } catch (e) {
       console.error(e);
     }
     this._syncing = false;
+    return success;
   }
 
   private async synchronize() {

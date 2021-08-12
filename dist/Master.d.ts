@@ -10,7 +10,7 @@ export declare class Master<T extends Database> {
     private readonly _obnizSdkOption;
     private _startOptions?;
     private _syncing;
-    private _interval?;
+    private _syncTimeout;
     private _allInstalls;
     private _allWorkerInstances;
     constructor(appToken: string, instanceName: string, maxWorkerNumPerInstance: number, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);

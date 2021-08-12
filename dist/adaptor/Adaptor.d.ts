@@ -28,6 +28,7 @@ export declare type MessageBetweenInstance = ToMasterMessage | ToSlaveMessage;
 export declare abstract class Adaptor {
     isMaster: boolean;
     id: string;
+    isReady: boolean;
     onReportRequest?: () => Promise<void>;
     onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
     onReported?: (instanceName: string, installIds: string[]) => Promise<void>;

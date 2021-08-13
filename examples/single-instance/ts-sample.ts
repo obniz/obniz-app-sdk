@@ -1,5 +1,5 @@
 import {Worker} from "../../src/index";
-import Obniz = require("obniz");
+import Obniz from 'obniz';
 import {App, AppInstanceType} from '../../src/index'
 
 export class MyWorker extends Worker<Obniz> {
@@ -34,16 +34,11 @@ export class MyWorker extends Worker<Obniz> {
 
 }
 
-
 const app = new App({
   appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
-  maxWorkerNumPerInstance: 1,
-  database: "redis",
-  databaseConfig: process.env.REDIS_URL || "redis://localhost:6379",
   obnizClass: Obniz
-
 });
 
 app.start();

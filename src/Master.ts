@@ -39,7 +39,6 @@ interface AppStartOptionInternal extends AppStartOption {
 
 export class Master<T extends Database> {
   public adaptor: Adaptor;
-  public maxWorkerNumPerInstance: number;
 
   private readonly _appToken: string;
   private readonly _obnizSdkOption: SdkOption;
@@ -52,35 +51,19 @@ export class Master<T extends Database> {
   constructor(
     appToken: string,
     instanceName: string,
-    maxWorkerNumPerInstance: number,
     database: T,
     databaseConfig: DatabaseConfig[T],
     obnizSdkOption: SdkOption
   ) {
     this._appToken = appToken;
-    this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
     this._obnizSdkOption = obnizSdkOption;
 
-    if (maxWorkerNumPerInstance > 0) {
-      if (database !== 'redis' && database !== 'mqtt') {
-        throw new Error(
-          `Supported database type for clustering enabled is only 'redis' or 'mqtt' now.`
-        );
-      }
-      this.adaptor = new AdaptorFactory().create<T>(
-        database,
-        instanceName,
-        true,
-        databaseConfig
-      );
-    } else {
-      this.adaptor = new AdaptorFactory().create<T>(
-        database,
-        instanceName,
-        true,
-        databaseConfig
-      );
-    }
+    this.adaptor = new AdaptorFactory().create<T>(
+      database,
+      instanceName,
+      true,
+      databaseConfig
+    );
 
     this.adaptor.onReported = async (
       reportInstanceName: string,
@@ -404,5 +387,9 @@ export class Master<T extends Database> {
   private _onHealthCheckFailedWorkerInstance(workerInstance: WorkerInstance) {
     logger.warn(`health check failed worker ${workerInstance.name}`);
     this.onInstanceMissed(workerInstance.name);
+  }
+
+  public hasSubClusteredInstances(): boolean {
+    return Object.keys(this._allWorkerInstances).length > 1;
   }
 }

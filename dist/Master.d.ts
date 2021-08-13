@@ -5,7 +5,6 @@ import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
 export declare class Master<T extends Database> {
     adaptor: Adaptor;
-    maxWorkerNumPerInstance: number;
     private readonly _appToken;
     private readonly _obnizSdkOption;
     private _startOptions?;
@@ -13,7 +12,7 @@ export declare class Master<T extends Database> {
     private _syncTimeout;
     private _allInstalls;
     private _allWorkerInstances;
-    constructor(appToken: string, instanceName: string, maxWorkerNumPerInstance: number, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
+    constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
     start(option?: AppStartOption): void;
     private _startWeb;
     webhook: (_: express.Request, res: express.Response) => Promise<void>;
@@ -43,4 +42,5 @@ export declare class Master<T extends Database> {
     private synchronize;
     private _healthCheck;
     private _onHealthCheckFailedWorkerInstance;
+    hasSubClusteredInstances(): boolean;
 }

@@ -16,23 +16,14 @@ var InstallStatus;
     InstallStatus[InstallStatus["Stopped"] = 3] = "Stopped";
 })(InstallStatus || (InstallStatus = {}));
 class Master {
-    constructor(appToken, instanceName, maxWorkerNumPerInstance, database, databaseConfig, obnizSdkOption) {
+    constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
         this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
-        this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
         this._obnizSdkOption = obnizSdkOption;
-        if (maxWorkerNumPerInstance > 0) {
-            if (database !== 'redis' && database !== 'mqtt') {
-                throw new Error(`Supported database type for clustering enabled is only 'redis' or 'mqtt' now.`);
-            }
-            this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
-        }
-        else {
-            this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
-        }
+        this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
         this.adaptor.onReported = async (reportInstanceName, installIds) => {
             const exist = this._allWorkerInstances[reportInstanceName];
             if (exist) {
@@ -316,6 +307,9 @@ class Master {
     _onHealthCheckFailedWorkerInstance(workerInstance) {
         logger_1.logger.warn(`health check failed worker ${workerInstance.name}`);
         this.onInstanceMissed(workerInstance.name);
+    }
+    hasSubClusteredInstances() {
+        return Object.keys(this._allWorkerInstances).length > 1;
     }
 }
 exports.Master = Master;

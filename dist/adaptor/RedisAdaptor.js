@@ -10,12 +10,20 @@ const logger_1 = require("../logger");
 class RedisAdaptor extends Adaptor_1.Adaptor {
     constructor(id, isMaster, redisOption) {
         super(id, isMaster);
+        this._isMaster = isMaster;
         this._redis = new ioredis_1.default(redisOption);
         this._pubRedis = new ioredis_1.default(redisOption);
         this._bindRedisEvents(this._redis);
     }
     _onRedisReady() {
-        this._onReady();
+        if (this._isMaster) {
+            setTimeout(() => {
+                this._onReady();
+            }, 3 * 1000);
+        }
+        else {
+            this._onReady();
+        }
     }
     _onRedisMessage(channel, message) {
         const parsed = JSON.parse(message);

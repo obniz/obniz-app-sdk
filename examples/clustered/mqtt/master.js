@@ -1,4 +1,4 @@
-const { App, AppInstanceType, Worker } = require('../../dist')
+const { App, AppInstanceType, Worker } = require('../../../dist')
 const Obniz = require("obniz");
 
 class MyWorker extends Worker {
@@ -19,9 +19,8 @@ const app = new App({
   appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
-  maxWorkerNumPerInstance: 100,
-  database: "redis",
-  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379",
+  database: "mqtt",
+  databaseConfig: "127.0.0.1",  // address of master machine
   obnizClass: Obniz
 })
 

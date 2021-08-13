@@ -43,7 +43,7 @@ class MyWorker extends Worker {
 }
 
 const app = new App({
-  appToken: process.env.AppToken,
+  appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
   obnizClass: Obniz

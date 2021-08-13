@@ -18,10 +18,9 @@ const app = new App({
   appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Slave,
-  instanceName: process.env.dynoId || 'worker0',
-  maxWorkerNumPerInstance: 100,
-  database: "mqtt",
-  databaseConfig: "127.0.0.1",
+  instanceName: 'worker0', // hostname is default value. if you want to run same machine where master running, define instanceName as this example.
+  database: "redis",
+  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379",
   obnizClass: Obniz
 })
 

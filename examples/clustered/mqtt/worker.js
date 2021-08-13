@@ -14,14 +14,13 @@ class MyWorker extends Worker {
   }
 
 }
-
 const app = new App({
   appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
-  instanceType: AppInstanceType.Master,
-  maxWorkerNumPerInstance: 100,
+  instanceType: AppInstanceType.Slave,
+  instanceName: 'worker0', // hostname is default value. if you want to run same machine where master running, define instanceName as this example.
   database: "mqtt",
-  databaseConfig: "127.0.0.1",
+  databaseConfig: "127.0.0.1", // address of master machine
   obnizClass: Obniz
 })
 

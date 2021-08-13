@@ -23,23 +23,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.App = exports.AppInstanceType = void 0;
+const os = __importStar(require("os"));
+const semver_1 = __importDefault(require("semver"));
 const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Master_1 = require("./Master");
-const semver_1 = __importDefault(require("semver"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 var AppInstanceType;
 (function (AppInstanceType) {
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
     AppInstanceType[AppInstanceType["Slave"] = 1] = "Slave";
 })(AppInstanceType = exports.AppInstanceType || (exports.AppInstanceType = {}));
-const os = __importStar(require("os"));
 class App {
     constructor(option) {
         this._workers = {};
         this._interval = null;
         this._syncing = false;
-        this.isScalableMode = false;
         this.expressWebhook = this._expressWebhook.bind(this);
         // validate obniz.js
         const requiredObnizJsVersion = '3.15.0-alpha.1';
@@ -59,27 +58,27 @@ class App {
             obnizClass: option.obnizClass,
             instanceType: option.instanceType || AppInstanceType.Master,
             instanceName: option.instanceName || os.hostname(),
-            maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
             obnizOption: option.obnizOption || {},
             obnizCloudSdkOption: option.obnizCloudSdkOption || {},
         };
-        if (option.instanceType === AppInstanceType.Master) {
-            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.maxWorkerNumPerInstance, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
+        // detection of pm2 cluster enabled.
+        const pm2ClusterEnabled = typeof process.env.NODE_APP_INSTANCE === 'string';
+        const isMasterOnSameMachine = !pm2ClusterEnabled || process.env.NODE_APP_INSTANCE === '0';
+        if (pm2ClusterEnabled) {
+            logger_1.logger.info(`cluster detected. Instance Number = ${process.env.NODE_APP_INSTANCE}`);
+            // make unique in same machine
+            this._options.instanceName += `-${process.env.NODE_APP_INSTANCE}`;
         }
-        this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
+        if (option.instanceType === AppInstanceType.Master &&
+            isMasterOnSameMachine) {
+            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
+        }
         if (this._master) {
             // share same adaptor
             this._adaptor = this._master.adaptor;
         }
-        else if (this.isScalableMode) {
-            if (this._options.database !== 'redis' &&
-                this._options.database !== 'mqtt') {
-                throw new Error(`only support database 'redis' or 'mqtt' when using scalable mode`);
-            }
-            this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
-        }
         else {
-            throw new Error('invalid options');
+            this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
         }
         this._adaptor.onSynchronize = async (installs) => {
             await this._synchronize(installs);
@@ -183,8 +182,11 @@ class App {
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
      */
     async request(key) {
-        if (this.isScalableMode) {
-            throw new Error(`request for scalableMode is not supported yet`);
+        if (!this._master) {
+            throw new Error(`This function is only available on master`);
+        }
+        if (this._master.hasSubClusteredInstances()) {
+            throw new Error(`Cluster mode can not be used`);
         }
         return await this._adaptor.request(key);
     }

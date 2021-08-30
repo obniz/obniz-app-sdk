@@ -110,6 +110,7 @@ export abstract class Adaptor {
       }
     }
   }
+
   onMessage(message: MessageBetweenInstance): void {
     if (
       message.toMaster === false &&

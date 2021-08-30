@@ -7,17 +7,24 @@ export type RedisAdaptorOptions = IORedis.RedisOptions;
 export class RedisAdaptor extends Adaptor {
   private _redis: IORedis.Redis;
   private _pubRedis: IORedis.Redis;
+  private _isMaster: boolean;
 
   constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions) {
     super(id, isMaster);
+    this._isMaster = isMaster;
     this._redis = new IORedis(redisOption);
     this._pubRedis = new IORedis(redisOption);
-    console.log(redisOption);
     this._bindRedisEvents(this._redis);
   }
 
   private _onRedisReady() {
-    this._onReady();
+    if (this._isMaster) {
+      setTimeout(() => {
+        this._onReady();
+      }, 3 * 1000);
+    } else {
+      this._onReady();
+    }
   }
 
   private _onRedisMessage(channel: string, message: string) {

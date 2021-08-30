@@ -11,6 +11,7 @@ const logger_1 = require("../logger");
 class Adaptor {
     constructor(id, isMaster) {
         this.isMaster = false;
+        this.isReady = false;
         this.id = id;
         this.isMaster = isMaster;
     }
@@ -52,6 +53,7 @@ class Adaptor {
         }
     }
     _onReady() {
+        this.isReady = true;
         logger_1.logger.debug('ready id:' + this.id);
         if (this.isMaster) {
             this.reportRequest()

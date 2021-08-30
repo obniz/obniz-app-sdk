@@ -16,35 +16,25 @@ var InstallStatus;
     InstallStatus[InstallStatus["Stopped"] = 3] = "Stopped";
 })(InstallStatus || (InstallStatus = {}));
 class Master {
-    constructor(appToken, instanceName, maxWorkerNumPerInstance, database, databaseConfig, obnizSdkOption) {
+    constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
         this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
-        this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
         this._obnizSdkOption = obnizSdkOption;
-        if (maxWorkerNumPerInstance > 0) {
-            if (database !== 'redis') {
-                throw new Error('Supported database type is only redis now.');
-            }
-            this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
-        }
-        else {
-            this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
-        }
+        this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
         this.adaptor.onReported = async (reportInstanceName, installIds) => {
-            // logger.debug(`receive report ${reportInstanceName}`)
             const exist = this._allWorkerInstances[reportInstanceName];
             if (exist) {
                 exist.installIds = installIds;
-                exist.updatedMillisecond = Date.now().valueOf();
+                exist.updatedMillisecond = Date.now();
             }
             else {
                 this._allWorkerInstances[reportInstanceName] = {
                     name: reportInstanceName,
                     installIds,
-                    updatedMillisecond: Date.now().valueOf(),
+                    updatedMillisecond: Date.now(),
                 };
                 this.onInstanceAttached(reportInstanceName);
             }
@@ -119,12 +109,14 @@ class Master {
     onInstanceAttached(instanceName) {
         // const worker: WorkerInstance = this._allWorkerInstances[instanceName];
         // TODO: Overloadのinstanceがあれば引っ越しさせる
+        logger_1.logger.info(`new worker recognized ${instanceName}`);
     }
     /**
      * instanceId がidのWorkerが喪失した
      * @param id
      */
     onInstanceMissed(instanceName) {
+        logger_1.logger.info(`worker lost ${instanceName}`);
         // delete immediately
         const diedWorker = this._allWorkerInstances[instanceName];
         delete this._allWorkerInstances[instanceName];
@@ -154,30 +146,30 @@ class Master {
             const managedInstall = this._allInstalls[existId];
             if (managedInstall) {
                 managedInstall.status = InstallStatus.Started;
-                managedInstall.updatedMillisecond = Date.now().valueOf();
+                managedInstall.updatedMillisecond = Date.now();
             }
             else {
                 // ghost
-                logger_1.logger.debug(`Ignore ghost ${instanceName}`);
+                logger_1.logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
             }
         }
     }
-    _startSyncing() {
+    _startSyncing(timeout) {
         // every minutes
-        if (!this._interval) {
-            this._interval = setInterval(async () => {
+        if (!this._syncTimeout) {
+            this._syncTimeout = setTimeout(async () => {
+                this._syncTimeout = undefined;
+                let success = false;
                 try {
-                    await this._syncInstalls();
+                    success = await this._syncInstalls();
                 }
                 catch (e) {
                     logger_1.logger.error(e);
                 }
-            }, 60 * 1000);
-            this._syncInstalls()
-                .then()
-                .catch((e) => {
-                logger_1.logger.error(e);
-            });
+                finally {
+                    this._startSyncing(success ? 60 * 1000 : 3 * 1000);
+                }
+            }, timeout || 0);
         }
     }
     _startHealthCheck() {
@@ -191,12 +183,14 @@ class Master {
         }, 10 * 1000);
     }
     async _syncInstalls() {
+        let success = false;
         try {
-            if (this._syncing) {
-                return;
+            if (this._syncing || !this.adaptor.isReady) {
+                return success;
             }
             this._syncing = true;
-            // logger.debug("sync api start");
+            const startedTime = Date.now();
+            logger_1.logger.debug('API Sync Start');
             const installsApi = [];
             try {
                 installsApi.push(...(await install_1.sharedInstalledDeviceManager.getListFromObnizCloud(this._appToken, this._obnizSdkOption)));
@@ -205,6 +199,7 @@ class Master {
                 console.error(e);
                 process.exit(-1);
             }
+            logger_1.logger.debug(`API Sync Finished Count=${installsApi.length} duration=${Date.now() - startedTime}msec`);
             /**
              * Compare with currents
              */
@@ -257,17 +252,19 @@ class Master {
                 const managedInstall = {
                     instanceName: instance.name,
                     status: InstallStatus.Starting,
-                    updatedMillisecond: Date.now().valueOf(),
+                    updatedMillisecond: Date.now(),
                     install,
                 };
                 this._allInstalls[install.id] = managedInstall;
             }
             await this.synchronize();
+            success = true;
         }
         catch (e) {
             console.error(e);
         }
         this._syncing = false;
+        return success;
     }
     async synchronize() {
         const separated = {};
@@ -286,7 +283,7 @@ class Master {
         }
     }
     _healthCheck() {
-        const current = Date.now().valueOf();
+        const current = Date.now();
         // each install
         // for (const id in this._allInstalls) {
         //   const managedInstall = this._allInstalls[id];
@@ -310,6 +307,9 @@ class Master {
     _onHealthCheckFailedWorkerInstance(workerInstance) {
         logger_1.logger.warn(`health check failed worker ${workerInstance.name}`);
         this.onInstanceMissed(workerInstance.name);
+    }
+    hasSubClusteredInstances() {
+        return Object.keys(this._allWorkerInstances).length > 1;
     }
 }
 exports.Master = Master;

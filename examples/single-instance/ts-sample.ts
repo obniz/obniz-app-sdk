@@ -1,5 +1,5 @@
 import {Worker} from "../../src/index";
-import Obniz = require("obniz");
+import Obniz from 'obniz';
 import {App, AppInstanceType} from '../../src/index'
 
 export class MyWorker extends Worker<Obniz> {
@@ -22,7 +22,6 @@ export class MyWorker extends Worker<Obniz> {
 
   async onObnizConnect(obniz: Obniz) {
     console.log("on obniz connect");
-
   }
 
   async onObnizLoop(obniz: Obniz) {
@@ -35,13 +34,11 @@ export class MyWorker extends Worker<Obniz> {
 
 }
 
-
 const app = new App({
-  appToken: "apptoken_daef3nDzxvShd8ArRkuzV82kqOm5RsxlnAShGahE3oxvZC8StwC6UOcvhB7wwNFL",
+  appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
   obnizClass: Obniz
-
 });
 
 app.start();

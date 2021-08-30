@@ -60,11 +60,13 @@
     "@types/semver": "^7.3.5",
     "@types/tv4": "^1.2.30",
     "@types/ws": "^7.4.2",
+    "aedes": "^0.46.1",
     "express": "^4.17.1",
     "husky": "^4.3.6",
     "ioredis": "^4.19.4",
     "lint-staged": "^10.5.3",
     "log4js": "^6.3.0",
+    "mqtt": "^4.2.8",
     "obniz-cloud-sdk": "^1.1.0",
     "semver": "^7.3.5"
   }

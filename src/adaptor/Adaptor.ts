@@ -38,6 +38,8 @@ export abstract class Adaptor {
   public isMaster = false;
   public id: string;
 
+  public isReady = false;
+
   public onReportRequest?: () => Promise<void>;
   public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
   public onReported?: (
@@ -93,6 +95,7 @@ export abstract class Adaptor {
   }
 
   protected _onReady(): void {
+    this.isReady = true;
     logger.debug('ready id:' + this.id);
     if (this.isMaster) {
       this.reportRequest()

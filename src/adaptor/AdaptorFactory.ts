@@ -2,10 +2,12 @@ import { Adaptor } from './Adaptor';
 
 import { RedisAdaptor, RedisAdaptorOptions } from './RedisAdaptor';
 import { MemoryAdaptor, MemoryAdaptorOptions } from './MemoryAdaptor';
+import { MqttAdaptor, MqttAdaptorOptions } from './MqttAdaptor';
 
 export interface DatabaseConfig {
   redis: RedisAdaptorOptions;
   memory: MemoryAdaptorOptions;
+  mqtt: MqttAdaptorOptions;
 }
 
 export type Database = keyof DatabaseConfig;
@@ -25,6 +27,8 @@ export class AdaptorFactory {
       );
     } else if (database === 'redis') {
       return new RedisAdaptor(id, isMaster, option as DatabaseConfig['redis']);
+    } else if (database === 'mqtt') {
+      return new MqttAdaptor(id, isMaster, option as DatabaseConfig['mqtt']);
     }
 
     throw new Error('unknown database type : ' + database);

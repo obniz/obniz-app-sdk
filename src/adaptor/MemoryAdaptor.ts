@@ -6,6 +6,7 @@ export interface MemoryAdaptorOptions {
 
 export class MemoryAdaptor extends Adaptor {
   static memoryAdaptorList: MemoryAdaptor[] = [];
+
   constructor(
     id: string,
     isMaster: boolean,

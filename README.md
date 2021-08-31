@@ -143,7 +143,7 @@ You need to be able to access a common redis server from each machine.
 // Example
 {
   database: "redis",
-  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379"
+  databaseConfig: process.env.REDIS_URL || "redis://localhost:6379"
 }
 ```
 
@@ -157,7 +157,7 @@ Unlike Redis load balancing, there is no need to set up a server.
 // Example
 {
   database: "mqtt",
-  databaseConfig: "127.0.0.1",
+  databaseConfig: process.env.MQTT_SEED_URL || "mqtt://127.0.0.1",
 }
 ```
 

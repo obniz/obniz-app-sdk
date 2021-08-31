@@ -20,7 +20,7 @@ const app = new App({
   instanceType: AppInstanceType.Slave,
   instanceName: 'worker0', // hostname is default value. if you want to run same machine where master running, define instanceName as this example.
   database: "mqtt",
-  databaseConfig: "127.0.0.1", // address of master machine
+  databaseConfig: "mqtt://127.0.0.1", // address of master machine
   obnizClass: Obniz
 })
 

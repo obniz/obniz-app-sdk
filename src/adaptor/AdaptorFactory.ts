@@ -2,12 +2,12 @@ import { Adaptor } from './Adaptor';
 
 import { RedisAdaptor, RedisAdaptorOptions } from './RedisAdaptor';
 import { MemoryAdaptor, MemoryAdaptorOptions } from './MemoryAdaptor';
-import { MqttAdaptor, MqttAdaptorOptions } from './MqttAdaptor';
+import { MqttAdaptor } from './MqttAdaptor';
 
 export interface DatabaseConfig {
   redis: RedisAdaptorOptions;
   memory: MemoryAdaptorOptions;
-  mqtt: MqttAdaptorOptions;
+  mqtt: string;
 }
 
 export type Database = keyof DatabaseConfig;

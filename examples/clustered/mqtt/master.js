@@ -20,7 +20,7 @@ const app = new App({
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
   database: "mqtt",
-  databaseConfig: "127.0.0.1",  // address of master machine
+  databaseConfig: "mqtt://127.0.0.1",  // address of master machine
   obnizClass: Obniz
 })
 

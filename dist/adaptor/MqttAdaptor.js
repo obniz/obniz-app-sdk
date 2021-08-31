@@ -72,7 +72,7 @@ class MqttAdaptor extends Adaptor_1.Adaptor {
             this._broker = broker;
         }
         else {
-            const host = `mqtt://${mqttOption}`;
+            const host = mqttOption;
             logger_1.logger.debug(`mqtt connecting to ${host}`);
             const client = mqtt.connect(host);
             client.on('connect', () => {

@@ -152,7 +152,7 @@ MasterプロセスがMQTTブローカーとなり、他のプロセスがそれ�
 // Example
 {
   database: "mqtt",
-  databaseConfig: "127.0.0.1",
+  databaseConfig: process.env.MQTT_SEED_URL || "mqtt://127.0.0.1",
 }
 ```
 

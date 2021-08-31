@@ -6,15 +6,11 @@ import { createServer } from 'net';
 
 import * as mqtt from 'mqtt';
 
-export interface MqttAdaptorOptions {
-  seed: string;
-}
-
 export class MqttAdaptor extends Adaptor {
   private _broker?: Aedes;
   private _client?: mqtt.Client;
 
-  constructor(id: string, isMaster: boolean, mqttOption: MqttAdaptorOptions) {
+  constructor(id: string, isMaster: boolean, mqttOption: string) {
     super(id, isMaster);
     if (isMaster) {
       const broker = Server({
@@ -73,7 +69,7 @@ export class MqttAdaptor extends Adaptor {
       );
       this._broker = broker;
     } else {
-      const host = `mqtt://${mqttOption}`;
+      const host = mqttOption;
       logger.debug(`mqtt connecting to ${host}`);
       const client = mqtt.connect(host);
       client.on('connect', () => {

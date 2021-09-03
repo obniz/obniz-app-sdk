@@ -1,4 +1,9 @@
 import express from 'express';
+import * as cluster from 'cluster';
+import * as os from 'os';
+
+import semver from 'semver';
+
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Master as MasterClass } from './Master';
@@ -9,7 +14,6 @@ import {
   User,
 } from 'obniz-cloud-sdk/sdk';
 import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
-import semver from 'semver';
 import {
   AdaptorFactory,
   Database,
@@ -23,17 +27,55 @@ export enum AppInstanceType {
 }
 
 export interface AppOption<T extends Database, O extends IObniz> {
+  /**
+   * App Token provided from obniz Cloud.
+   */
   appToken: string;
-  database?: T;
-  databaseConfig?: DatabaseConfig[T];
-  workerClass?: WorkerStatic<O>;
-  workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
-  obnizClass: IObnizStatic<O>;
-  instanceType: AppInstanceType;
-  instanceName?: string;
-  maxWorkerNumPerInstance?: number; // number of installs.
 
+  /**
+   * Clustering Method.
+   */
+  database?: T;
+
+  /**
+   * Options for database.
+   */
+  databaseConfig?: DatabaseConfig[T];
+
+  /**
+   * Your Worker Class. instantiate for each obniz devices.
+   */
+  workerClass?: WorkerStatic<O>;
+
+  /**
+   * TODO
+   */
+  workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
+
+  /**
+   * obniz Class used with your workerClass.
+   */
+  obnizClass: IObnizStatic<O>;
+
+  /**
+   * Master: Master is special Worker. Only one master is required in cluster. Master will communicate with cloud and direct clusters.
+   * Slave: Worker process. Only communicate with Master.
+   */
+  instanceType: AppInstanceType;
+
+  /**
+   * Define Instance Name instead of default os.hostname()
+   */
+  instanceName?: string;
+
+  /**
+   * Options for obniz.js instance arg
+   */
   obnizOption?: IObnizOptions;
+
+  /**
+   * Options for obniz Cloud SDK
+   */
   obnizCloudSdkOption?: SdkOption;
 }
 
@@ -59,16 +101,14 @@ export class App<O extends IObniz> {
   protected _interval: ReturnType<typeof setTimeout> | null = null;
   protected _syncing = false;
 
-  public isScalableMode = false;
-
   // eslint-disable-next-line no-unused-vars
   public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
   // eslint-disable-next-line no-unused-vars
   public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
 
   constructor(option: AppOption<any, O>) {
+    // validate obniz.js
     const requiredObnizJsVersion = '3.15.0-alpha.1';
-
     if (
       semver.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)
     ) {
@@ -76,6 +116,8 @@ export class App<O extends IObniz> {
         `obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`
       );
     }
+
+    // bind default values.
     this._options = {
       appToken: option.appToken,
       database: option.database || 'memory',
@@ -88,38 +130,47 @@ export class App<O extends IObniz> {
         }),
       obnizClass: option.obnizClass,
       instanceType: option.instanceType || AppInstanceType.Master,
-      instanceName: option.instanceName || 'master',
-      maxWorkerNumPerInstance: option.maxWorkerNumPerInstance || 0,
+      instanceName: option.instanceName || os.hostname(),
       obnizOption: option.obnizOption || {},
       obnizCloudSdkOption: option.obnizCloudSdkOption || {},
     };
 
-    if (option.instanceType === AppInstanceType.Master) {
+    // detection of pm2 cluster enabled.
+    const pm2ClusterEnabled = typeof process.env.NODE_APP_INSTANCE === 'string';
+    const isMasterOnSameMachine =
+      !pm2ClusterEnabled || process.env.NODE_APP_INSTANCE === '0';
+
+    if (pm2ClusterEnabled) {
+      logger.info(
+        `cluster detected. Instance Number = ${process.env.NODE_APP_INSTANCE}`
+      );
+      // make unique in same machine
+      this._options.instanceName += `-${process.env.NODE_APP_INSTANCE}`;
+    }
+
+    if (
+      option.instanceType === AppInstanceType.Master &&
+      isMasterOnSameMachine
+    ) {
       this._master = new MasterClass(
         option.appToken,
         this._options.instanceName,
-        this._options.maxWorkerNumPerInstance,
         this._options.database,
         this._options.databaseConfig,
         this._options.obnizCloudSdkOption
       );
     }
-    this.isScalableMode = this._options.maxWorkerNumPerInstance > 0;
+
     if (this._master) {
       // share same adaptor
       this._adaptor = this._master.adaptor;
-    } else if (this.isScalableMode) {
-      if (this._options.database !== 'redis') {
-        throw new Error('only support database redis when using scalable mode');
-      }
+    } else {
       this._adaptor = new AdaptorFactory().create(
         this._options.database,
         this._options.instanceName,
         false,
         this._options.databaseConfig
       );
-    } else {
-      throw new Error('invalid options');
     }
 
     this._adaptor.onSynchronize = async (installs: InstalledDevice[]) => {
@@ -243,8 +294,11 @@ export class App<O extends IObniz> {
    * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
    */
   public async request(key: string): Promise<{ [key: string]: string }> {
-    if (this.isScalableMode) {
-      throw new Error(`request for scalableMode is not supported yet`);
+    if (!this._master) {
+      throw new Error(`This function is only available on master`);
+    }
+    if (this._master.hasSubClusteredInstances()) {
+      throw new Error(`Cluster mode can not be used`);
     }
     return await this._adaptor.request(key);
   }

@@ -11,16 +11,46 @@ export declare enum AppInstanceType {
     Slave = 1
 }
 export interface AppOption<T extends Database, O extends IObniz> {
+    /**
+     * App Token provided from obniz Cloud.
+     */
     appToken: string;
+    /**
+     * Clustering Method.
+     */
     database?: T;
+    /**
+     * Options for database.
+     */
     databaseConfig?: DatabaseConfig[T];
+    /**
+     * Your Worker Class. instantiate for each obniz devices.
+     */
     workerClass?: WorkerStatic<O>;
+    /**
+     * TODO
+     */
     workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
+    /**
+     * obniz Class used with your workerClass.
+     */
     obnizClass: IObnizStatic<O>;
+    /**
+     * Master: Master is special Worker. Only one master is required in cluster. Master will communicate with cloud and direct clusters.
+     * Slave: Worker process. Only communicate with Master.
+     */
     instanceType: AppInstanceType;
+    /**
+     * Define Instance Name instead of default os.hostname()
+     */
     instanceName?: string;
-    maxWorkerNumPerInstance?: number;
+    /**
+     * Options for obniz.js instance arg
+     */
     obnizOption?: IObnizOptions;
+    /**
+     * Options for obniz Cloud SDK
+     */
     obnizCloudSdkOption?: SdkOption;
 }
 declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
@@ -38,7 +68,6 @@ export declare class App<O extends IObniz> {
     };
     protected _interval: ReturnType<typeof setTimeout> | null;
     protected _syncing: boolean;
-    isScalableMode: boolean;
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
     constructor(option: AppOption<any, O>);

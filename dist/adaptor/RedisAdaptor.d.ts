@@ -4,6 +4,7 @@ export declare type RedisAdaptorOptions = IORedis.RedisOptions;
 export declare class RedisAdaptor extends Adaptor {
     private _redis;
     private _pubRedis;
+    private _isMaster;
     constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions);
     private _onRedisReady;
     private _onRedisMessage;

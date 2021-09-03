@@ -39,61 +39,45 @@ interface AppStartOptionInternal extends AppStartOption {
 
 export class Master<T extends Database> {
   public adaptor: Adaptor;
-  public maxWorkerNumPerInstance: number;
 
   private readonly _appToken: string;
   private readonly _obnizSdkOption: SdkOption;
   private _startOptions?: AppStartOptionInternal;
   private _syncing = false;
-  private _interval?: any;
+  private _syncTimeout: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
 
   constructor(
     appToken: string,
     instanceName: string,
-    maxWorkerNumPerInstance: number,
     database: T,
     databaseConfig: DatabaseConfig[T],
     obnizSdkOption: SdkOption
   ) {
     this._appToken = appToken;
-    this.maxWorkerNumPerInstance = maxWorkerNumPerInstance;
     this._obnizSdkOption = obnizSdkOption;
 
-    if (maxWorkerNumPerInstance > 0) {
-      if (database !== 'redis') {
-        throw new Error('Supported database type is only redis now.');
-      }
-      this.adaptor = new AdaptorFactory().create<T>(
-        database,
-        instanceName,
-        true,
-        databaseConfig
-      );
-    } else {
-      this.adaptor = new AdaptorFactory().create<T>(
-        database,
-        instanceName,
-        true,
-        databaseConfig
-      );
-    }
+    this.adaptor = new AdaptorFactory().create<T>(
+      database,
+      instanceName,
+      true,
+      databaseConfig
+    );
 
     this.adaptor.onReported = async (
       reportInstanceName: string,
       installIds: string[]
     ) => {
-      // logger.debug(`receive report ${reportInstanceName}`)
       const exist = this._allWorkerInstances[reportInstanceName];
       if (exist) {
         exist.installIds = installIds;
-        exist.updatedMillisecond = Date.now().valueOf();
+        exist.updatedMillisecond = Date.now();
       } else {
         this._allWorkerInstances[reportInstanceName] = {
           name: reportInstanceName,
           installIds,
-          updatedMillisecond: Date.now().valueOf(),
+          updatedMillisecond: Date.now(),
         };
         this.onInstanceAttached(reportInstanceName);
       }
@@ -182,6 +166,7 @@ export class Master<T extends Database> {
   private onInstanceAttached(instanceName: string): void {
     // const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     // TODO: Overloadのinstanceがあれば引っ越しさせる
+    logger.info(`new worker recognized ${instanceName}`);
   }
 
   /**
@@ -189,6 +174,7 @@ export class Master<T extends Database> {
    * @param id
    */
   private onInstanceMissed(instanceName: string) {
+    logger.info(`worker lost ${instanceName}`);
     // delete immediately
     const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
     delete this._allWorkerInstances[instanceName];
@@ -218,32 +204,31 @@ export class Master<T extends Database> {
   private onInstanceReported(instanceName: string) {
     const worker: WorkerInstance = this._allWorkerInstances[instanceName];
     for (const existId of worker.installIds) {
-      const managedInstall = this._allInstalls[existId];
+      const managedInstall: ManagedInstall = this._allInstalls[existId];
       if (managedInstall) {
         managedInstall.status = InstallStatus.Started;
-        managedInstall.updatedMillisecond = Date.now().valueOf();
+        managedInstall.updatedMillisecond = Date.now();
       } else {
         // ghost
-        logger.debug(`Ignore ghost ${instanceName}`);
+        logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
       }
     }
   }
 
-  private _startSyncing() {
+  private _startSyncing(timeout?: number) {
     // every minutes
-    if (!this._interval) {
-      this._interval = setInterval(async () => {
+    if (!this._syncTimeout) {
+      this._syncTimeout = setTimeout(async () => {
+        this._syncTimeout = undefined;
+        let success = false;
         try {
-          await this._syncInstalls();
+          success = await this._syncInstalls();
         } catch (e) {
           logger.error(e);
+        } finally {
+          this._startSyncing(success ? 60 * 1000 : 3 * 1000);
         }
-      }, 60 * 1000);
-      this._syncInstalls()
-        .then()
-        .catch((e) => {
-          logger.error(e);
-        });
+      }, timeout || 0);
     }
   }
 
@@ -258,13 +243,15 @@ export class Master<T extends Database> {
   }
 
   private async _syncInstalls() {
+    let success = false;
     try {
-      if (this._syncing) {
-        return;
+      if (this._syncing || !this.adaptor.isReady) {
+        return success;
       }
       this._syncing = true;
 
-      // logger.debug("sync api start");
+      const startedTime = Date.now();
+      logger.debug('API Sync Start');
 
       const installsApi = [];
       try {
@@ -278,6 +265,12 @@ export class Master<T extends Database> {
         console.error(e);
         process.exit(-1);
       }
+
+      logger.debug(
+        `API Sync Finished Count=${installsApi.length} duration=${
+          Date.now() - startedTime
+        }msec`
+      );
 
       /**
        * Compare with currents
@@ -334,16 +327,18 @@ export class Master<T extends Database> {
         const managedInstall: ManagedInstall = {
           instanceName: instance.name,
           status: InstallStatus.Starting,
-          updatedMillisecond: Date.now().valueOf(),
+          updatedMillisecond: Date.now(),
           install,
         };
         this._allInstalls[install.id] = managedInstall;
       }
       await this.synchronize();
+      success = true;
     } catch (e) {
       console.error(e);
     }
     this._syncing = false;
+    return success;
   }
 
   private async synchronize() {
@@ -366,7 +361,7 @@ export class Master<T extends Database> {
   }
 
   private _healthCheck() {
-    const current = Date.now().valueOf();
+    const current = Date.now();
     // each install
     // for (const id in this._allInstalls) {
     //   const managedInstall = this._allInstalls[id];
@@ -392,5 +387,9 @@ export class Master<T extends Database> {
   private _onHealthCheckFailedWorkerInstance(workerInstance: WorkerInstance) {
     logger.warn(`health check failed worker ${workerInstance.name}`);
     this.onInstanceMissed(workerInstance.name);
+  }
+
+  public hasSubClusteredInstances(): boolean {
+    return Object.keys(this._allWorkerInstances).length > 1;
   }
 }

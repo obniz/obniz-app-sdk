@@ -4,6 +4,7 @@ import { MemoryAdaptorOptions } from './MemoryAdaptor';
 export interface DatabaseConfig {
     redis: RedisAdaptorOptions;
     memory: MemoryAdaptorOptions;
+    mqtt: string;
 }
 export declare type Database = keyof DatabaseConfig;
 export declare class AdaptorFactory {

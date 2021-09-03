@@ -1,5 +1,16 @@
 import { getSdk, SdkOption } from 'obniz-cloud-sdk';
-import { Installed_Device } from 'obniz-cloud-sdk/sdk';
+import {
+  AppEventApp,
+  AppEventsQuery,
+  Device,
+  Installed_Device,
+  Maybe,
+  User,
+} from 'obniz-cloud-sdk/sdk';
+
+export type AppEvent = NonNullable<
+  NonNullable<AppEventsQuery['appEvents']>['events'][number]
+>;
 
 export class InstalledDeviceManager {
   async getListFromObnizCloud(
@@ -34,6 +45,53 @@ export class InstalledDeviceManager {
       }
     }
     return allInstalls;
+  }
+
+  async getDiffListFromObnizCloud(
+    token: string,
+    option: SdkOption,
+    skip: number
+  ): Promise<{ appEvents: AppEvent[]; maxId: number }> {
+    const sdk = getSdk(token, option);
+
+    const appEvents: AppEvent[] = [];
+    let failCount = 0;
+    let maxId = 0;
+    while (true) {
+      try {
+        const result = await sdk.appEvents({ skip });
+        if (!result.appEvents || !result.appEvents.events) {
+          break;
+        }
+        for (const edge of result.appEvents.events) {
+          if (edge) {
+            appEvents.push(edge);
+          }
+        }
+        maxId = Math.max(
+          maxId,
+          ...result.appEvents.events.filter((e) => !!e).map((e) => e!.id)
+        );
+
+        if (!result.appEvents.pageInfo.hasNextPage) {
+          break;
+        }
+        skip += result.appEvents.events.length;
+      } catch (e) {
+        console.error(e);
+        if (++failCount > 10) {
+          throw e;
+        }
+        await new Promise((resolve) => setTimeout(resolve, failCount * 1000));
+      }
+    }
+    return { appEvents, maxId };
+  }
+
+  async getCurrentEventNo(token: string, option: SdkOption) {
+    const sdk = getSdk(token, option);
+    const result = await sdk.appEvents({ first: 1 });
+    return result.appEvents?.totalCount || 0;
   }
 }
 

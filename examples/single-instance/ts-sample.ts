@@ -35,7 +35,7 @@ export class MyWorker extends Worker<Obniz> {
 }
 
 const app = new App({
-  appToken: process.env.APPTOKEN,
+  appToken: process.env.APPTOKEN as string,
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
   obnizClass: Obniz

@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { sharedInstalledDeviceManager } from './install';
+import { sharedInstalledDeviceManager, AppEvent } from './install';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
@@ -47,6 +47,8 @@ export class Master<T extends Database> {
   private _syncTimeout: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
+
+  private _currentAppEventsSequenceNo = 0;
 
   constructor(
     appToken: string,
@@ -121,7 +123,7 @@ export class Master<T extends Database> {
 
   webhook = this._webhook.bind(this);
 
-  private async _webhook(_: express.Request, res: express.Response) {
+  private async _webhook(req: express.Request, res: express.Response) {
     // TODO : check Instance and start
     try {
       await this._syncInstalls();
@@ -250,88 +252,12 @@ export class Master<T extends Database> {
       }
       this._syncing = true;
 
-      const startedTime = Date.now();
-      logger.debug('API Sync Start');
-
-      const installsApi = [];
-      try {
-        installsApi.push(
-          ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
-            this._appToken,
-            this._obnizSdkOption
-          ))
-        );
-      } catch (e) {
-        console.error(e);
-        process.exit(-1);
+      if (Object.keys(this._allInstalls).length === 0) {
+        await this._checkAllInstalls();
+      } else {
+        await this._checkDiffInstalls();
       }
 
-      logger.debug(
-        `API Sync Finished Count=${installsApi.length} duration=${
-          Date.now() - startedTime
-        }msec`
-      );
-
-      /**
-       * Compare with currents
-       */
-      const mustAdds: InstalledDevice[] = [];
-      const updated: InstalledDevice[] = [];
-      const deleted: ManagedInstall[] = [];
-      for (const install of installsApi) {
-        let found = false;
-        for (const id in this._allInstalls) {
-          const oldInstall = this._allInstalls[id].install;
-          if (install.id === id) {
-            if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
-              // updated
-              updated.push(install);
-            }
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          mustAdds.push(install);
-        }
-      }
-      for (const id in this._allInstalls) {
-        let found = false;
-        for (const install of installsApi) {
-          if (id === install.id) {
-            found = true;
-            break;
-          }
-        }
-        if (!found) {
-          deleted.push(this._allInstalls[id]);
-        }
-      }
-      if (mustAdds.length + updated.length + deleted.length > 0) {
-        logger.debug(`all \t| added \t| updated \t| deleted`);
-        logger.debug(
-          `${installsApi.length} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`
-        );
-      }
-
-      for (const install of updated) {
-        const managedInstall = this._allInstalls[install.id];
-        managedInstall.install = install;
-      }
-      for (const managedInstall of deleted) {
-        managedInstall.status = InstallStatus.Stopping;
-        delete this._allInstalls[managedInstall.install.id];
-      }
-      for (const install of mustAdds) {
-        const instance = this.bestWorkerInstance(); // maybe throw
-        const managedInstall: ManagedInstall = {
-          instanceName: instance.name,
-          status: InstallStatus.Starting,
-          updatedMillisecond: Date.now(),
-          install,
-        };
-        this._allInstalls[install.id] = managedInstall;
-      }
       await this.synchronize();
       success = true;
     } catch (e) {
@@ -339,6 +265,190 @@ export class Master<T extends Database> {
     }
     this._syncing = false;
     return success;
+  }
+
+  private async _checkAllInstalls() {
+    const startedTime = Date.now();
+    logger.debug('API Sync Start');
+    const installsApi = [];
+    try {
+      // set current id before getting data
+      this._currentAppEventsSequenceNo = await sharedInstalledDeviceManager.getCurrentEventNo(
+        this._appToken,
+        this._obnizSdkOption
+      );
+
+      installsApi.push(
+        ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
+          this._appToken,
+          this._obnizSdkOption
+        ))
+      );
+    } catch (e) {
+      console.error(e);
+      process.exit(-1);
+    }
+
+    logger.debug(
+      `API Sync Finished Count=${installsApi.length} duration=${
+        Date.now() - startedTime
+      }msec`
+    );
+
+    /**
+     * Compare with currents
+     */
+    const mustAdds: InstalledDevice[] = [];
+    const updated: InstalledDevice[] = [];
+    const deleted: ManagedInstall[] = [];
+    for (const install of installsApi) {
+      let found = false;
+      for (const id in this._allInstalls) {
+        const oldInstall = this._allInstalls[id].install;
+        if (install.id === id) {
+          if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
+            // updated
+            updated.push(install);
+          }
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        mustAdds.push(install);
+      }
+    }
+    for (const id in this._allInstalls) {
+      let found = false;
+      for (const install of installsApi) {
+        if (id === install.id) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        deleted.push(this._allInstalls[id]);
+      }
+    }
+
+    if (mustAdds.length + updated.length + deleted.length > 0) {
+      const allNum =
+        Object.keys(this._allInstalls).length +
+        mustAdds.length -
+        deleted.length;
+      logger.debug(`all \t| added \t| updated \t| deleted`);
+      logger.debug(
+        `${allNum} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`
+      );
+    }
+
+    for (const install of updated) {
+      this._updateDevice(install.id, install);
+    }
+    for (const managedInstall of deleted) {
+      this._deleteDevice(managedInstall.install.id);
+    }
+    for (const install of mustAdds) {
+      this._addDevice(install.id, install);
+    }
+  }
+
+  private async _checkDiffInstalls() {
+    const startedTime = Date.now();
+    logger.debug('API Diff Sync Start');
+    const events: AppEvent[] = [];
+    try {
+      const {
+        maxId,
+        appEvents,
+      } = await sharedInstalledDeviceManager.getDiffListFromObnizCloud(
+        this._appToken,
+        this._obnizSdkOption,
+        this._currentAppEventsSequenceNo
+      );
+      events.push(...appEvents);
+      this._currentAppEventsSequenceNo = maxId;
+    } catch (e) {
+      console.error(e);
+      process.exit(-1);
+    }
+
+    logger.debug(
+      `API Diff Sync Finished DiffCount=${events.length} duration=${
+        Date.now() - startedTime
+      }msec`
+    );
+
+    if (events.length > 0) {
+      const addNum = events.filter((e) => e.type === 'install.create').length;
+      const updateNum = events.filter((e) => e.type === 'install.update')
+        .length;
+      const deleteNum = events.filter((e) => e.type === 'install.delete')
+        .length;
+      const allNum = Object.keys(this._allInstalls).length + addNum - deleteNum;
+      logger.debug(`all \t| added \t| updated \t| deleted`);
+      logger.debug(`${allNum} \t| ${addNum} \t| ${updateNum} \t| ${deleteNum}`);
+    }
+
+    const list: { [id: string]: AppEvent } = {};
+
+    // overwrite newer if device duplicate
+    for (const one of events) {
+      if (one.payload.device) {
+        list[one.payload.device.id] = one;
+      }
+    }
+
+    for (const key in list) {
+      const one = list[key];
+      if (one.type === 'install.update' && one.payload.device) {
+        this._updateDevice(
+          one.payload.device.id,
+          one.payload.device as InstalledDevice
+        );
+      } else if (one.type === 'install.delete' && one.payload.device) {
+        this._deleteDevice(one.payload.device.id);
+      } else if (one.type === 'install.create' && one.payload.device) {
+        this._addDevice(
+          one.payload.device.id,
+          one.payload.device as InstalledDevice
+        );
+      }
+    }
+  }
+
+  private _addDevice(obnizId: string, device: InstalledDevice) {
+    if (this._allInstalls[obnizId]) {
+      // already exist
+      this._updateDevice(obnizId, device);
+      return;
+    }
+    const instance = this.bestWorkerInstance(); // maybe throw
+    const managedInstall: ManagedInstall = {
+      instanceName: instance.name,
+      status: InstallStatus.Starting,
+      updatedMillisecond: Date.now(),
+      install: device,
+    };
+    this._allInstalls[obnizId] = managedInstall;
+  }
+
+  private _updateDevice(obnizId: string, device: InstalledDevice) {
+    const managedInstall = this._allInstalls[obnizId];
+    if (!managedInstall) {
+      this._addDevice(obnizId, device);
+      return;
+    }
+    managedInstall.install = device;
+  }
+
+  private _deleteDevice(obnizId: string) {
+    if (!this._allInstalls[obnizId]) {
+      // not exist
+      return;
+    }
+    this._allInstalls[obnizId].status = InstallStatus.Stopping;
+    delete this._allInstalls[obnizId];
   }
 
   private async synchronize() {

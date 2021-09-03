@@ -8,6 +8,12 @@ import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
 import { LogWorker } from './util/LogWorker';
 import { MemoryAdaptor } from '../adaptor/MemoryAdaptor';
+import {
+  appEventAddSamples,
+  appEventDeleteAndUpdateSamples,
+  appEventDeleteSamples,
+  appEvnetSamples,
+} from './util/AppEvent';
 
 describe('single', () => {
   beforeEach(() => {
@@ -37,32 +43,28 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceA, deviceB]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
-    // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
-    await wait(100);
+    await wait(1000);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+
     expect(LogWorker.workers.length).to.be.equal(2);
 
     await wait(10 * 1000);
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
     await wait(60 * 1000);
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(2);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
   }).timeout(80 * 1000);
 
   it('webhook', async () => {
@@ -75,28 +77,24 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceA, deviceB]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
     await wait(100);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
     expect(LogWorker.workers.length).to.be.equal(2);
 
     app.expressWebhook({} as any, {} as any);
 
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(2);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
   });
 
   it('add', async () => {
@@ -109,31 +107,30 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceA]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
-    // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
-    app.start({ express: false });
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
-    await wait(10);
-    expect(LogWorker.workers.length).to.be.equal(1);
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
 
-    getListFromObnizCloudStub.returns([deviceA, deviceB]);
+    // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+    app.start({ express: false });
+    await wait(10);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    getDiffListFromObnizCloudStub.returns({
+      appEvents: appEventAddSamples,
+      maxId: 5,
+    });
     app.expressWebhook({} as any, {} as any);
     await wait(10);
 
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(2);
-    expect(LogWorker.workers.length).to.be.equal(2);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(LogWorker.workers.length).to.be.equal(3);
   });
 
   it('remove', async () => {
@@ -146,30 +143,30 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceA, deviceB]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
     await wait(10);
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
     expect(LogWorker.workers.length).to.be.equal(2);
 
-    getListFromObnizCloudStub.returns([deviceA]);
+    getDiffListFromObnizCloudStub.returns({
+      appEvents: appEventDeleteSamples,
+      maxId: 5,
+    });
+
     app.expressWebhook({} as any, {} as any);
     await wait(10);
 
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(2);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
     expect(LogWorker.workers.length).to.be.equal(1);
   });
 
@@ -183,32 +180,31 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceA]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
     await wait(10);
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
-    expect(LogWorker.workers.length).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(LogWorker.workers.length).to.be.equal(2);
     expect((LogWorker.workers[0] as any).obniz.id).to.be.equal(deviceA.id);
 
-    getListFromObnizCloudStub.returns([deviceB]);
+    getDiffListFromObnizCloudStub.returns({
+      appEvents: appEventDeleteAndUpdateSamples,
+      maxId: 6,
+    });
     app.expressWebhook({} as any, {} as any);
     await wait(10);
 
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(2);
-    expect(LogWorker.workers.length).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(LogWorker.workers.length).to.be.equal(2);
     expect((LogWorker.workers[0] as any).obniz.id).to.be.equal(deviceB.id);
   });
 
@@ -223,23 +219,19 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceC]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
-
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
     await wait(10);
-    expect(LogWorker.workers.length).to.be.equal(1);
-    expect(DummyObniz.obnizes.length).to.be.equal(1);
+
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(LogWorker.workers.length).to.be.equal(2);
+    expect(DummyObniz.obnizes.length).to.be.equal(2);
 
     const obnizC = DummyObniz.obnizes[0];
     expect(obnizC.options.access_token).to.be.equal(cloudSdkToken);
@@ -259,33 +251,22 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const getListFromObnizCloudStub = sinon.stub();
-    getListFromObnizCloudStub.returns([deviceA]);
-    sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+    const { getListFromObnizCloudStub } = obnizApiStub();
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
 
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .callCount
-    ).to.be.equal(1);
-
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .args[0][0]
-    ).to.be.equal(cloudSdkToken);
-
-    expect(
-      (sharedInstalledDeviceManager.getListFromObnizCloud as sinon.SinonStub)
-        .args[0][1]
-    ).to.be.deep.equal({ baseUrl: 'http://localhost:8888' });
     await wait(10);
-    expect(LogWorker.workers.length).to.be.equal(1);
-    expect(DummyObniz.obnizes.length).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+
+    expect(getListFromObnizCloudStub.args[0][0]).to.be.equal(cloudSdkToken);
+
+    expect(getListFromObnizCloudStub.args[0][1]).to.be.deep.equal({
+      baseUrl: 'http://localhost:8888',
+    });
+    await wait(10);
+    expect(LogWorker.workers.length).to.be.equal(2);
+    expect(DummyObniz.obnizes.length).to.be.equal(2);
 
     const obnizA = DummyObniz.obnizes[0];
     expect(obnizA.options.access_token).to.be.equal(cloudSdkToken);
@@ -293,3 +274,26 @@ describe('single', () => {
     expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
   });
 });
+
+function obnizApiStub() {
+  const getListFromObnizCloudStub = sinon.stub();
+  getListFromObnizCloudStub.returns([deviceA, deviceB]);
+  sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+
+  const getDiffListFromObnizCloudStub = sinon.stub();
+  getDiffListFromObnizCloudStub.returns({
+    appEvents: appEvnetSamples,
+    maxId: 4,
+  });
+  sharedInstalledDeviceManager.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
+
+  const getCurrentEventNoStub = sinon.stub();
+  getCurrentEventNoStub.returns(0);
+  sharedInstalledDeviceManager.getCurrentEventNo = getCurrentEventNoStub;
+
+  return {
+    getListFromObnizCloudStub,
+    getDiffListFromObnizCloudStub,
+    getCurrentEventNoStub,
+  };
+}

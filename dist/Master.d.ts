@@ -12,10 +12,11 @@ export declare class Master<T extends Database> {
     private _syncTimeout;
     private _allInstalls;
     private _allWorkerInstances;
+    private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
     start(option?: AppStartOption): void;
     private _startWeb;
-    webhook: (_: express.Request, res: express.Response) => Promise<void>;
+    webhook: (req: express.Request, res: express.Response) => Promise<void>;
     private _webhook;
     /**
      * 空き状況から最適なWorkerを推測
@@ -39,6 +40,11 @@ export declare class Master<T extends Database> {
     private _startSyncing;
     private _startHealthCheck;
     private _syncInstalls;
+    private _checkAllInstalls;
+    private _checkDiffInstalls;
+    private _addDevice;
+    private _updateDevice;
+    private _deleteDevice;
     private synchronize;
     private _healthCheck;
     private _onHealthCheckFailedWorkerInstance;

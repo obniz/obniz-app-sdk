@@ -126,7 +126,7 @@ export class Master<T extends Database> {
   private async _webhook(req: express.Request, res: express.Response) {
     // TODO : check Instance and start
     try {
-      await this._syncInstalls();
+      await this._syncInstalls(true);
     } catch (e) {
       logger.error(e);
       res.status(500).json({});
@@ -244,7 +244,7 @@ export class Master<T extends Database> {
     }, 10 * 1000);
   }
 
-  private async _syncInstalls() {
+  private async _syncInstalls(diffOnly = false) {
     let success = false;
     try {
       if (this._syncing || !this.adaptor.isReady) {
@@ -252,10 +252,10 @@ export class Master<T extends Database> {
       }
       this._syncing = true;
 
-      if (Object.keys(this._allInstalls).length === 0) {
-        await this._checkAllInstalls();
-      } else {
+      if (diffOnly) {
         await this._checkDiffInstalls();
+      } else {
+        await this._checkAllInstalls();
       }
 
       await this.synchronize();

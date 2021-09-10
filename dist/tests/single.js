@@ -49,8 +49,8 @@ mocha_1.describe('single', () => {
         chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
         chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
         await tools_1.wait(60 * 1000);
-        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
-        chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(2);
+        chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
     }).timeout(80 * 1000);
     mocha_1.it('webhook', async () => {
         const app = new index_1.App({

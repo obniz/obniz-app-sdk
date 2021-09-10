@@ -62,9 +62,8 @@ describe('single', () => {
     expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
     expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
     await wait(60 * 1000);
-    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
-
-    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(2);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
   }).timeout(80 * 1000);
 
   it('webhook', async () => {

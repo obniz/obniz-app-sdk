@@ -69,7 +69,7 @@ class Master {
     async _webhook(req, res) {
         // TODO : check Instance and start
         try {
-            await this._syncInstalls();
+            await this._syncInstalls(true);
         }
         catch (e) {
             logger_1.logger.error(e);
@@ -183,18 +183,18 @@ class Master {
             }
         }, 10 * 1000);
     }
-    async _syncInstalls() {
+    async _syncInstalls(diffOnly = false) {
         let success = false;
         try {
             if (this._syncing || !this.adaptor.isReady) {
                 return success;
             }
             this._syncing = true;
-            if (Object.keys(this._allInstalls).length === 0) {
-                await this._checkAllInstalls();
+            if (diffOnly) {
+                await this._checkDiffInstalls();
             }
             else {
-                await this._checkDiffInstalls();
+                await this._checkAllInstalls();
             }
             await this.synchronize();
             success = true;

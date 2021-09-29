@@ -452,21 +452,23 @@ export class Master<T extends Database> {
   }
 
   private async synchronize() {
-    const separated: { [key: string]: InstalledDevice[] } = {};
+    const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
+    for (const instanceName in this._allWorkerInstances) {
+      installsByInstanceName[instanceName] = [];
+    }
     for (const id in this._allInstalls) {
       const managedInstall: ManagedInstall = this._allInstalls[id];
       const instanceName = managedInstall.instanceName;
-      if (!separated[instanceName]) {
-        separated[instanceName] = [];
-      }
-      separated[instanceName].push(managedInstall.install);
+      installsByInstanceName[instanceName].push(managedInstall.install);
     }
-    //
-    for (const instanceName in separated) {
+    for (const instanceName in installsByInstanceName) {
       logger.debug(
-        `synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`
+        `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
       );
-      await this.adaptor.synchronize(instanceName, separated[instanceName]);
+      await this.adaptor.synchronize(
+        instanceName,
+        installsByInstanceName[instanceName]
+      );
     }
   }
 

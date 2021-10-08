@@ -86,6 +86,9 @@ class App {
         this._adaptor.onReportRequest = async () => {
             await this._reportToMaster();
         };
+        this._adaptor.onKeyRequest = async (key) => {
+            await this._keyRequestProcess(key);
+        };
         this._adaptor.onRequestRequested = async (key) => {
             const results = {};
             for (const install_id in this._workers) {
@@ -93,6 +96,13 @@ class App {
             }
             return results;
         };
+    }
+    async _keyRequestProcess(key) {
+        const results = {};
+        for (const install_id in this._workers) {
+            results[install_id] = await this._workers[install_id].onRequest(key);
+        }
+        await this._adaptor.keyRequestResponse(this._options.instanceName, results);
     }
     /**
      * Receive Master Generated List and compare current apps.
@@ -185,10 +195,9 @@ class App {
         if (!this._master) {
             throw new Error(`This function is only available on master`);
         }
-        if (this._master.hasSubClusteredInstances()) {
-            throw new Error(`Cluster mode can not be used`);
-        }
-        return await this._adaptor.request(key);
+        await this._adaptor.keyRequest(key);
+        // WIP
+        return {};
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);

@@ -15,16 +15,19 @@ class Adaptor {
         this.id = id;
         this.isMaster = isMaster;
     }
-    async request(key) {
-        if (this.onRequestRequested) {
-            return await this.onRequestRequested(key);
-        }
-        return {};
-    }
     _onMasterMessage(message) {
         if (message.action === 'report') {
             if (this.onReported) {
                 this.onReported(message.instanceName, message.installIds)
+                    .then(() => { })
+                    .catch((e) => {
+                    logger_1.logger.error(e);
+                });
+            }
+        }
+        else if (message.action === 'keyRequestResponse') {
+            if (this.onKeyRequestResponse) {
+                this.onKeyRequestResponse(message.instanceName, message.results)
                     .then(() => { })
                     .catch((e) => {
                     logger_1.logger.error(e);
@@ -45,6 +48,15 @@ class Adaptor {
         else if (message.action === 'reportRequest') {
             if (this.onReportRequest) {
                 this.onReportRequest()
+                    .then(() => { })
+                    .catch((e) => {
+                    logger_1.logger.error(e);
+                });
+            }
+        }
+        else if (message.action === 'keyRequest') {
+            if (this.onKeyRequest) {
+                this.onKeyRequest(message.key)
                     .then(() => { })
                     .catch((e) => {
                     logger_1.logger.error(e);
@@ -94,6 +106,22 @@ class Adaptor {
             instanceName,
             toMaster: true,
             installIds,
+        });
+    }
+    async keyRequest(key) {
+        await this._send({
+            action: 'keyRequest',
+            instanceName: '*',
+            toMaster: false,
+            key,
+        });
+    }
+    async keyRequestResponse(instanceName, results) {
+        await this._send({
+            action: 'keyRequestResponse',
+            instanceName,
+            toMaster: true,
+            results,
         });
     }
     async synchronize(instanceName, installs) {

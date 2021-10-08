@@ -181,6 +181,10 @@ export class App<O extends IObniz> {
       await this._reportToMaster();
     };
 
+    this._adaptor.onKeyRequest = async (key: string) => {
+      await this._keyRequestProcess(key);
+    };
+
     this._adaptor.onRequestRequested = async (
       key: string
     ): Promise<{ [key: string]: string }> => {
@@ -190,6 +194,14 @@ export class App<O extends IObniz> {
       }
       return results;
     };
+  }
+
+  protected async _keyRequestProcess(key: string): Promise<void> {
+    const results: { [key: string]: string } = {};
+    for (const install_id in this._workers) {
+      results[install_id] = await this._workers[install_id].onRequest(key);
+    }
+    await this._adaptor.keyRequestResponse(this._options.instanceName, results);
   }
 
   /**
@@ -297,10 +309,9 @@ export class App<O extends IObniz> {
     if (!this._master) {
       throw new Error(`This function is only available on master`);
     }
-    if (this._master.hasSubClusteredInstances()) {
-      throw new Error(`Cluster mode can not be used`);
-    }
-    return await this._adaptor.request(key);
+    await this._adaptor.keyRequest(key);
+    // WIP
+    return {};
   }
 
   protected async _startOneWorker(install: InstalledDevice): Promise<void> {

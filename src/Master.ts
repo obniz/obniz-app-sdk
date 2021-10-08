@@ -85,6 +85,13 @@ export class Master<T extends Database> {
       }
       this.onInstanceReported(reportInstanceName);
     };
+
+    this.adaptor.onKeyRequestResponse = async (
+      fromInstanceName: string,
+      results: { [key: string]: string }
+    ) => {
+      // WIP
+    };
   }
 
   public start(option?: AppStartOption): void {

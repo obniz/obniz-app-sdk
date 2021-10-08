@@ -41,6 +41,9 @@ class Master {
             }
             this.onInstanceReported(reportInstanceName);
         };
+        this.adaptor.onKeyRequestResponse = async (fromInstanceName, results) => {
+            // WIP
+        };
     }
     start(option) {
         this._startWeb(option);

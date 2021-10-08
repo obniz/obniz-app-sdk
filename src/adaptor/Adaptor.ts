@@ -29,6 +29,7 @@ export interface KeyRequestMessage {
   instanceName: string;
   action: 'keyRequest';
   key: string;
+  requestId: string;
 }
 
 export interface KeyRequestResponseMessage {
@@ -36,6 +37,7 @@ export interface KeyRequestResponseMessage {
   instanceName: string;
   action: 'keyRequestResponse';
   results: { [key: string]: string };
+  requestId: string;
 }
 
 export type ToMasterMessage = ReportMessage | KeyRequestResponseMessage;
@@ -58,8 +60,9 @@ export abstract class Adaptor {
   public isReady = false;
 
   public onReportRequest?: () => Promise<void>;
-  public onKeyRequest?: (key: string) => Promise<void>;
+  public onKeyRequest?: (requestId: string, key: string) => Promise<void>;
   public onKeyRequestResponse?: (
+    requestId: string,
     instanceName: string,
     results: { [key: string]: string }
   ) => Promise<void>;
@@ -88,7 +91,11 @@ export abstract class Adaptor {
       }
     } else if (message.action === 'keyRequestResponse') {
       if (this.onKeyRequestResponse) {
-        this.onKeyRequestResponse(message.instanceName, message.results)
+        this.onKeyRequestResponse(
+          message.requestId,
+          message.instanceName,
+          message.results
+        )
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -116,7 +123,7 @@ export abstract class Adaptor {
       }
     } else if (message.action === 'keyRequest') {
       if (this.onKeyRequest) {
-        this.onKeyRequest(message.key)
+        this.onKeyRequest(message.requestId, message.key)
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -174,15 +181,18 @@ export abstract class Adaptor {
   }
 
   async keyRequest(key: string): Promise<void> {
+    const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
     await this._send({
       action: 'keyRequest',
       instanceName: '*',
       toMaster: false,
       key,
+      requestId,
     });
   }
 
   async keyRequestResponse(
+    requestId: string,
     instanceName: string,
     results: { [key: string]: string }
   ): Promise<void> {
@@ -191,6 +201,7 @@ export abstract class Adaptor {
       instanceName,
       toMaster: true,
       results,
+      requestId,
     });
   }
 

@@ -86,8 +86,8 @@ class App {
         this._adaptor.onReportRequest = async () => {
             await this._reportToMaster();
         };
-        this._adaptor.onKeyRequest = async (key) => {
-            await this._keyRequestProcess(key);
+        this._adaptor.onKeyRequest = async (requestId, key) => {
+            await this._keyRequestProcess(requestId, key);
         };
         this._adaptor.onRequestRequested = async (key) => {
             const results = {};
@@ -97,12 +97,12 @@ class App {
             return results;
         };
     }
-    async _keyRequestProcess(key) {
+    async _keyRequestProcess(requestId, key) {
         const results = {};
         for (const install_id in this._workers) {
             results[install_id] = await this._workers[install_id].onRequest(key);
         }
-        await this._adaptor.keyRequestResponse(this._options.instanceName, results);
+        await this._adaptor.keyRequestResponse(requestId, this._options.instanceName, results);
     }
     /**
      * Receive Master Generated List and compare current apps.

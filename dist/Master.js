@@ -41,7 +41,7 @@ class Master {
             }
             this.onInstanceReported(reportInstanceName);
         };
-        this.adaptor.onKeyRequestResponse = async (fromInstanceName, results) => {
+        this.adaptor.onKeyRequestResponse = async (requestId, fromInstanceName, results) => {
             // WIP
         };
     }

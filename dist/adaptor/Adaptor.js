@@ -27,7 +27,7 @@ class Adaptor {
         }
         else if (message.action === 'keyRequestResponse') {
             if (this.onKeyRequestResponse) {
-                this.onKeyRequestResponse(message.instanceName, message.results)
+                this.onKeyRequestResponse(message.requestId, message.instanceName, message.results)
                     .then(() => { })
                     .catch((e) => {
                     logger_1.logger.error(e);
@@ -56,7 +56,7 @@ class Adaptor {
         }
         else if (message.action === 'keyRequest') {
             if (this.onKeyRequest) {
-                this.onKeyRequest(message.key)
+                this.onKeyRequest(message.requestId, message.key)
                     .then(() => { })
                     .catch((e) => {
                     logger_1.logger.error(e);
@@ -109,19 +109,22 @@ class Adaptor {
         });
     }
     async keyRequest(key) {
+        const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
         await this._send({
             action: 'keyRequest',
             instanceName: '*',
             toMaster: false,
             key,
+            requestId,
         });
     }
-    async keyRequestResponse(instanceName, results) {
+    async keyRequestResponse(requestId, instanceName, results) {
         await this._send({
             action: 'keyRequestResponse',
             instanceName,
             toMaster: true,
             results,
+            requestId,
         });
     }
     async synchronize(instanceName, installs) {

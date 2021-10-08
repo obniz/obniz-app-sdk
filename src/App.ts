@@ -181,8 +181,8 @@ export class App<O extends IObniz> {
       await this._reportToMaster();
     };
 
-    this._adaptor.onKeyRequest = async (key: string) => {
-      await this._keyRequestProcess(key);
+    this._adaptor.onKeyRequest = async (requestId: string, key: string) => {
+      await this._keyRequestProcess(requestId, key);
     };
 
     this._adaptor.onRequestRequested = async (
@@ -196,12 +196,19 @@ export class App<O extends IObniz> {
     };
   }
 
-  protected async _keyRequestProcess(key: string): Promise<void> {
+  protected async _keyRequestProcess(
+    requestId: string,
+    key: string
+  ): Promise<void> {
     const results: { [key: string]: string } = {};
     for (const install_id in this._workers) {
       results[install_id] = await this._workers[install_id].onRequest(key);
     }
-    await this._adaptor.keyRequestResponse(this._options.instanceName, results);
+    await this._adaptor.keyRequestResponse(
+      requestId,
+      this._options.instanceName,
+      results
+    );
   }
 
   /**

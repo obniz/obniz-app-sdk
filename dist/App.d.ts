@@ -71,7 +71,7 @@ export declare class App<O extends IObniz> {
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
     constructor(option: AppOption<any, O>);
-    protected _keyRequestProcess(key: string): Promise<void>;
+    protected _keyRequestProcess(requestId: string, key: string): Promise<void>;
     /**
      * Receive Master Generated List and compare current apps.
      * @param installs

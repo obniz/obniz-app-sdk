@@ -21,6 +21,7 @@ export interface KeyRequestMessage {
     instanceName: string;
     action: 'keyRequest';
     key: string;
+    requestId: string;
 }
 export interface KeyRequestResponseMessage {
     toMaster: true;
@@ -29,6 +30,7 @@ export interface KeyRequestResponseMessage {
     results: {
         [key: string]: string;
     };
+    requestId: string;
 }
 export declare type ToMasterMessage = ReportMessage | KeyRequestResponseMessage;
 export declare type ToSlaveMessage = ReportRequestMessage | SynchronizeRequestMessage | KeyRequestMessage;
@@ -44,8 +46,8 @@ export declare abstract class Adaptor {
     id: string;
     isReady: boolean;
     onReportRequest?: () => Promise<void>;
-    onKeyRequest?: (key: string) => Promise<void>;
-    onKeyRequestResponse?: (instanceName: string, results: {
+    onKeyRequest?: (requestId: string, key: string) => Promise<void>;
+    onKeyRequestResponse?: (requestId: string, instanceName: string, results: {
         [key: string]: string;
     }) => Promise<void>;
     onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
@@ -61,7 +63,7 @@ export declare abstract class Adaptor {
     reportRequest(): Promise<void>;
     report(instanceName: string, installIds: string[]): Promise<void>;
     keyRequest(key: string): Promise<void>;
-    keyRequestResponse(instanceName: string, results: {
+    keyRequestResponse(requestId: string, instanceName: string, results: {
         [key: string]: string;
     }): Promise<void>;
     synchronize(instanceName: string, installs: Installed_Device[]): Promise<void>;

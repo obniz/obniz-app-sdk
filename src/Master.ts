@@ -87,6 +87,7 @@ export class Master<T extends Database> {
     };
 
     this.adaptor.onKeyRequestResponse = async (
+      requestId: string,
       fromInstanceName: string,
       results: { [key: string]: string }
     ) => {

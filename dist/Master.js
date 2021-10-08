@@ -347,19 +347,18 @@ class Master {
         delete this._allInstalls[obnizId];
     }
     async synchronize() {
-        const separated = {};
+        const installsByInstanceName = {};
+        for (const instanceName in this._allWorkerInstances) {
+            installsByInstanceName[instanceName] = [];
+        }
         for (const id in this._allInstalls) {
             const managedInstall = this._allInstalls[id];
             const instanceName = managedInstall.instanceName;
-            if (!separated[instanceName]) {
-                separated[instanceName] = [];
-            }
-            separated[instanceName].push(managedInstall.install);
+            installsByInstanceName[instanceName].push(managedInstall.install);
         }
-        //
-        for (const instanceName in separated) {
-            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`);
-            await this.adaptor.synchronize(instanceName, separated[instanceName]);
+        for (const instanceName in installsByInstanceName) {
+            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
+            await this.adaptor.synchronize(instanceName, installsByInstanceName[instanceName]);
         }
     }
     _healthCheck() {

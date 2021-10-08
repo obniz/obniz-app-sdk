@@ -124,6 +124,32 @@ mocha_1.describe('single', () => {
         chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
         chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(1);
     });
+    mocha_1.it('remove all devices', async () => {
+        const app = new index_1.App({
+            appToken: process.env.AppToken || '',
+            workerClass: LogWorker_1.LogWorker,
+            instanceType: index_1.AppInstanceType.Master,
+            obnizClass: DummyObniz_1.DummyObniz,
+        });
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
+        const { getCurrentEventNoStub, getDiffListFromObnizCloudStub, getListFromObnizCloudStub, } = obnizApiStub();
+        // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
+        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+        app.start({ express: false });
+        await tools_1.wait(10);
+        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+        chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(2);
+        getDiffListFromObnizCloudStub.returns({
+            appEvents: AppEvent_1.appEventDeleteAllDeviceSamples,
+            maxId: 6,
+        });
+        app.expressWebhook({}, {});
+        await tools_1.wait(10);
+        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+        chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
+    });
     mocha_1.it('remove and add', async () => {
         const app = new index_1.App({
             appToken: process.env.AppToken || '',

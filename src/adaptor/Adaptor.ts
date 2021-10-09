@@ -180,7 +180,7 @@ export abstract class Adaptor {
     });
   }
 
-  async keyRequest(key: string): Promise<void> {
+  async keyRequest(key: string): Promise<string> {
     const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
     await this._send({
       action: 'keyRequest',
@@ -189,6 +189,7 @@ export abstract class Adaptor {
       key,
       requestId,
     });
+    return requestId;
   }
 
   async keyRequestResponse(

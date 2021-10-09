@@ -20,6 +20,7 @@ class Master {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
+        this._keyRequestExecutes = {};
         this._currentAppEventsSequenceNo = 0;
         this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
@@ -42,7 +43,15 @@ class Master {
             this.onInstanceReported(reportInstanceName);
         };
         this.adaptor.onKeyRequestResponse = async (requestId, fromInstanceName, results) => {
-            // WIP
+            if (this._keyRequestExecutes[requestId]) {
+                this._keyRequestExecutes[requestId].results = Object.assign(Object.assign({}, this._keyRequestExecutes[requestId].results), results);
+                this._keyRequestExecutes[requestId].returnedInstanceCount++;
+                if (this._keyRequestExecutes[requestId].returnedInstanceCount ===
+                    this._keyRequestExecutes[requestId].waitingInstanceCount) {
+                    this._keyRequestExecutes[requestId].resolve(this._keyRequestExecutes[requestId].results);
+                    delete this._keyRequestExecutes[requestId];
+                }
+            }
         };
     }
     start(option) {
@@ -392,6 +401,30 @@ class Master {
     }
     hasSubClusteredInstances() {
         return Object.keys(this._allWorkerInstances).length > 1;
+    }
+    async request(key, timeout) {
+        const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
+        const requestId = await this.adaptor.keyRequest(key);
+        return new Promise((resolve, reject) => {
+            const execute = {
+                requestId,
+                returnedInstanceCount: 0,
+                waitingInstanceCount,
+                results: {},
+                resolve,
+                reject,
+            };
+            this._keyRequestExecutes[requestId] = execute;
+            setTimeout(() => {
+                if (this._keyRequestExecutes[requestId]) {
+                    delete this._keyRequestExecutes[requestId];
+                    reject('Request timed out.');
+                }
+                else {
+                    reject('Could not get request data.');
+                }
+            }, timeout);
+        });
     }
 }
 exports.Master = Master;

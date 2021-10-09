@@ -12,6 +12,7 @@ export declare class Master<T extends Database> {
     private _syncTimeout;
     private _allInstalls;
     private _allWorkerInstances;
+    private _keyRequestExecutes;
     private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
     start(option?: AppStartOption): void;
@@ -49,4 +50,7 @@ export declare class Master<T extends Database> {
     private _healthCheck;
     private _onHealthCheckFailedWorkerInstance;
     hasSubClusteredInstances(): boolean;
+    request(key: string, timeout: number): Promise<{
+        [key: string]: string;
+    }>;
 }

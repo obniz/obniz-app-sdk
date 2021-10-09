@@ -117,6 +117,7 @@ class Adaptor {
             key,
             requestId,
         });
+        return requestId;
     }
     async keyRequestResponse(requestId, instanceName, results) {
         await this._send({

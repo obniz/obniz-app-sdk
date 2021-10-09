@@ -310,15 +310,17 @@ export class App<O extends IObniz> {
    * Request a results for specified key for working workers.
    * This function is useful when asking live information.
    * @param key string for request
+   * @param timeout Sets the timeout in milliseconds. Default is 5000ms.
    * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
    */
-  public async request(key: string): Promise<{ [key: string]: string }> {
+  public async request(
+    key: string,
+    timeout = 5000
+  ): Promise<{ [key: string]: string }> {
     if (!this._master) {
       throw new Error(`This function is only available on master`);
     }
-    await this._adaptor.keyRequest(key);
-    // WIP
-    return {};
+    return await this._master.request(key, timeout);
   }
 
   protected async _startOneWorker(install: InstalledDevice): Promise<void> {

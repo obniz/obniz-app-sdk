@@ -62,7 +62,7 @@ export declare abstract class Adaptor {
     onMessage(message: MessageBetweenInstance): void;
     reportRequest(): Promise<void>;
     report(instanceName: string, installIds: string[]): Promise<void>;
-    keyRequest(key: string): Promise<void>;
+    keyRequest(key: string): Promise<string>;
     keyRequestResponse(requestId: string, instanceName: string, results: {
         [key: string]: string;
     }): Promise<void>;

@@ -189,15 +189,14 @@ class App {
      * Request a results for specified key for working workers.
      * This function is useful when asking live information.
      * @param key string for request
+     * @param timeout Sets the timeout in milliseconds. Default is 5000ms.
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
      */
-    async request(key) {
+    async request(key, timeout = 5000) {
         if (!this._master) {
             throw new Error(`This function is only available on master`);
         }
-        await this._adaptor.keyRequest(key);
-        // WIP
-        return {};
+        return await this._master.request(key, timeout);
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);

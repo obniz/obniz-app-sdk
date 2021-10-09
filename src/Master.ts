@@ -37,6 +37,17 @@ interface AppStartOptionInternal extends AppStartOption {
   port: number;
 }
 
+interface KeyRequestExecute {
+  requestId: string;
+  returnedInstanceCount: number;
+  waitingInstanceCount: number;
+  results: { [key: string]: string };
+  reject: (reason?: any) => void;
+  resolve: (
+    value: { [key: string]: string } | PromiseLike<{ [key: string]: string }>
+  ) => void;
+}
+
 export class Master<T extends Database> {
   public adaptor: Adaptor;
 
@@ -47,6 +58,8 @@ export class Master<T extends Database> {
   private _syncTimeout: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
+
+  private _keyRequestExecutes: { [key: string]: KeyRequestExecute } = {};
 
   private _currentAppEventsSequenceNo = 0;
 
@@ -91,7 +104,22 @@ export class Master<T extends Database> {
       fromInstanceName: string,
       results: { [key: string]: string }
     ) => {
-      // WIP
+      if (this._keyRequestExecutes[requestId]) {
+        this._keyRequestExecutes[requestId].results = {
+          ...this._keyRequestExecutes[requestId].results,
+          ...results,
+        };
+        this._keyRequestExecutes[requestId].returnedInstanceCount++;
+        if (
+          this._keyRequestExecutes[requestId].returnedInstanceCount ===
+          this._keyRequestExecutes[requestId].waitingInstanceCount
+        ) {
+          this._keyRequestExecutes[requestId].resolve(
+            this._keyRequestExecutes[requestId].results
+          );
+          delete this._keyRequestExecutes[requestId];
+        }
+      }
     };
   }
 
@@ -511,5 +539,32 @@ export class Master<T extends Database> {
 
   public hasSubClusteredInstances(): boolean {
     return Object.keys(this._allWorkerInstances).length > 1;
+  }
+
+  public async request(
+    key: string,
+    timeout: number
+  ): Promise<{ [key: string]: string }> {
+    const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
+    const requestId = await this.adaptor.keyRequest(key);
+    return new Promise<{ [key: string]: string }>((resolve, reject) => {
+      const execute: KeyRequestExecute = {
+        requestId,
+        returnedInstanceCount: 0,
+        waitingInstanceCount,
+        results: {},
+        resolve,
+        reject,
+      };
+      this._keyRequestExecutes[requestId] = execute;
+      setTimeout(() => {
+        if (this._keyRequestExecutes[requestId]) {
+          delete this._keyRequestExecutes[requestId];
+          reject('Request timed out.');
+        } else {
+          reject('Could not get request data.');
+        }
+      }, timeout);
+    });
   }
 }

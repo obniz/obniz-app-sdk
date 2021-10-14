@@ -108,8 +108,7 @@ class Adaptor {
             installIds,
         });
     }
-    async keyRequest(key) {
-        const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
+    async keyRequest(key, requestId) {
         await this._send({
             action: 'keyRequest',
             instanceName: '*',
@@ -117,7 +116,6 @@ class Adaptor {
             key,
             requestId,
         });
-        return requestId;
     }
     async keyRequestResponse(requestId, instanceName, results) {
         await this._send({

@@ -8,6 +8,7 @@ const logger_1 = require("./logger");
 const install_1 = require("./install");
 const express_1 = __importDefault(require("express"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
+const tools_1 = require("./tools");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -404,18 +405,20 @@ class Master {
     }
     async request(key, timeout) {
         const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
-        const requestId = await this.adaptor.keyRequest(key);
-        return new Promise((resolve, reject) => {
-            const execute = {
-                requestId,
-                returnedInstanceCount: 0,
-                waitingInstanceCount,
-                results: {},
-                resolve,
-                reject,
-            };
-            this._keyRequestExecutes[requestId] = execute;
-            setTimeout(() => {
+        return new Promise(async (resolve, reject) => {
+            try {
+                const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
+                const execute = {
+                    requestId,
+                    returnedInstanceCount: 0,
+                    waitingInstanceCount,
+                    results: {},
+                    resolve,
+                    reject,
+                };
+                await this.adaptor.keyRequest(key, requestId);
+                this._keyRequestExecutes[requestId] = execute;
+                await tools_1.wait(timeout);
                 if (this._keyRequestExecutes[requestId]) {
                     delete this._keyRequestExecutes[requestId];
                     reject('Request timed out.');
@@ -423,7 +426,10 @@ class Master {
                 else {
                     reject('Could not get request data.');
                 }
-            }, timeout);
+            }
+            catch (e) {
+                reject(e);
+            }
         });
     }
 }

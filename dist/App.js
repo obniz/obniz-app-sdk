@@ -192,7 +192,7 @@ class App {
      * @param timeout Sets the timeout in milliseconds. Default is 5000ms.
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
      */
-    async request(key, timeout = 5000) {
+    async request(key, timeout = 30 * 1000) {
         if (!this._master) {
             throw new Error(`This function is only available on master`);
         }

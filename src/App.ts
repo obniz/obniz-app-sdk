@@ -315,7 +315,7 @@ export class App<O extends IObniz> {
    */
   public async request(
     key: string,
-    timeout = 5000
+    timeout = 30 * 1000
   ): Promise<{ [key: string]: string }> {
     if (!this._master) {
       throw new Error(`This function is only available on master`);

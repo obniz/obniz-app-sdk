@@ -10,6 +10,7 @@ import {
   DatabaseConfig,
 } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
+import { wait } from './tools';
 
 enum InstallStatus {
   Starting,
@@ -546,25 +547,30 @@ export class Master<T extends Database> {
     timeout: number
   ): Promise<{ [key: string]: string }> {
     const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
-    const requestId = await this.adaptor.keyRequest(key);
-    return new Promise<{ [key: string]: string }>((resolve, reject) => {
-      const execute: KeyRequestExecute = {
-        requestId,
-        returnedInstanceCount: 0,
-        waitingInstanceCount,
-        results: {},
-        resolve,
-        reject,
-      };
-      this._keyRequestExecutes[requestId] = execute;
-      setTimeout(() => {
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId =
+          Date.now() + '-' + Math.random().toString(36).slice(-8);
+        const execute: KeyRequestExecute = {
+          requestId,
+          returnedInstanceCount: 0,
+          waitingInstanceCount,
+          results: {},
+          resolve,
+          reject,
+        };
+        await this.adaptor.keyRequest(key, requestId);
+        this._keyRequestExecutes[requestId] = execute;
+        await wait(timeout);
         if (this._keyRequestExecutes[requestId]) {
           delete this._keyRequestExecutes[requestId];
           reject('Request timed out.');
         } else {
           reject('Could not get request data.');
         }
-      }, timeout);
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 }

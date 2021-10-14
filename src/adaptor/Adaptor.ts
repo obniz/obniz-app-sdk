@@ -24,8 +24,27 @@ export interface SynchronizeRequestMessage {
   installs: InstalledDevice[];
 }
 
-export type ToMasterMessage = ReportMessage;
-export type ToSlaveMessage = ReportRequestMessage | SynchronizeRequestMessage;
+export interface KeyRequestMessage {
+  toMaster: false;
+  instanceName: string;
+  action: 'keyRequest';
+  key: string;
+  requestId: string;
+}
+
+export interface KeyRequestResponseMessage {
+  toMaster: true;
+  instanceName: string;
+  action: 'keyRequestResponse';
+  results: { [key: string]: string };
+  requestId: string;
+}
+
+export type ToMasterMessage = ReportMessage | KeyRequestResponseMessage;
+export type ToSlaveMessage =
+  | ReportRequestMessage
+  | SynchronizeRequestMessage
+  | KeyRequestMessage;
 export type MessageBetweenInstance = ToMasterMessage | ToSlaveMessage;
 
 /**
@@ -41,6 +60,12 @@ export abstract class Adaptor {
   public isReady = false;
 
   public onReportRequest?: () => Promise<void>;
+  public onKeyRequest?: (requestId: string, key: string) => Promise<void>;
+  public onKeyRequestResponse?: (
+    requestId: string,
+    instanceName: string,
+    results: { [key: string]: string }
+  ) => Promise<void>;
   public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
   public onReported?: (
     instanceName: string,
@@ -55,17 +80,22 @@ export abstract class Adaptor {
     this.isMaster = isMaster;
   }
 
-  async request(key: string): Promise<{ [key: string]: string }> {
-    if (this.onRequestRequested) {
-      return await this.onRequestRequested(key);
-    }
-    return {};
-  }
-
   protected _onMasterMessage(message: ToMasterMessage): void {
     if (message.action === 'report') {
       if (this.onReported) {
         this.onReported(message.instanceName, message.installIds)
+          .then(() => {})
+          .catch((e) => {
+            logger.error(e);
+          });
+      }
+    } else if (message.action === 'keyRequestResponse') {
+      if (this.onKeyRequestResponse) {
+        this.onKeyRequestResponse(
+          message.requestId,
+          message.instanceName,
+          message.results
+        )
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -86,6 +116,14 @@ export abstract class Adaptor {
     } else if (message.action === 'reportRequest') {
       if (this.onReportRequest) {
         this.onReportRequest()
+          .then(() => {})
+          .catch((e) => {
+            logger.error(e);
+          });
+      }
+    } else if (message.action === 'keyRequest') {
+      if (this.onKeyRequest) {
+        this.onKeyRequest(message.requestId, message.key)
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -139,6 +177,30 @@ export abstract class Adaptor {
       instanceName,
       toMaster: true,
       installIds,
+    });
+  }
+
+  async keyRequest(key: string, requestId: string): Promise<void> {
+    await this._send({
+      action: 'keyRequest',
+      instanceName: '*',
+      toMaster: false,
+      key,
+      requestId,
+    });
+  }
+
+  async keyRequestResponse(
+    requestId: string,
+    instanceName: string,
+    results: { [key: string]: string }
+  ): Promise<void> {
+    await this._send({
+      action: 'keyRequestResponse',
+      instanceName,
+      toMaster: true,
+      results,
+      requestId,
     });
   }
 

@@ -10,6 +10,7 @@ import {
   DatabaseConfig,
 } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
+import { wait } from './tools';
 
 enum InstallStatus {
   Starting,
@@ -37,6 +38,17 @@ interface AppStartOptionInternal extends AppStartOption {
   port: number;
 }
 
+interface KeyRequestExecute {
+  requestId: string;
+  returnedInstanceCount: number;
+  waitingInstanceCount: number;
+  results: { [key: string]: string };
+  reject: (reason?: any) => void;
+  resolve: (
+    value: { [key: string]: string } | PromiseLike<{ [key: string]: string }>
+  ) => void;
+}
+
 export class Master<T extends Database> {
   public adaptor: Adaptor;
 
@@ -47,6 +59,8 @@ export class Master<T extends Database> {
   private _syncTimeout: any;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
   private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
+
+  private _keyRequestExecutes: { [key: string]: KeyRequestExecute } = {};
 
   private _currentAppEventsSequenceNo = 0;
 
@@ -84,6 +98,29 @@ export class Master<T extends Database> {
         this.onInstanceAttached(reportInstanceName);
       }
       this.onInstanceReported(reportInstanceName);
+    };
+
+    this.adaptor.onKeyRequestResponse = async (
+      requestId: string,
+      fromInstanceName: string,
+      results: { [key: string]: string }
+    ) => {
+      if (this._keyRequestExecutes[requestId]) {
+        this._keyRequestExecutes[requestId].results = {
+          ...this._keyRequestExecutes[requestId].results,
+          ...results,
+        };
+        this._keyRequestExecutes[requestId].returnedInstanceCount++;
+        if (
+          this._keyRequestExecutes[requestId].returnedInstanceCount ===
+          this._keyRequestExecutes[requestId].waitingInstanceCount
+        ) {
+          this._keyRequestExecutes[requestId].resolve(
+            this._keyRequestExecutes[requestId].results
+          );
+          delete this._keyRequestExecutes[requestId];
+        }
+      }
     };
   }
 
@@ -452,21 +489,23 @@ export class Master<T extends Database> {
   }
 
   private async synchronize() {
-    const separated: { [key: string]: InstalledDevice[] } = {};
+    const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
+    for (const instanceName in this._allWorkerInstances) {
+      installsByInstanceName[instanceName] = [];
+    }
     for (const id in this._allInstalls) {
       const managedInstall: ManagedInstall = this._allInstalls[id];
       const instanceName = managedInstall.instanceName;
-      if (!separated[instanceName]) {
-        separated[instanceName] = [];
-      }
-      separated[instanceName].push(managedInstall.install);
+      installsByInstanceName[instanceName].push(managedInstall.install);
     }
-    //
-    for (const instanceName in separated) {
+    for (const instanceName in installsByInstanceName) {
       logger.debug(
-        `synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`
+        `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
       );
-      await this.adaptor.synchronize(instanceName, separated[instanceName]);
+      await this.adaptor.synchronize(
+        instanceName,
+        installsByInstanceName[instanceName]
+      );
     }
   }
 
@@ -501,5 +540,37 @@ export class Master<T extends Database> {
 
   public hasSubClusteredInstances(): boolean {
     return Object.keys(this._allWorkerInstances).length > 1;
+  }
+
+  public async request(
+    key: string,
+    timeout: number
+  ): Promise<{ [key: string]: string }> {
+    const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId =
+          Date.now() + '-' + Math.random().toString(36).slice(-8);
+        const execute: KeyRequestExecute = {
+          requestId,
+          returnedInstanceCount: 0,
+          waitingInstanceCount,
+          results: {},
+          resolve,
+          reject,
+        };
+        await this.adaptor.keyRequest(key, requestId);
+        this._keyRequestExecutes[requestId] = execute;
+        await wait(timeout);
+        if (this._keyRequestExecutes[requestId]) {
+          delete this._keyRequestExecutes[requestId];
+          reject('Request timed out.');
+        } else {
+          reject('Could not get request data.');
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
   }
 }

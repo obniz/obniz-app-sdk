@@ -3,13 +3,14 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
 import { sharedInstalledDeviceManager } from '../install';
-import { wait } from './util/tools';
+import { wait } from './../tools';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
 import { LogWorker } from './util/LogWorker';
 import { MemoryAdaptor } from '../adaptor/MemoryAdaptor';
 import {
   appEventAddSamples,
+  appEventDeleteAllDeviceSamples,
   appEventDeleteAndUpdateSamples,
   appEventDeleteSamples,
   appEvnetSamples,
@@ -167,6 +168,43 @@ describe('single', () => {
     expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
     expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
     expect(LogWorker.workers.length).to.be.equal(1);
+  });
+
+  it('remove all devices', async () => {
+    const app = new App<DummyObniz>({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+    });
+
+    expect(LogWorker.workers.length).to.be.equal(0);
+
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
+    // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+    app.start({ express: false });
+    await wait(10);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    getDiffListFromObnizCloudStub.returns({
+      appEvents: appEventDeleteAllDeviceSamples,
+      maxId: 6,
+    });
+
+    app.expressWebhook({} as any, {} as any);
+    await wait(10);
+
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(1);
+    expect(LogWorker.workers.length).to.be.equal(0);
   });
 
   it('remove and add', async () => {

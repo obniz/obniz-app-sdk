@@ -8,6 +8,7 @@ const logger_1 = require("./logger");
 const install_1 = require("./install");
 const express_1 = __importDefault(require("express"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
+const tools_1 = require("./tools");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -20,6 +21,7 @@ class Master {
         this._syncing = false;
         this._allInstalls = {};
         this._allWorkerInstances = {};
+        this._keyRequestExecutes = {};
         this._currentAppEventsSequenceNo = 0;
         this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
@@ -40,6 +42,17 @@ class Master {
                 this.onInstanceAttached(reportInstanceName);
             }
             this.onInstanceReported(reportInstanceName);
+        };
+        this.adaptor.onKeyRequestResponse = async (requestId, fromInstanceName, results) => {
+            if (this._keyRequestExecutes[requestId]) {
+                this._keyRequestExecutes[requestId].results = Object.assign(Object.assign({}, this._keyRequestExecutes[requestId].results), results);
+                this._keyRequestExecutes[requestId].returnedInstanceCount++;
+                if (this._keyRequestExecutes[requestId].returnedInstanceCount ===
+                    this._keyRequestExecutes[requestId].waitingInstanceCount) {
+                    this._keyRequestExecutes[requestId].resolve(this._keyRequestExecutes[requestId].results);
+                    delete this._keyRequestExecutes[requestId];
+                }
+            }
         };
     }
     start(option) {
@@ -347,19 +360,18 @@ class Master {
         delete this._allInstalls[obnizId];
     }
     async synchronize() {
-        const separated = {};
+        const installsByInstanceName = {};
+        for (const instanceName in this._allWorkerInstances) {
+            installsByInstanceName[instanceName] = [];
+        }
         for (const id in this._allInstalls) {
             const managedInstall = this._allInstalls[id];
             const instanceName = managedInstall.instanceName;
-            if (!separated[instanceName]) {
-                separated[instanceName] = [];
-            }
-            separated[instanceName].push(managedInstall.install);
+            installsByInstanceName[instanceName].push(managedInstall.install);
         }
-        //
-        for (const instanceName in separated) {
-            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${separated[instanceName].length}`);
-            await this.adaptor.synchronize(instanceName, separated[instanceName]);
+        for (const instanceName in installsByInstanceName) {
+            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
+            await this.adaptor.synchronize(instanceName, installsByInstanceName[instanceName]);
         }
     }
     _healthCheck() {
@@ -390,6 +402,35 @@ class Master {
     }
     hasSubClusteredInstances() {
         return Object.keys(this._allWorkerInstances).length > 1;
+    }
+    async request(key, timeout) {
+        const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
+        return new Promise(async (resolve, reject) => {
+            try {
+                const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
+                const execute = {
+                    requestId,
+                    returnedInstanceCount: 0,
+                    waitingInstanceCount,
+                    results: {},
+                    resolve,
+                    reject,
+                };
+                await this.adaptor.keyRequest(key, requestId);
+                this._keyRequestExecutes[requestId] = execute;
+                await tools_1.wait(timeout);
+                if (this._keyRequestExecutes[requestId]) {
+                    delete this._keyRequestExecutes[requestId];
+                    reject('Request timed out.');
+                }
+                else {
+                    reject('Could not get request data.');
+                }
+            }
+            catch (e) {
+                reject(e);
+            }
+        });
     }
 }
 exports.Master = Master;

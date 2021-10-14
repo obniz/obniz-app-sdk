@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
 import { sharedInstalledDeviceManager } from '../install';
-import { wait } from './util/tools';
+import { wait } from './../tools';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
 import { LogWorker } from './util/LogWorker';

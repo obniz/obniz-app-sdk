@@ -86,6 +86,9 @@ class App {
         this._adaptor.onReportRequest = async () => {
             await this._reportToMaster();
         };
+        this._adaptor.onKeyRequest = async (requestId, key) => {
+            await this._keyRequestProcess(requestId, key);
+        };
         this._adaptor.onRequestRequested = async (key) => {
             const results = {};
             for (const install_id in this._workers) {
@@ -93,6 +96,13 @@ class App {
             }
             return results;
         };
+    }
+    async _keyRequestProcess(requestId, key) {
+        const results = {};
+        for (const install_id in this._workers) {
+            results[install_id] = await this._workers[install_id].onRequest(key);
+        }
+        await this._adaptor.keyRequestResponse(requestId, this._options.instanceName, results);
     }
     /**
      * Receive Master Generated List and compare current apps.
@@ -179,16 +189,14 @@ class App {
      * Request a results for specified key for working workers.
      * This function is useful when asking live information.
      * @param key string for request
+     * @param timeout Sets the timeout in milliseconds. Default is 5000ms.
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
      */
-    async request(key) {
+    async request(key, timeout = 30 * 1000) {
         if (!this._master) {
             throw new Error(`This function is only available on master`);
         }
-        if (this._master.hasSubClusteredInstances()) {
-            throw new Error(`Cluster mode can not be used`);
-        }
-        return await this._adaptor.request(key);
+        return await this._master.request(key, timeout);
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);

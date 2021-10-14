@@ -16,8 +16,24 @@ export interface SynchronizeRequestMessage {
     action: 'synchronize';
     installs: InstalledDevice[];
 }
-export declare type ToMasterMessage = ReportMessage;
-export declare type ToSlaveMessage = ReportRequestMessage | SynchronizeRequestMessage;
+export interface KeyRequestMessage {
+    toMaster: false;
+    instanceName: string;
+    action: 'keyRequest';
+    key: string;
+    requestId: string;
+}
+export interface KeyRequestResponseMessage {
+    toMaster: true;
+    instanceName: string;
+    action: 'keyRequestResponse';
+    results: {
+        [key: string]: string;
+    };
+    requestId: string;
+}
+export declare type ToMasterMessage = ReportMessage | KeyRequestResponseMessage;
+export declare type ToSlaveMessage = ReportRequestMessage | SynchronizeRequestMessage | KeyRequestMessage;
 export declare type MessageBetweenInstance = ToMasterMessage | ToSlaveMessage;
 /**
  * 一方向性のリスト同期
@@ -30,21 +46,26 @@ export declare abstract class Adaptor {
     id: string;
     isReady: boolean;
     onReportRequest?: () => Promise<void>;
+    onKeyRequest?: (requestId: string, key: string) => Promise<void>;
+    onKeyRequestResponse?: (requestId: string, instanceName: string, results: {
+        [key: string]: string;
+    }) => Promise<void>;
     onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
     onReported?: (instanceName: string, installIds: string[]) => Promise<void>;
     onRequestRequested?: (key: string) => Promise<{
         [key: string]: string;
     }>;
     constructor(id: string, isMaster: boolean);
-    request(key: string): Promise<{
-        [key: string]: string;
-    }>;
     protected _onMasterMessage(message: ToMasterMessage): void;
     protected _onSlaveMessage(message: ToSlaveMessage): void;
     protected _onReady(): void;
     onMessage(message: MessageBetweenInstance): void;
     reportRequest(): Promise<void>;
     report(instanceName: string, installIds: string[]): Promise<void>;
+    keyRequest(key: string, requestId: string): Promise<void>;
+    keyRequestResponse(requestId: string, instanceName: string, results: {
+        [key: string]: string;
+    }): Promise<void>;
     synchronize(instanceName: string, installs: Installed_Device[]): Promise<void>;
     protected abstract _send(json: MessageBetweenInstance): Promise<void>;
 }

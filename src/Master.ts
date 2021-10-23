@@ -11,6 +11,7 @@ import {
 } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
 import { wait } from './tools';
+import {ObnizAppMasterSlaveCommunicationError, ObnizAppTimeoutError} from "./Errors";
 
 enum InstallStatus {
   Starting,
@@ -549,8 +550,7 @@ export class Master<T extends Database> {
     const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
     return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
       try {
-        const requestId =
-          Date.now() + '-' + Math.random().toString(36).slice(-8);
+        const requestId = `${Date.now()}-${Math.random().toString(36).slice(-8)}`;
         const execute: KeyRequestExecute = {
           requestId,
           returnedInstanceCount: 0,
@@ -564,9 +564,9 @@ export class Master<T extends Database> {
         await wait(timeout);
         if (this._keyRequestExecutes[requestId]) {
           delete this._keyRequestExecutes[requestId];
-          reject('Request timed out.');
+          reject(new ObnizAppTimeoutError('Request timed out.'));
         } else {
-          reject('Could not get request data.');
+          reject(new ObnizAppMasterSlaveCommunicationError('Could not get request data.'));
         }
       } catch (e) {
         reject(e);

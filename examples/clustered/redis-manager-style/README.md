@@ -1,14 +1,16 @@
 
 # Redis Adaptor Cluster Example
 
-Cluster in machines with Redis.
+Cluster in machines with Redis with Manager Mode.
+Manager never start workers inside of itself. It just manage workers.
 
 ## How to run example
 
 Run redis server.
 Then run master and worker with your APPTOKEN and REDIS_URL info.
 
-Start master.js. It will start master instance to manage workers and start one worker inside of itself.
+
+Start master.js. It will start manager instance to manage workers.
 ```
 REDIS_URL='redis://localhost:6379' APPTOKEN=**** node master.js
 ```

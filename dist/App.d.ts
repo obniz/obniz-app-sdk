@@ -1,14 +1,24 @@
 import express from 'express';
 import { Worker, WorkerStatic } from './Worker';
-import { Master as MasterClass } from './Master';
+import { Manager as ManagerClass } from './Manager';
 import { Adaptor } from './adaptor/Adaptor';
 import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
 import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk/index';
 export declare enum AppInstanceType {
+    /**
+     * Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
+     */
     Master = 0,
-    Slave = 1
+    /**
+     * Manager is managing workers. Never taking a task itself.
+     */
+    Manager = 1,
+    /**
+     * Working class. worker needs Manager or Master.
+     */
+    Slave = 2
 }
 export interface AppOption<T extends Database, O extends IObniz> {
     /**
@@ -36,8 +46,9 @@ export interface AppOption<T extends Database, O extends IObniz> {
      */
     obnizClass: IObnizStatic<O>;
     /**
-     * Master: Master is special Worker. Only one master is required in cluster. Master will communicate with cloud and direct clusters.
-     * Slave: Worker process. Only communicate with Master.
+     * Master: Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
+     * Manager: Manager is managing workers. Never taking a task itself.
+     * Slave: Working class. worker needs Manager or Master.
      */
     instanceType: AppInstanceType;
     /**
@@ -61,7 +72,7 @@ export interface AppStartOption {
 }
 export declare class App<O extends IObniz> {
     readonly _options: AppOptionInternal<any, O>;
-    protected readonly _master?: MasterClass<any>;
+    protected readonly _manager?: ManagerClass<any>;
     protected _adaptor: Adaptor;
     protected _workers: {
         [key: string]: Worker<O>;
@@ -80,7 +91,7 @@ export declare class App<O extends IObniz> {
     /**
      * Let Master know worker is working.
      */
-    protected _reportToMaster(): Promise<void>;
+    protected _reportToManager(): Promise<void>;
     protected _startSyncing(): void;
     expressWebhook: (req: express.Request, res: express.Response) => void;
     private _expressWebhook;

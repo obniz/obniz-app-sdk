@@ -74,7 +74,7 @@ Appの引数はこちらのとおりです
 |:---|:---|
 | workerClass |  各デバイスの処理を記載したMyWorkerクラスを指定します|
 | appToken |  obnizCloud上でホステッドアプリを作成し、そのアプリのトークンを指定します|
-| instanceType |  オートスケール時のために必要です。1台目をMaster、2台目以降はSlaveを指定してください。|
+| instanceType |  オートスケール時のために必要です。1台目をMasterまたはManager、2台目以降はSlaveを指定してください。Master, Manager, Slave から選択できます|
 | obnizClass |  Workerで使用するobnizクラスを指定してください。 |
 | obnizOption | `new Obniz()`の第２引数です |
 | database | 複数マシンの連携モードを指定します。`memory`, `redis`, `mqtt`が選択できます |
@@ -117,7 +117,7 @@ $ pm2 save
 
 以下負荷分散の特徴です
 
-- MasterプロセスもWorkerとして機能します。
+- MasterプロセスもWorkerとして機能します。Workerを立ち上げず管理機能のみを利用する場合はManagerとして指定します。
 - すべての負荷が均一になるように分散します。
 - あとからマシン追加を検知しても動作中のものを停止->移動はしません。
 
@@ -130,6 +130,10 @@ $ pm2 save
 ### `database:'redis'`
 
 [Example](./examples/clustered/redis)
+
+[Example](./examples/clustered/redis-manager-style)
+
+サンプルではMaster(Workerを管理し、自身もWorkerを持つ)の場合とManager(Workerを管理するのみで自信はWorkerを持たない)の場合の2つのExampleが用意されています。
 
 redisサーバーを用いたプロセス間連携と負荷分散を行います。
 各マシンから共通のredisサーバーにアクセスできる必要があります。
@@ -146,7 +150,7 @@ redisサーバーを用いたプロセス間連携と負荷分散を行います
 
 [Example](./examples/clustered/mqtt)
 
-MasterプロセスがMQTTブローカーとなり、他のプロセスがそれに接続することで連携します。Redisによる負荷分散と異なりサーバーを立ち上げる必要はありません。
+Masterプロセス(or Managerプロセス)がMQTTブローカーとなり、他のプロセスがそれに接続することで連携します。Redisによる負荷分散と異なりサーバーを立ち上げる必要はありません。
 
 ```javascript
 // Example

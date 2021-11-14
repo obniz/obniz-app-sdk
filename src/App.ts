@@ -1,12 +1,11 @@
 import express from 'express';
-import * as cluster from 'cluster';
 import * as os from 'os';
 
 import semver from 'semver';
 
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
-import { Master as MasterClass } from './Master';
+import { Manager as ManagerClass } from './Manager';
 import { Adaptor } from './adaptor/Adaptor';
 import {
   Installed_Device,
@@ -22,7 +21,19 @@ import {
 import { SdkOption } from 'obniz-cloud-sdk/index';
 
 export enum AppInstanceType {
+  /**
+   * Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
+   */
   Master,
+
+  /**
+   * Manager is managing workers. Never taking a task itself.
+   */
+  Manager,
+
+  /**
+   * Working class. worker needs Manager or Master.
+   */
   Slave,
 }
 
@@ -58,8 +69,9 @@ export interface AppOption<T extends Database, O extends IObniz> {
   obnizClass: IObnizStatic<O>;
 
   /**
-   * Master: Master is special Worker. Only one master is required in cluster. Master will communicate with cloud and direct clusters.
-   * Slave: Worker process. Only communicate with Master.
+   * Master: Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
+   * Manager: Manager is managing workers. Never taking a task itself.
+   * Slave: Working class. worker needs Manager or Master.
    */
   instanceType: AppInstanceType;
 
@@ -93,7 +105,7 @@ export class App<O extends IObniz> {
   readonly _options: AppOptionInternal<any, O>;
 
   // As Master
-  protected readonly _master?: MasterClass<any>;
+  protected readonly _manager?: ManagerClass<any>;
 
   // As Worker
   protected _adaptor: Adaptor;
@@ -149,10 +161,11 @@ export class App<O extends IObniz> {
     }
 
     if (
-      option.instanceType === AppInstanceType.Master &&
+      (option.instanceType === AppInstanceType.Master ||
+        option.instanceType === AppInstanceType.Manager) &&
       isMasterOnSameMachine
     ) {
-      this._master = new MasterClass(
+      this._manager = new ManagerClass(
         option.appToken,
         this._options.instanceName,
         this._options.database,
@@ -161,9 +174,9 @@ export class App<O extends IObniz> {
       );
     }
 
-    if (this._master) {
+    if (this._manager) {
       // share same adaptor
-      this._adaptor = this._master.adaptor;
+      this._adaptor = this._manager.adaptor;
     } else {
       this._adaptor = new AdaptorFactory().create(
         this._options.database,
@@ -178,7 +191,7 @@ export class App<O extends IObniz> {
     };
 
     this._adaptor.onReportRequest = async () => {
-      await this._reportToMaster();
+      await this._reportToManager();
     };
 
     this._adaptor.onKeyRequest = async (requestId: string, key: string) => {
@@ -250,9 +263,17 @@ export class App<O extends IObniz> {
   /**
    * Let Master know worker is working.
    */
-  protected async _reportToMaster(): Promise<void> {
-    const keys = Object.keys(this._workers);
-    await this._adaptor.report(this._options.instanceName, keys);
+  protected async _reportToManager(): Promise<void> {
+    /**
+     * Only Report status and letting master know i am exist when worker or master.
+     */
+    if (
+      !this._manager ||
+      (this._manager && this._options.instanceType === AppInstanceType.Master)
+    ) {
+      const keys = Object.keys(this._workers);
+      await this._adaptor.report(this._options.instanceName, keys);
+    }
   }
 
   protected _startSyncing(): void {
@@ -260,12 +281,12 @@ export class App<O extends IObniz> {
     if (!this._interval) {
       this._interval = setInterval(async () => {
         try {
-          await this._reportToMaster();
+          await this._reportToManager();
         } catch (e) {
           logger.error(e);
         }
       }, 10 * 1000);
-      this._reportToMaster()
+      this._reportToManager()
         .then()
         .catch((e) => {
           logger.error(e);
@@ -276,14 +297,19 @@ export class App<O extends IObniz> {
   expressWebhook = this._expressWebhook.bind(this);
 
   private _expressWebhook(req: express.Request, res: express.Response): void {
-    this._master?.webhook(req, res);
+    this._manager?.webhook(req, res);
   }
 
   start(option?: AppStartOption): void {
-    if (this._master) {
-      this._master.start(option);
+    if (this._manager) {
+      this._manager.start(option);
     }
-    this._startSyncing();
+    if (
+      this._options.instanceType === AppInstanceType.Master ||
+      this._options.instanceType === AppInstanceType.Manager
+    ) {
+      this._startSyncing();
+    }
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -317,10 +343,10 @@ export class App<O extends IObniz> {
     key: string,
     timeout = 30 * 1000
   ): Promise<{ [key: string]: string }> {
-    if (!this._master) {
+    if (!this._manager) {
       throw new Error(`This function is only available on master`);
     }
-    return await this._master.request(key, timeout);
+    return await this._manager.request(key, timeout);
   }
 
   protected async _startOneWorker(install: InstalledDevice): Promise<void> {

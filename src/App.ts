@@ -24,17 +24,17 @@ export enum AppInstanceType {
   /**
    * Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
    */
-  Master,
+  Master = 0,
 
   /**
    * Manager is managing workers. Never taking a task itself.
    */
-  Manager,
+  Manager = 2,
 
   /**
    * Working class. worker needs Manager or Master.
    */
-  Slave,
+  Slave = 1,
 }
 
 export interface AppOption<T extends Database, O extends IObniz> {

@@ -14,11 +14,11 @@ export declare enum AppInstanceType {
     /**
      * Manager is managing workers. Never taking a task itself.
      */
-    Manager = 1,
+    Manager = 2,
     /**
      * Working class. worker needs Manager or Master.
      */
-    Slave = 2
+    Slave = 1
 }
 export interface AppOption<T extends Database, O extends IObniz> {
     /**

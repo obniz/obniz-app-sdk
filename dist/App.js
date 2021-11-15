@@ -38,11 +38,11 @@ var AppInstanceType;
     /**
      * Manager is managing workers. Never taking a task itself.
      */
-    AppInstanceType[AppInstanceType["Manager"] = 1] = "Manager";
+    AppInstanceType[AppInstanceType["Manager"] = 2] = "Manager";
     /**
      * Working class. worker needs Manager or Master.
      */
-    AppInstanceType[AppInstanceType["Slave"] = 2] = "Slave";
+    AppInstanceType[AppInstanceType["Slave"] = 1] = "Slave";
 })(AppInstanceType = exports.AppInstanceType || (exports.AppInstanceType = {}));
 class App {
     constructor(option) {

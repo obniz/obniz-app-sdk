@@ -49,7 +49,7 @@ interface KeyRequestExecute {
   ) => void;
 }
 
-export class Master<T extends Database> {
+export class Manager<T extends Database> {
   public adaptor: Adaptor;
 
   private readonly _appToken: string;
@@ -81,6 +81,10 @@ export class Master<T extends Database> {
       databaseConfig
     );
 
+    /**
+     * Workerのうちいずれかから状況報告をもらった
+     * これが初回連絡の場合、onInstanceAttached()が呼ばれる
+     */
     this.adaptor.onReported = async (
       reportInstanceName: string,
       installIds: string[]

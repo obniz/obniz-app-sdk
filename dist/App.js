@@ -27,11 +27,21 @@ const os = __importStar(require("os"));
 const semver_1 = __importDefault(require("semver"));
 const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
-const Master_1 = require("./Master");
+const Manager_1 = require("./Manager");
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 var AppInstanceType;
 (function (AppInstanceType) {
+    /**
+     * Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
+     */
     AppInstanceType[AppInstanceType["Master"] = 0] = "Master";
+    /**
+     * Manager is managing workers. Never taking a task itself.
+     */
+    AppInstanceType[AppInstanceType["Manager"] = 2] = "Manager";
+    /**
+     * Working class. worker needs Manager or Master.
+     */
     AppInstanceType[AppInstanceType["Slave"] = 1] = "Slave";
 })(AppInstanceType = exports.AppInstanceType || (exports.AppInstanceType = {}));
 class App {
@@ -69,13 +79,14 @@ class App {
             // make unique in same machine
             this._options.instanceName += `-${process.env.NODE_APP_INSTANCE}`;
         }
-        if (option.instanceType === AppInstanceType.Master &&
+        if ((option.instanceType === AppInstanceType.Master ||
+            option.instanceType === AppInstanceType.Manager) &&
             isMasterOnSameMachine) {
-            this._master = new Master_1.Master(option.appToken, this._options.instanceName, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
+            this._manager = new Manager_1.Manager(option.appToken, this._options.instanceName, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
         }
-        if (this._master) {
+        if (this._manager) {
             // share same adaptor
-            this._adaptor = this._master.adaptor;
+            this._adaptor = this._manager.adaptor;
         }
         else {
             this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
@@ -84,7 +95,7 @@ class App {
             await this._synchronize(installs);
         };
         this._adaptor.onReportRequest = async () => {
-            await this._reportToMaster();
+            await this._reportToManager();
         };
         this._adaptor.onKeyRequest = async (requestId, key) => {
             await this._keyRequestProcess(requestId, key);
@@ -138,22 +149,28 @@ class App {
     /**
      * Let Master know worker is working.
      */
-    async _reportToMaster() {
-        const keys = Object.keys(this._workers);
-        await this._adaptor.report(this._options.instanceName, keys);
+    async _reportToManager() {
+        /**
+         * Only Report status and letting master know i am exist when worker or master.
+         */
+        if (!this._manager ||
+            (this._manager && this._options.instanceType === AppInstanceType.Master)) {
+            const keys = Object.keys(this._workers);
+            await this._adaptor.report(this._options.instanceName, keys);
+        }
     }
     _startSyncing() {
         // every minutes
         if (!this._interval) {
             this._interval = setInterval(async () => {
                 try {
-                    await this._reportToMaster();
+                    await this._reportToManager();
                 }
                 catch (e) {
                     logger_1.logger.error(e);
                 }
             }, 10 * 1000);
-            this._reportToMaster()
+            this._reportToManager()
                 .then()
                 .catch((e) => {
                 logger_1.logger.error(e);
@@ -162,13 +179,16 @@ class App {
     }
     _expressWebhook(req, res) {
         var _a;
-        (_a = this._master) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
+        (_a = this._manager) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
     }
     start(option) {
-        if (this._master) {
-            this._master.start(option);
+        if (this._manager) {
+            this._manager.start(option);
         }
-        this._startSyncing();
+        if (this._options.instanceType === AppInstanceType.Master ||
+            this._options.instanceType === AppInstanceType.Manager) {
+            this._startSyncing();
+        }
     }
     async getAllUsers() {
         throw new Error('TODO');
@@ -193,10 +213,10 @@ class App {
      * @returns return one object that contains results for keys on each install like {"0000-0000": "result0", "0000-0001": "result1"}
      */
     async request(key, timeout = 30 * 1000) {
-        if (!this._master) {
+        if (!this._manager) {
             throw new Error(`This function is only available on master`);
         }
-        return await this._master.request(key, timeout);
+        return await this._manager.request(key, timeout);
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);

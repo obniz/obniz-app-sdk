@@ -78,7 +78,7 @@ App parameters are
 |:---|:---|
 | workerClass | Specify the MyWorker class that describes the process for each device|
 | appToken | Create a hosted app on obnizCloud and specify the token for the app.
-| instanceType | Specify the Master class for the first device and Slave for the second and subsequent devices.
+| instanceType | Specify the Master class for the first device and Slave for the second and subsequent devices. Master, Manager, Slave can be used.
 | obnizClass | Specify the obniz class to be used by the Worker.
 | obnizOption | The second argument of `new Obniz()`.
 | database | Specify the coordination mode for multiple machines. You can select `memory`, `redis`, or `mqtt`.
@@ -122,7 +122,7 @@ The mode is specified by `database`.
 
 Here are the features of load balancing
 
-- The master process also functions as a worker.
+- The master process also functions as a worker. Specify `Manager` to focus on managing without worker inside of it.
 - It distributes the load so that all loads are evenly distributed.
 - Even if it detects the addition of a machine later, it will not stop -> move the running one.
 
@@ -135,6 +135,8 @@ Here are the features of load balancing
 ### `database:'redis'`
 
 [Example](./examples/clustered/redis)
+
+[Example](./examples/clustered/redis-manager-style)
 
 The redis server is used for inter-process coordination and load balancing.
 You need to be able to access a common redis server from each machine.

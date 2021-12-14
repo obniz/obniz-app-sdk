@@ -9,6 +9,7 @@ const install_1 = require("./install");
 const express_1 = __importDefault(require("express"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 const tools_1 = require("./tools");
+const Errors_1 = require("./Errors");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -425,10 +426,10 @@ class Manager {
                 await tools_1.wait(timeout);
                 if (this._keyRequestExecutes[requestId]) {
                     delete this._keyRequestExecutes[requestId];
-                    reject('Request timed out.');
+                    reject(new Errors_1.ObnizAppTimeoutError('Request timed out.'));
                 }
                 else {
-                    reject('Could not get request data.');
+                    reject(new Errors_1.ObnizAppMasterSlaveCommunicationError('Could not get request data.'));
                 }
             }
             catch (e) {

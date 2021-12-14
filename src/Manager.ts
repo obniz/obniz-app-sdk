@@ -11,6 +11,10 @@ import {
 } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
 import { wait } from './tools';
+import {
+  ObnizAppMasterSlaveCommunicationError,
+  ObnizAppTimeoutError,
+} from './Errors';
 
 enum InstallStatus {
   Starting,
@@ -568,9 +572,13 @@ export class Manager<T extends Database> {
         await wait(timeout);
         if (this._keyRequestExecutes[requestId]) {
           delete this._keyRequestExecutes[requestId];
-          reject('Request timed out.');
+          reject(new ObnizAppTimeoutError('Request timed out.'));
         } else {
-          reject('Could not get request data.');
+          reject(
+            new ObnizAppMasterSlaveCommunicationError(
+              'Could not get request data.'
+            )
+          );
         }
       } catch (e) {
         reject(e);

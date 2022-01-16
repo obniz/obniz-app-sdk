@@ -331,6 +331,7 @@ export class Manager<T extends Database> {
       );
     } catch (e) {
       console.error(e);
+      return;
       // process.exit(-1);
     }
 
@@ -415,6 +416,7 @@ export class Manager<T extends Database> {
       this._currentAppEventsSequenceNo = maxId;
     } catch (e) {
       console.error(e);
+      return;
       // process.exit(-1);
     }
 

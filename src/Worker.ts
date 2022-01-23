@@ -44,6 +44,24 @@ export class Worker<O extends IObniz> {
    * Worker lifecycle
    */
 
+  /**
+   * Called When newaly Installed
+   * This will be called before onStart after instantiated.
+   * Introduces from v1.4.0
+   */
+  async onInstall(): Promise<void> {}
+
+  /**
+   * Called When Uninstalled
+   * This will be called before onEnd()
+   * Introduces from v1.4.0
+   */
+  async onUnInstall(): Promise<void> {}
+
+  /**
+   * Worker lifecycle
+   */
+
   async onStart(): Promise<void> {}
 
   /**
@@ -72,11 +90,18 @@ export class Worker<O extends IObniz> {
 
   async onObnizClose(obniz: O): Promise<void> {}
 
-  async start(): Promise<void> {
+  /**
+   * Start Application by recofnizing Install/Update
+   * @param onInstall if start reason is new install then true;
+   */
+  async start(onInstall = false): Promise<void> {
     if (this.state !== 'stopped') {
       throw new Error(`invalid state`);
     }
     this.state = 'starting';
+    if (onInstall) {
+      await this.onInstall();
+    }
     await this.onStart();
 
     this.state = 'started';

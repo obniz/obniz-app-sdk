@@ -349,7 +349,10 @@ export class App<O extends IObniz> {
     return await this._manager.request(key, timeout);
   }
 
-  protected async _startOneWorker(install: InstalledDevice): Promise<void> {
+  protected async _startOneWorker(
+    install: InstalledDevice,
+    onInstall: boolean
+  ): Promise<void> {
     logger.info(`New Worker Start id=${install.id}`);
 
     const wclass = this._options.workerClassFunction(install);
@@ -359,7 +362,7 @@ export class App<O extends IObniz> {
     });
 
     this._workers[install.id] = worker;
-    await worker.start();
+    await worker.start(onInstall);
   }
 
   protected async _startOrRestartOneWorker(
@@ -372,9 +375,10 @@ export class App<O extends IObniz> {
     ) {
       logger.info(`App config changed id=${install.id}`);
       await this._stopOneWorker(install.id);
-      await this._startOneWorker(install);
+      await this._startOneWorker(install, false);
     } else if (!oldWorker) {
-      await this._startOneWorker(install);
+      // TODO: Should detect new install or just starting Application.
+      await this._startOneWorker(install, true);
     }
   }
 
@@ -384,12 +388,23 @@ export class App<O extends IObniz> {
     if (worker) {
       delete this._workers[installId];
 
-      // background
+      const stop = () => {
+        // background
+        worker
+          .stop()
+          .then(() => {})
+          .catch((e) => {
+            logger.error(e);
+          });
+      };
       worker
-        .stop()
-        .then(() => {})
+        .onUnInstall()
+        .then(() => {
+          stop();
+        })
         .catch((e) => {
           logger.error(e);
+          stop();
         });
     }
   }

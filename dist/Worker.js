@@ -26,6 +26,21 @@ class Worker {
     /**
      * Worker lifecycle
      */
+    /**
+     * Called When newaly Installed
+     * This will be called before onStart after instantiated.
+     * Introduces from v1.4.0
+     */
+    async onInstall() { }
+    /**
+     * Called When Uninstalled
+     * This will be called before onEnd()
+     * Introduces from v1.4.0
+     */
+    async onUnInstall() { }
+    /**
+     * Worker lifecycle
+     */
     async onStart() { }
     /**
      * This funcion will be called rrepeatedly while App is started.
@@ -46,11 +61,18 @@ class Worker {
     async onObnizConnect(obniz) { }
     async onObnizLoop(obniz) { }
     async onObnizClose(obniz) { }
-    async start() {
+    /**
+     * Start Application by recofnizing Install/Update
+     * @param onInstall if start reason is new install then true;
+     */
+    async start(onInstall = false) {
         if (this.state !== 'stopped') {
             throw new Error(`invalid state`);
         }
         this.state = 'starting';
+        if (onInstall) {
+            await this.onInstall();
+        }
         await this.onStart();
         this.state = 'started';
         this.obniz.autoConnect = true;

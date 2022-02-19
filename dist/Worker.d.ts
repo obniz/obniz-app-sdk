@@ -13,6 +13,7 @@ export declare class Worker<O extends IObniz> {
     state: 'stopped' | 'starting' | 'started' | 'stopping';
     protected readonly _obnizOption: IObnizOptions;
     user: User;
+    private _cloudSdk;
     constructor(install: Installed_Device, app: App<O>, option?: IObnizOptions);
     /**
      * Worker lifecycle
@@ -38,5 +39,11 @@ export declare class Worker<O extends IObniz> {
     start(): Promise<void>;
     private _loop;
     stop(): Promise<void>;
+    protected statusUpdateWait(status: 'success' | 'error', text: string): Promise<void>;
+    protected addLogQueue(level: 'info' | 'error', message: string): void;
+    cloudLog: {
+        info: (message: string) => void;
+        error: (message: string) => void;
+    };
 }
 export declare type WorkerStatic<O extends IObniz> = new (install: Installed_Device, app: App<O>, option: IObnizOptions) => Worker<O>;

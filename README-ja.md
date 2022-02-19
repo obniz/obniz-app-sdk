@@ -44,6 +44,9 @@ class MyWorker extends Worker {
   // 引数の obniz は obniz.jsの各obnizのインスタンスと同じです。
   async onObnizConnect(obniz){
     await obniz.ble.initWait();
+    
+    //cloudLog.infoでobniz.comのデバイス詳細ページで確認できるログを記録できます。
+    this.cloudLog.info("obniz Connect");
   }
 
   // デバイスとつながっている間は繰り返し実行される

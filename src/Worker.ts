@@ -2,6 +2,7 @@ import { App } from './App';
 import { logger } from './logger';
 import { IObniz, IObnizOptions } from './Obniz.interface';
 import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
+import { getSdk } from 'obniz-cloud-sdk';
 
 /**
  * This class is exported from this library
@@ -15,6 +16,7 @@ export class Worker<O extends IObniz> {
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
   protected readonly _obnizOption: IObnizOptions;
   public user: User;
+  private _cloudSdk: ReturnType<typeof getSdk> | null;
 
   constructor(
     install: Installed_Device,
@@ -24,7 +26,6 @@ export class Worker<O extends IObniz> {
     this.install = install;
     this.app = app;
     this._obnizOption = option;
-
     const overrideOptions: IObnizOptions = {
       auto_connect: false,
     };
@@ -38,6 +39,10 @@ export class Worker<O extends IObniz> {
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     this.user = this.install.user!;
+
+    this._cloudSdk = this._obnizOption.access_token
+      ? getSdk(this._obnizOption.access_token, app._options.obnizCloudSdkOption)
+      : null;
   }
 
   /**
@@ -116,6 +121,56 @@ export class Worker<O extends IObniz> {
       this.state = 'stopped';
     }
   }
+
+  protected async statusUpdateWait(status: 'success' | 'error', text: string) {
+    if (!this._cloudSdk) {
+      return;
+    }
+
+    await this._cloudSdk.createAppStatus({
+      createAppStatusInput: {
+        obniz: {
+          id: this.obniz.id,
+        },
+        result: {
+          status,
+          text,
+        },
+      },
+    });
+  }
+
+  protected addLogQueue(level: 'info' | 'error', message: string) {
+    if (!this._cloudSdk) {
+      return;
+    }
+    message = '' + message;
+
+    this._cloudSdk
+      .createAppLog({
+        createAppLogInput: {
+          obniz: {
+            id: this.obniz.id,
+          },
+          app: {
+            logJson: JSON.stringify({ message }),
+            level,
+          },
+        },
+      })
+      .catch((e) => {
+        console.warn(`failed to send log ${message}`);
+      });
+  }
+
+  cloudLog = {
+    info: (message: string) => {
+      this.addLogQueue('info', message);
+    },
+    error: (message: string) => {
+      this.addLogQueue('error', message);
+    },
+  };
 }
 
 export type WorkerStatic<O extends IObniz> = new (

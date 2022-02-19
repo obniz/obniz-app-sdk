@@ -6,6 +6,8 @@ export class MyWorker extends Worker<Obniz> {
 
   async onStart() {
     console.log("on start", this.install.id);
+    this.cloudLog.info("app start");
+
   }
 
   async onLoop() {

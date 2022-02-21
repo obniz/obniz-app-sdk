@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Slave = void 0;
 const logger_1 = require("./logger");
+const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 class Slave {
     constructor(_adaptor, _instanceName, _app) {
         this._adaptor = _adaptor;
@@ -106,6 +107,11 @@ class Slave {
      */
     async _reportToMaster() {
         const keys = Object.keys(this._workers);
+        if (this._adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
+            // If adaptor is Redis
+            const redis = this._adaptor.getRedisInstance();
+            await redis.set(`slave:${this._app._options.instanceName}:heartbeat`, Date.now());
+        }
         await this._adaptor.report(this._app._options.instanceName, keys);
     }
     startSyncing() {

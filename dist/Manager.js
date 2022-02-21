@@ -1,4 +1,11 @@
 "use strict";
+var __asyncValues = (this && this.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -11,6 +18,7 @@ const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 const tools_1 = require("./tools");
 const Errors_1 = require("./Errors");
 const MemoryWorkerStore_1 = require("./worker_store/MemoryWorkerStore");
+const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -29,6 +37,7 @@ class Manager {
         this.webhook = this._webhook.bind(this);
         this._appToken = appToken;
         this._obnizSdkOption = obnizSdkOption;
+        this._instanceName = instanceName;
         this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
         /**
          * Workerのうちいずれかから状況報告をもらった
@@ -228,6 +237,7 @@ class Manager {
         return success;
     }
     async _checkAllInstalls() {
+        var e_1, _a;
         const startedTime = Date.now();
         logger_1.logger.debug('API Sync Start');
         const installsApi = [];
@@ -291,11 +301,19 @@ class Manager {
         for (const managedInstall of deleted) {
             this._deleteDevice(managedInstall.install.id);
         }
-        const mustAddsPromises = [];
-        for (const install of mustAdds) {
-            mustAddsPromises.push(this._addDevice(install.id, install));
+        try {
+            for (var mustAdds_1 = __asyncValues(mustAdds), mustAdds_1_1; mustAdds_1_1 = await mustAdds_1.next(), !mustAdds_1_1.done;) {
+                const install = mustAdds_1_1.value;
+                await this._addDevice(install.id, install);
+            }
         }
-        await Promise.all(mustAddsPromises);
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (mustAdds_1_1 && !mustAdds_1_1.done && (_a = mustAdds_1.return)) await _a.call(mustAdds_1);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
     }
     async _checkDiffInstalls() {
         const startedTime = Date.now();
@@ -397,7 +415,13 @@ class Manager {
         //     this._onHealthCheckFailedInstall(managedInstall);
         //   }
         // }
-        // each room
+        // Me
+        if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
+            // If adaptor is Redis
+            const redis = this.adaptor.getRedisInstance();
+            await redis.set(`master:${this._instanceName}:heartbeat`, Date.now());
+        }
+        // Each room
         const instances = await this._workerStore.getAllWorkerInstance();
         for (const [id, instance] of Object.entries(instances)) {
             if (instance.updatedMillisecond + 30 * 1000 < current) {

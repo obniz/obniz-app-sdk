@@ -73,7 +73,7 @@ export interface AppStartOption {
 export declare class App<O extends IObniz> {
     readonly _options: AppOptionInternal<any, O>;
     protected readonly _manager?: ManagerClass<any>;
-    protected readonly _slave: SlaveClass<O>;
+    protected readonly _slave?: SlaveClass<O>;
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
     constructor(option: AppOption<any, O>);

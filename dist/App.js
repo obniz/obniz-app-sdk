@@ -82,21 +82,23 @@ class App {
             isMasterOnSameMachine) {
             this._manager = new Manager_1.Manager(option.appToken, this._options.instanceName, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
         }
-        // If master mode, share adaptor
-        const adaptor = this._manager
-            ? this._manager.adaptor
-            : new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
-        this._slave = new Slave_1.Slave(adaptor, this._options.instanceName, this);
+        if (option.instanceType !== AppInstanceType.Manager) {
+            // If master mode, share adaptor
+            const adaptor = this._manager
+                ? this._manager.adaptor
+                : new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
+            this._slave = new Slave_1.Slave(adaptor, this._options.instanceName, this);
+        }
     }
     _expressWebhook(req, res) {
         var _a;
         (_a = this._manager) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
     }
     start(option) {
-        if (this._manager) {
+        if (this._manager)
             this._manager.start(option);
-        }
-        this._slave.startSyncing();
+        if (this._slave)
+            this._slave.startSyncing();
     }
     async getAllUsers() {
         throw new Error('TODO');

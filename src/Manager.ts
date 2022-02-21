@@ -17,6 +17,7 @@ import {
 } from './Errors';
 import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
 import { WorkerInstance } from './worker_store/WorkerStoreBase';
+import { RedisAdaptor } from './adaptor/RedisAdaptor';
 
 enum InstallStatus {
   Starting,
@@ -55,6 +56,7 @@ export class Manager<T extends Database> {
   private readonly _appToken: string;
   private readonly _obnizSdkOption: SdkOption;
   private _startOptions?: AppStartOptionInternal;
+  private _instanceName: string;
   private _syncing = false;
   private _syncTimeout: any;
   private _workerStore: MemoryWorkerStore;
@@ -76,6 +78,7 @@ export class Manager<T extends Database> {
   ) {
     this._appToken = appToken;
     this._obnizSdkOption = obnizSdkOption;
+    this._instanceName = instanceName;
 
     this.adaptor = new AdaptorFactory().create<T>(
       database,
@@ -405,11 +408,9 @@ export class Manager<T extends Database> {
       this._deleteDevice(managedInstall.install.id);
     }
 
-    const mustAddsPromises: Promise<void>[] = [];
-    for (const install of mustAdds) {
-      mustAddsPromises.push(this._addDevice(install.id, install));
+    for await (const install of mustAdds) {
+      await this._addDevice(install.id, install);
     }
-    await Promise.all(mustAddsPromises);
   }
 
   private async _checkDiffInstalls() {
@@ -541,7 +542,13 @@ export class Manager<T extends Database> {
     //     this._onHealthCheckFailedInstall(managedInstall);
     //   }
     // }
-    // each room
+    // Me
+    if (this.adaptor instanceof RedisAdaptor) {
+      // If adaptor is Redis
+      const redis = this.adaptor.getRedisInstance();
+      await redis.set(`master:${this._instanceName}:heartbeat`, Date.now());
+    }
+    // Each room
     const instances = await this._workerStore.getAllWorkerInstance();
     for (const [id, instance] of Object.entries(instances)) {
       if (instance.updatedMillisecond + 30 * 1000 < current) {

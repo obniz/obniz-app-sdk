@@ -108,7 +108,7 @@ export class App<O extends IObniz> {
   protected readonly _manager?: ManagerClass<any>;
 
   // As Worker
-  protected readonly _slave: SlaveClass<O>;
+  protected readonly _slave?: SlaveClass<O>;
   // protected _adaptor: Adaptor;
   // protected _workers: { [key: string]: Worker<O> } = {};
   // protected _interval: ReturnType<typeof setTimeout> | null = null;
@@ -175,17 +175,22 @@ export class App<O extends IObniz> {
       );
     }
 
-    // If master mode, share adaptor
-    const adaptor = this._manager
-      ? this._manager.adaptor
-      : new AdaptorFactory().create(
-          this._options.database,
-          this._options.instanceName,
-          false,
-          this._options.databaseConfig
-        );
-
-    this._slave = new SlaveClass<O>(adaptor, this._options.instanceName, this);
+    if (option.instanceType !== AppInstanceType.Manager) {
+      // If master mode, share adaptor
+      const adaptor = this._manager
+        ? this._manager.adaptor
+        : new AdaptorFactory().create(
+            this._options.database,
+            this._options.instanceName,
+            false,
+            this._options.databaseConfig
+          );
+      this._slave = new SlaveClass<O>(
+        adaptor,
+        this._options.instanceName,
+        this
+      );
+    }
   }
 
   expressWebhook = this._expressWebhook.bind(this);
@@ -195,10 +200,8 @@ export class App<O extends IObniz> {
   }
 
   start(option?: AppStartOption): void {
-    if (this._manager) {
-      this._manager.start(option);
-    }
-    this._slave.startSyncing();
+    if (this._manager) this._manager.start(option);
+    if (this._slave) this._slave.startSyncing();
   }
 
   async getAllUsers(): Promise<User[]> {

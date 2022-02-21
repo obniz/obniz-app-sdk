@@ -4,6 +4,7 @@ import { Worker } from './Worker';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from './logger';
 import { App } from './App';
+import { RedisAdaptor } from './adaptor/RedisAdaptor';
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
@@ -143,6 +144,14 @@ export class Slave<O extends IObniz> {
    */
   protected async _reportToMaster(): Promise<void> {
     const keys = Object.keys(this._workers);
+    if (this._adaptor instanceof RedisAdaptor) {
+      // If adaptor is Redis
+      const redis = this._adaptor.getRedisInstance();
+      await redis.set(
+        `slave:${this._app._options.instanceName}:heartbeat`,
+        Date.now()
+      );
+    }
     await this._adaptor.report(this._app._options.instanceName, keys);
   }
 

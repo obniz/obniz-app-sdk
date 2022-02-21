@@ -8,6 +8,7 @@ export declare class Manager<T extends Database> {
     private readonly _appToken;
     private readonly _obnizSdkOption;
     private _startOptions?;
+    private _instanceName;
     private _syncing;
     private _syncTimeout;
     private _workerStore;

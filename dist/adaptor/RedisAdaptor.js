@@ -45,6 +45,9 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
     async _send(json) {
         await this._pubRedis.publish('app', JSON.stringify(json));
     }
+    getRedisInstance() {
+        return this._redis;
+    }
 }
 exports.RedisAdaptor = RedisAdaptor;
 //# sourceMappingURL=RedisAdaptor.js.map

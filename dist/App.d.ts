@@ -1,11 +1,11 @@
 import express from 'express';
-import { Worker, WorkerStatic } from './Worker';
+import { WorkerStatic } from './Worker';
 import { Manager as ManagerClass } from './Manager';
-import { Adaptor } from './adaptor/Adaptor';
 import { Installed_Device, Installed_Device as InstalledDevice, User } from 'obniz-cloud-sdk/sdk';
 import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk/index';
+import { Slave as SlaveClass } from './Slave';
 export declare enum AppInstanceType {
     /**
      * Master is Manager + Slave. It communicate with obnizCloud and also works as a worker.
@@ -64,7 +64,7 @@ export interface AppOption<T extends Database, O extends IObniz> {
      */
     obnizCloudSdkOption?: SdkOption;
 }
-declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
+export declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
 export interface AppStartOption {
     express?: express.Express | false;
     webhookUrl?: string;
@@ -73,26 +73,10 @@ export interface AppStartOption {
 export declare class App<O extends IObniz> {
     readonly _options: AppOptionInternal<any, O>;
     protected readonly _manager?: ManagerClass<any>;
-    protected _adaptor: Adaptor;
-    protected _workers: {
-        [key: string]: Worker<O>;
-    };
-    protected _interval: ReturnType<typeof setTimeout> | null;
-    protected _syncing: boolean;
+    protected readonly _slave: SlaveClass<O>;
     onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
     onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
     constructor(option: AppOption<any, O>);
-    protected _keyRequestProcess(requestId: string, key: string): Promise<void>;
-    /**
-     * Receive Master Generated List and compare current apps.
-     * @param installs
-     */
-    protected _synchronize(installs: InstalledDevice[]): Promise<void>;
-    /**
-     * Let Master know worker is working.
-     */
-    protected _reportToManager(): Promise<void>;
-    protected _startSyncing(): void;
     expressWebhook: (req: express.Request, res: express.Response) => void;
     private _expressWebhook;
     start(option?: AppStartOption): void;
@@ -111,9 +95,5 @@ export declare class App<O extends IObniz> {
     request(key: string, timeout?: number): Promise<{
         [key: string]: string;
     }>;
-    protected _startOneWorker(install: InstalledDevice): Promise<void>;
-    protected _startOrRestartOneWorker(install: InstalledDevice): Promise<void>;
-    protected _stopOneWorker(installId: string): Promise<void>;
     get obnizClass(): IObnizStatic<O>;
 }
-export {};

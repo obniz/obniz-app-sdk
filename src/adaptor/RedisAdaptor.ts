@@ -49,4 +49,8 @@ export class RedisAdaptor extends Adaptor {
   async _send(json: MessageBetweenInstance): Promise<void> {
     await this._pubRedis.publish('app', JSON.stringify(json));
   }
+
+  getRedisInstance(): IORedis.Redis {
+    return this._redis;
+  }
 }

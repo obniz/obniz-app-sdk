@@ -10,4 +10,5 @@ export declare class RedisAdaptor extends Adaptor {
     private _onRedisMessage;
     private _bindRedisEvents;
     _send(json: MessageBetweenInstance): Promise<void>;
+    getRedisInstance(): IORedis.Redis;
 }

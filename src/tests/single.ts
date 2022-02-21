@@ -2,7 +2,7 @@ import { describe, it, beforeEach } from 'mocha';
 import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
-import { sharedInstalledDeviceManager } from '../install';
+import { obnizCloudClientInstance } from '../obnizCloudClient';
 import { wait } from './../tools';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
@@ -315,18 +315,18 @@ describe('single', () => {
 function obnizApiStub() {
   const getListFromObnizCloudStub = sinon.stub();
   getListFromObnizCloudStub.returns([deviceA, deviceB]);
-  sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+  obnizCloudClientInstance.getListFromObnizCloud = getListFromObnizCloudStub;
 
   const getDiffListFromObnizCloudStub = sinon.stub();
   getDiffListFromObnizCloudStub.returns({
     appEvents: appEvnetSamples,
     maxId: 4,
   });
-  sharedInstalledDeviceManager.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
+  obnizCloudClientInstance.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
 
   const getCurrentEventNoStub = sinon.stub();
   getCurrentEventNoStub.returns(0);
-  sharedInstalledDeviceManager.getCurrentEventNo = getCurrentEventNoStub;
+  obnizCloudClientInstance.getCurrentEventNo = getCurrentEventNoStub;
 
   return {
     getListFromObnizCloudStub,

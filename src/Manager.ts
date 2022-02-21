@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { sharedInstalledDeviceManager, AppEvent } from './install';
+import { obnizCloudClientInstance, AppEvent } from './obnizCloudClient';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
@@ -15,6 +15,7 @@ import {
   ObnizAppMasterSlaveCommunicationError,
   ObnizAppTimeoutError,
 } from './Errors';
+import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
 
 enum InstallStatus {
   Starting,
@@ -61,8 +62,11 @@ export class Manager<T extends Database> {
   private _startOptions?: AppStartOptionInternal;
   private _syncing = false;
   private _syncTimeout: any;
+  private _workerStore: MemoryWorkerStore;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
-  private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
+
+  // Note: moved to _workerStore
+  // private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
 
   private _keyRequestExecutes: { [key: string]: KeyRequestExecute } = {};
 
@@ -93,19 +97,22 @@ export class Manager<T extends Database> {
       reportInstanceName: string,
       installIds: string[]
     ) => {
-      const exist = this._allWorkerInstances[reportInstanceName];
+      const exist = await this._workerStore.getWorkerInstance(
+        reportInstanceName
+      );
       if (exist) {
-        exist.installIds = installIds;
-        exist.updatedMillisecond = Date.now();
-      } else {
-        this._allWorkerInstances[reportInstanceName] = {
-          name: reportInstanceName,
+        await this._workerStore.updateWorkerInstance(reportInstanceName, {
           installIds,
           updatedMillisecond: Date.now(),
-        };
+        });
+      } else {
+        this._workerStore.addWorkerInstance(reportInstanceName, {
+          installIds,
+          updatedMillisecond: Date.now(),
+        });
         this.onInstanceAttached(reportInstanceName);
       }
-      this.onInstanceReported(reportInstanceName);
+      await this.onInstanceReported(reportInstanceName);
     };
 
     this.adaptor.onKeyRequestResponse = async (
@@ -130,6 +137,8 @@ export class Manager<T extends Database> {
         }
       }
     };
+
+    this._workerStore = new MemoryWorkerStore(this.adaptor);
   }
 
   public start(option?: AppStartOption): void {
@@ -183,9 +192,9 @@ export class Manager<T extends Database> {
   /**
    * 空き状況から最適なWorkerを推測
    */
-  private bestWorkerInstance(): WorkerInstance {
+  private async bestWorkerInstance(): Promise<WorkerInstance> {
     const installCounts: any = {};
-    for (const name in this._allWorkerInstances) {
+    for (const name in await this._workerStore.getAllWorkerInstance()) {
       installCounts[name] = 0;
     }
     for (const id in this._allInstalls) {
@@ -196,7 +205,7 @@ export class Manager<T extends Database> {
     let minInstance: WorkerInstance | null = null;
     for (const key in installCounts) {
       if (installCounts[key] < minNumber) {
-        minInstance = this._allWorkerInstances[key];
+        minInstance = await this._workerStore.getWorkerInstance(key);
         minNumber = installCounts[key];
       }
     }
@@ -220,17 +229,19 @@ export class Manager<T extends Database> {
    * instanceId がidのWorkerが喪失した
    * @param id
    */
-  private onInstanceMissed(instanceName: string) {
+  private async onInstanceMissed(instanceName: string) {
     logger.info(`worker lost ${instanceName}`);
     // delete immediately
-    const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
-    delete this._allWorkerInstances[instanceName];
+    const diedWorker: WorkerInstance = await this._workerStore.getWorkerInstance(
+      instanceName
+    );
+    await this._workerStore.deleteWorkerInstance(instanceName);
 
     // Replacing missed instance workers.
     for (const id in this._allInstalls) {
       const managedInstall = this._allInstalls[id];
       if (managedInstall.instanceName === diedWorker.name) {
-        const nextWorker = this.bestWorkerInstance();
+        const nextWorker = await this.bestWorkerInstance();
         managedInstall.instanceName = nextWorker.name;
         managedInstall.status = InstallStatus.Starting;
       }
@@ -248,8 +259,10 @@ export class Manager<T extends Database> {
    * instanceId がidのWorkerから新しい情報が届いた（定期的に届く）
    * @param id
    */
-  private onInstanceReported(instanceName: string) {
-    const worker: WorkerInstance = this._allWorkerInstances[instanceName];
+  private async onInstanceReported(instanceName: string) {
+    const worker: WorkerInstance = await this._workerStore.getWorkerInstance(
+      instanceName
+    );
     for (const existId of worker.installIds) {
       const managedInstall: ManagedInstall = this._allInstalls[existId];
       if (managedInstall) {
@@ -282,7 +295,7 @@ export class Manager<T extends Database> {
   private _startHealthCheck() {
     setInterval(async () => {
       try {
-        this._healthCheck();
+        await this._healthCheck();
       } catch (e) {
         logger.error(e);
       }
@@ -315,16 +328,16 @@ export class Manager<T extends Database> {
   private async _checkAllInstalls() {
     const startedTime = Date.now();
     logger.debug('API Sync Start');
-    const installsApi = [];
+    const installsApi: InstalledDevice[] = [];
     try {
       // set current id before getting data
-      this._currentAppEventsSequenceNo = await sharedInstalledDeviceManager.getCurrentEventNo(
+      this._currentAppEventsSequenceNo = await obnizCloudClientInstance.getCurrentEventNo(
         this._appToken,
         this._obnizSdkOption
       );
 
       installsApi.push(
-        ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
+        ...(await obnizCloudClientInstance.getListFromObnizCloud(
           this._appToken,
           this._obnizSdkOption
         ))
@@ -387,15 +400,21 @@ export class Manager<T extends Database> {
       );
     }
 
+    const updatePromises: Promise<void>[] = [];
     for (const install of updated) {
-      this._updateDevice(install.id, install);
+      updatePromises.push(this._updateDevice(install.id, install));
     }
+    await Promise.all(updatePromises);
+
     for (const managedInstall of deleted) {
       this._deleteDevice(managedInstall.install.id);
     }
+
+    const mustAddsPromises: Promise<void>[] = [];
     for (const install of mustAdds) {
-      this._addDevice(install.id, install);
+      mustAddsPromises.push(this._addDevice(install.id, install));
     }
+    await Promise.all(mustAddsPromises);
   }
 
   private async _checkDiffInstalls() {
@@ -406,7 +425,7 @@ export class Manager<T extends Database> {
       const {
         maxId,
         appEvents,
-      } = await sharedInstalledDeviceManager.getDiffListFromObnizCloud(
+      } = await obnizCloudClientInstance.getDiffListFromObnizCloud(
         this._appToken,
         this._obnizSdkOption,
         this._currentAppEventsSequenceNo
@@ -454,7 +473,7 @@ export class Manager<T extends Database> {
       } else if (one.type === 'install.delete' && one.payload.device) {
         this._deleteDevice(one.payload.device.id);
       } else if (one.type === 'install.create' && one.payload.device) {
-        this._addDevice(
+        await this._addDevice(
           one.payload.device.id,
           one.payload.device as InstalledDevice
         );
@@ -462,13 +481,13 @@ export class Manager<T extends Database> {
     }
   }
 
-  private _addDevice(obnizId: string, device: InstalledDevice) {
+  private async _addDevice(obnizId: string, device: InstalledDevice) {
     if (this._allInstalls[obnizId]) {
       // already exist
       this._updateDevice(obnizId, device);
       return;
     }
-    const instance = this.bestWorkerInstance(); // maybe throw
+    const instance = await this.bestWorkerInstance(); // maybe throw
     const managedInstall: ManagedInstall = {
       instanceName: instance.name,
       status: InstallStatus.Starting,
@@ -478,10 +497,10 @@ export class Manager<T extends Database> {
     this._allInstalls[obnizId] = managedInstall;
   }
 
-  private _updateDevice(obnizId: string, device: InstalledDevice) {
+  private async _updateDevice(obnizId: string, device: InstalledDevice) {
     const managedInstall = this._allInstalls[obnizId];
     if (!managedInstall) {
-      this._addDevice(obnizId, device);
+      await this._addDevice(obnizId, device);
       return;
     }
     managedInstall.install = device;
@@ -498,7 +517,7 @@ export class Manager<T extends Database> {
 
   private async synchronize() {
     const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
-    for (const instanceName in this._allWorkerInstances) {
+    for (const instanceName in await this._workerStore.getAllWorkerInstance()) {
       installsByInstanceName[instanceName] = [];
     }
     for (const id in this._allInstalls) {
@@ -517,7 +536,7 @@ export class Manager<T extends Database> {
     }
   }
 
-  private _healthCheck() {
+  private async _healthCheck() {
     const current = Date.now();
     // each install
     // for (const id in this._allInstalls) {
@@ -528,11 +547,11 @@ export class Manager<T extends Database> {
     //   }
     // }
     // each room
-    for (const id in this._allWorkerInstances) {
-      const workerInstance = this._allWorkerInstances[id];
-      if (workerInstance.updatedMillisecond + 30 * 1000 < current) {
+    const instances = await this._workerStore.getAllWorkerInstance();
+    for (const [id, instance] of Object.entries(instances)) {
+      if (instance.updatedMillisecond + 30 * 1000 < current) {
         // over time.
-        this._onHealthCheckFailedWorkerInstance(workerInstance);
+        this._onHealthCheckFailedWorkerInstance(instance);
       }
     }
   }
@@ -546,15 +565,19 @@ export class Manager<T extends Database> {
     this.onInstanceMissed(workerInstance.name);
   }
 
-  public hasSubClusteredInstances(): boolean {
-    return Object.keys(this._allWorkerInstances).length > 1;
+  public async hasSubClusteredInstances(): Promise<boolean> {
+    return (
+      Object.keys(await this._workerStore.getAllWorkerInstance()).length > 1
+    );
   }
 
   public async request(
     key: string,
     timeout: number
   ): Promise<{ [key: string]: string }> {
-    const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
+    const waitingInstanceCount = Object.keys(
+      await this._workerStore.getAllWorkerInstance()
+    ).length;
     return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
       try {
         const requestId =

@@ -10,8 +10,8 @@ export declare class Manager<T extends Database> {
     private _startOptions?;
     private _syncing;
     private _syncTimeout;
+    private _workerStore;
     private _allInstalls;
-    private _allWorkerInstances;
     private _keyRequestExecutes;
     private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
@@ -49,7 +49,7 @@ export declare class Manager<T extends Database> {
     private synchronize;
     private _healthCheck;
     private _onHealthCheckFailedWorkerInstance;
-    hasSubClusteredInstances(): boolean;
+    hasSubClusteredInstances(): Promise<boolean>;
     request(key: string, timeout: number): Promise<{
         [key: string]: string;
     }>;

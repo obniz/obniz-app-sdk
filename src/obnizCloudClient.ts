@@ -12,7 +12,7 @@ export type AppEvent = NonNullable<
   NonNullable<AppEventsQuery['appEvents']>['events'][number]
 >;
 
-export class InstalledDeviceManager {
+export class ObnizCloudClient {
   async getListFromObnizCloud(
     token: string,
     option: SdkOption
@@ -88,11 +88,11 @@ export class InstalledDeviceManager {
     return { appEvents, maxId };
   }
 
-  async getCurrentEventNo(token: string, option: SdkOption) {
+  async getCurrentEventNo(token: string, option: SdkOption): Promise<number> {
     const sdk = getSdk(token, option);
     const result = await sdk.appEvents({ first: 1 });
     return result.appEvents?.totalCount || 0;
   }
 }
 
-export const sharedInstalledDeviceManager = new InstalledDeviceManager();
+export const obnizCloudClientInstance = new ObnizCloudClient();

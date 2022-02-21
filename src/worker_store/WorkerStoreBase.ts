@@ -1,10 +1,8 @@
-import { Adaptor } from '../adaptor/Adaptor';
-
-export type WorkerInstance = {
+export interface WorkerInstance {
   name: string;
   installIds: string[];
   updatedMillisecond: number;
-};
+}
 
 export type WorkerProperties = Pick<
   WorkerInstance,
@@ -12,12 +10,6 @@ export type WorkerProperties = Pick<
 >;
 
 export abstract class WorkerStoreBase {
-  protected adaptor: Adaptor;
-
-  constructor(adaptor: Adaptor) {
-    this.adaptor = adaptor;
-  }
-
   public abstract getWorkerInstance(
     instanceName: string
   ): Promise<WorkerInstance>;

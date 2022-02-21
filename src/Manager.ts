@@ -16,6 +16,7 @@ import {
   ObnizAppTimeoutError,
 } from './Errors';
 import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
+import { WorkerInstance } from './worker_store/WorkerStoreBase';
 
 enum InstallStatus {
   Starting,
@@ -28,12 +29,6 @@ interface ManagedInstall {
   instanceName: string; // Which Instance handling this
   install: InstalledDevice;
   status: InstallStatus;
-  updatedMillisecond: number;
-}
-
-interface WorkerInstance {
-  name: string;
-  installIds: string[];
   updatedMillisecond: number;
 }
 
@@ -138,7 +133,7 @@ export class Manager<T extends Database> {
       }
     };
 
-    this._workerStore = new MemoryWorkerStore(this.adaptor);
+    this._workerStore = new MemoryWorkerStore();
   }
 
   public start(option?: AppStartOption): void {
@@ -580,8 +575,9 @@ export class Manager<T extends Database> {
     ).length;
     return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
       try {
-        const requestId =
-          Date.now() + '-' + Math.random().toString(36).slice(-8);
+        const requestId = `${Date.now()} - ${Math.random()
+          .toString(36)
+          .slice(-8)}`;
         const execute: KeyRequestExecute = {
           requestId,
           returnedInstanceCount: 0,

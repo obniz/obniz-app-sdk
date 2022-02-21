@@ -1,1 +1,1 @@
-{"version":3,"file":"WorkerStoreBase.js","sourceRoot":"","sources":["../../src/worker_store/WorkerStoreBase.ts"],"names":[],"mappings":";;;AAaA,MAAsB,eAAe;IAGnC,YAAY,OAAgB;QAC1B,IAAI,CAAC,OAAO,GAAG,OAAO,CAAC;IACzB,CAAC;CAqBF;AA1BD,0CA0BC"}
+{"version":3,"file":"WorkerStoreBase.js","sourceRoot":"","sources":["../../src/worker_store/WorkerStoreBase.ts"],"names":[],"mappings":";;;AAWA,MAAsB,eAAe;CAoBpC;AApBD,0CAoBC"}

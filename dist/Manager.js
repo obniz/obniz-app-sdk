@@ -62,7 +62,7 @@ class Manager {
                 }
             }
         };
-        this._workerStore = new MemoryWorkerStore_1.MemoryWorkerStore(this.adaptor);
+        this._workerStore = new MemoryWorkerStore_1.MemoryWorkerStore();
     }
     start(option) {
         this._startWeb(option);
@@ -420,7 +420,9 @@ class Manager {
         const waitingInstanceCount = Object.keys(await this._workerStore.getAllWorkerInstance()).length;
         return new Promise(async (resolve, reject) => {
             try {
-                const requestId = Date.now() + '-' + Math.random().toString(36).slice(-8);
+                const requestId = `${Date.now()} - ${Math.random()
+                    .toString(36)
+                    .slice(-8)}`;
                 const execute = {
                     requestId,
                     returnedInstanceCount: 0,

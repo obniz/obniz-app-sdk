@@ -1,6 +1,8 @@
+import { RedisAdaptor } from '../adaptor/RedisAdaptor';
 import { WorkerInstance, WorkerProperties, WorkerStoreBase } from './WorkerStoreBase';
-export declare class MemoryWorkerStore extends WorkerStoreBase {
-    private _workerInstances;
+export declare class RedisWorkerStore extends WorkerStoreBase {
+    private _redisAdaptor;
+    constructor(adaptor: RedisAdaptor);
     getWorkerInstance(instanceName: string): Promise<WorkerInstance>;
     getAllWorkerInstance(): Promise<{
         [instanceName: string]: WorkerInstance;

@@ -1,4 +1,3 @@
-import { Adaptor } from '../adaptor/Adaptor';
 import {
   WorkerInstance,
   WorkerProperties,
@@ -7,10 +6,6 @@ import {
 
 export class MemoryWorkerStore extends WorkerStoreBase {
   private _workerInstances: { [key: string]: WorkerInstance } = {};
-
-  constructor(adaptor: Adaptor) {
-    super(adaptor);
-  }
 
   public getWorkerInstance(instanceName: string): Promise<WorkerInstance> {
     const workerInstance = this._workerInstances[instanceName];

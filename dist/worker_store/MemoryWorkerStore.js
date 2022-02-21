@@ -3,8 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.MemoryWorkerStore = void 0;
 const WorkerStoreBase_1 = require("./WorkerStoreBase");
 class MemoryWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
-    constructor(adaptor) {
-        super(adaptor);
+    constructor() {
+        super(...arguments);
         this._workerInstances = {};
     }
     getWorkerInstance(instanceName) {

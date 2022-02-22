@@ -11,7 +11,7 @@ class MemoryWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
         const workerInstance = this._workerInstances[instanceName];
         return new Promise((r) => r(workerInstance));
     }
-    getAllWorkerInstance() {
+    getAllWorkerInstances() {
         const workerInstances = this._workerInstances;
         return new Promise((r) => r(workerInstances));
     }

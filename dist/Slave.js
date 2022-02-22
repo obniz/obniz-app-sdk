@@ -110,7 +110,7 @@ class Slave {
         if (this._adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             // If adaptor is Redis
             const redis = this._adaptor.getRedisInstance();
-            await redis.set(`slave:${this._app._options.instanceName}:heartbeat`, Date.now());
+            await redis.set(`slave:${this._app._options.instanceName}:heartbeat`, Date.now(), 'EX', 20);
         }
         await this._adaptor.report(this._app._options.instanceName, keys);
     }

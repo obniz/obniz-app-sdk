@@ -149,7 +149,9 @@ export class Slave<O extends IObniz> {
       const redis = this._adaptor.getRedisInstance();
       await redis.set(
         `slave:${this._app._options.instanceName}:heartbeat`,
-        Date.now()
+        Date.now(),
+        'EX',
+        20
       );
     }
     await this._adaptor.report(this._app._options.instanceName, keys);

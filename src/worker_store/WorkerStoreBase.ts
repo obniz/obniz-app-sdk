@@ -12,9 +12,9 @@ export type WorkerProperties = Pick<
 export abstract class WorkerStoreBase {
   public abstract getWorkerInstance(
     instanceName: string
-  ): Promise<WorkerInstance>;
+  ): Promise<WorkerInstance | undefined>;
 
-  public abstract getAllWorkerInstance(): Promise<{
+  public abstract getAllWorkerInstances(): Promise<{
     [instanceName: string]: WorkerInstance;
   }>;
 

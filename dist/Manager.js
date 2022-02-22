@@ -19,6 +19,7 @@ const tools_1 = require("./tools");
 const Errors_1 = require("./Errors");
 const MemoryWorkerStore_1 = require("./worker_store/MemoryWorkerStore");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
+const RedisWorkerStore_1 = require("./worker_store/RedisWorkerStore");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -71,7 +72,12 @@ class Manager {
                 }
             }
         };
-        this._workerStore = new MemoryWorkerStore_1.MemoryWorkerStore();
+        if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
+            this._workerStore = new RedisWorkerStore_1.RedisWorkerStore(this.adaptor);
+        }
+        else {
+            this._workerStore = new MemoryWorkerStore_1.MemoryWorkerStore();
+        }
     }
     start(option) {
         this._startWeb(option);
@@ -114,18 +120,21 @@ class Manager {
      */
     async bestWorkerInstance() {
         const installCounts = {};
-        for (const name in await this._workerStore.getAllWorkerInstance()) {
+        const instances = await this._workerStore.getAllWorkerInstances();
+        for (const name in instances) {
             installCounts[name] = 0;
         }
         for (const id in this._allInstalls) {
             const managedInstall = this._allInstalls[id];
+            if (installCounts[managedInstall.instanceName] === undefined)
+                continue;
             installCounts[managedInstall.instanceName] += 1;
         }
         let minNumber = 1000 * 1000;
         let minInstance = null;
         for (const key in installCounts) {
             if (installCounts[key] < minNumber) {
-                minInstance = await this._workerStore.getWorkerInstance(key);
+                minInstance = instances[key];
                 minNumber = installCounts[key];
             }
         }
@@ -151,6 +160,8 @@ class Manager {
         logger_1.logger.info(`worker lost ${instanceName}`);
         // delete immediately
         const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
+        if (!diedWorker)
+            throw new Error('Failed get diedWorker status');
         await this._workerStore.deleteWorkerInstance(instanceName);
         // Replacing missed instance workers.
         for (const id in this._allInstalls) {
@@ -174,15 +185,17 @@ class Manager {
      */
     async onInstanceReported(instanceName) {
         const worker = await this._workerStore.getWorkerInstance(instanceName);
-        for (const existId of worker.installIds) {
-            const managedInstall = this._allInstalls[existId];
-            if (managedInstall) {
-                managedInstall.status = InstallStatus.Started;
-                managedInstall.updatedMillisecond = Date.now();
-            }
-            else {
-                // ghost
-                logger_1.logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
+        if (worker) {
+            for (const existId of worker.installIds) {
+                const managedInstall = this._allInstalls[existId];
+                if (managedInstall) {
+                    managedInstall.status = InstallStatus.Started;
+                    managedInstall.updatedMillisecond = Date.now();
+                }
+                else {
+                    // ghost
+                    logger_1.logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
+                }
             }
         }
     }
@@ -392,7 +405,7 @@ class Manager {
     }
     async synchronize() {
         const installsByInstanceName = {};
-        for (const instanceName in await this._workerStore.getAllWorkerInstance()) {
+        for (const instanceName in await this._workerStore.getAllWorkerInstances()) {
             installsByInstanceName[instanceName] = [];
         }
         for (const id in this._allInstalls) {
@@ -419,10 +432,10 @@ class Manager {
         if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             // If adaptor is Redis
             const redis = this.adaptor.getRedisInstance();
-            await redis.set(`master:${this._instanceName}:heartbeat`, Date.now());
+            await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
         }
         // Each room
-        const instances = await this._workerStore.getAllWorkerInstance();
+        const instances = await this._workerStore.getAllWorkerInstances();
         for (const [id, instance] of Object.entries(instances)) {
             if (instance.updatedMillisecond + 30 * 1000 < current) {
                 // over time.
@@ -438,10 +451,10 @@ class Manager {
         this.onInstanceMissed(workerInstance.name);
     }
     async hasSubClusteredInstances() {
-        return (Object.keys(await this._workerStore.getAllWorkerInstance()).length > 1);
+        return (Object.keys(await this._workerStore.getAllWorkerInstances()).length > 1);
     }
     async request(key, timeout) {
-        const waitingInstanceCount = Object.keys(await this._workerStore.getAllWorkerInstance()).length;
+        const waitingInstanceCount = Object.keys(await this._workerStore.getAllWorkerInstances()).length;
         return new Promise(async (resolve, reject) => {
             try {
                 const requestId = `${Date.now()} - ${Math.random()

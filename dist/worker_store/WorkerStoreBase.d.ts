@@ -5,8 +5,8 @@ export interface WorkerInstance {
 }
 export declare type WorkerProperties = Pick<WorkerInstance, 'installIds' | 'updatedMillisecond'>;
 export declare abstract class WorkerStoreBase {
-    abstract getWorkerInstance(instanceName: string): Promise<WorkerInstance>;
-    abstract getAllWorkerInstance(): Promise<{
+    abstract getWorkerInstance(instanceName: string): Promise<WorkerInstance | undefined>;
+    abstract getAllWorkerInstances(): Promise<{
         [instanceName: string]: WorkerInstance;
     }>;
     abstract addWorkerInstance(instanceName: string, props: WorkerProperties): Promise<WorkerInstance>;

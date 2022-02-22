@@ -7,12 +7,14 @@ import {
 export class MemoryWorkerStore extends WorkerStoreBase {
   private _workerInstances: { [key: string]: WorkerInstance } = {};
 
-  public getWorkerInstance(instanceName: string): Promise<WorkerInstance> {
+  public getWorkerInstance(
+    instanceName: string
+  ): Promise<WorkerInstance | undefined> {
     const workerInstance = this._workerInstances[instanceName];
     return new Promise((r) => r(workerInstance));
   }
 
-  public getAllWorkerInstance(): Promise<{
+  public getAllWorkerInstances(): Promise<{
     [instanceName: string]: WorkerInstance;
   }> {
     const workerInstances = this._workerInstances;

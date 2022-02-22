@@ -16,8 +16,12 @@ import {
   ObnizAppTimeoutError,
 } from './Errors';
 import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
-import { WorkerInstance } from './worker_store/WorkerStoreBase';
+import {
+  WorkerInstance,
+  WorkerStoreBase,
+} from './worker_store/WorkerStoreBase';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
+import { RedisWorkerStore } from './worker_store/RedisWorkerStore';
 
 enum InstallStatus {
   Starting,
@@ -59,7 +63,7 @@ export class Manager<T extends Database> {
   private _instanceName: string;
   private _syncing = false;
   private _syncTimeout: any;
-  private _workerStore: MemoryWorkerStore;
+  private _workerStore: WorkerStoreBase;
   private _allInstalls: { [key: string]: ManagedInstall } = {};
 
   // Note: moved to _workerStore
@@ -136,7 +140,11 @@ export class Manager<T extends Database> {
       }
     };
 
-    this._workerStore = new MemoryWorkerStore();
+    if (this.adaptor instanceof RedisAdaptor) {
+      this._workerStore = new RedisWorkerStore(this.adaptor);
+    } else {
+      this._workerStore = new MemoryWorkerStore();
+    }
   }
 
   public start(option?: AppStartOption): void {
@@ -192,18 +200,20 @@ export class Manager<T extends Database> {
    */
   private async bestWorkerInstance(): Promise<WorkerInstance> {
     const installCounts: any = {};
-    for (const name in await this._workerStore.getAllWorkerInstance()) {
+    const instances = await this._workerStore.getAllWorkerInstances();
+    for (const name in instances) {
       installCounts[name] = 0;
     }
     for (const id in this._allInstalls) {
       const managedInstall = this._allInstalls[id];
+      if (installCounts[managedInstall.instanceName] === undefined) continue;
       installCounts[managedInstall.instanceName] += 1;
     }
     let minNumber = 1000 * 1000;
     let minInstance: WorkerInstance | null = null;
     for (const key in installCounts) {
       if (installCounts[key] < minNumber) {
-        minInstance = await this._workerStore.getWorkerInstance(key);
+        minInstance = instances[key];
         minNumber = installCounts[key];
       }
     }
@@ -230,9 +240,8 @@ export class Manager<T extends Database> {
   private async onInstanceMissed(instanceName: string) {
     logger.info(`worker lost ${instanceName}`);
     // delete immediately
-    const diedWorker: WorkerInstance = await this._workerStore.getWorkerInstance(
-      instanceName
-    );
+    const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
+    if (!diedWorker) throw new Error('Failed get diedWorker status');
     await this._workerStore.deleteWorkerInstance(instanceName);
 
     // Replacing missed instance workers.
@@ -258,17 +267,17 @@ export class Manager<T extends Database> {
    * @param id
    */
   private async onInstanceReported(instanceName: string) {
-    const worker: WorkerInstance = await this._workerStore.getWorkerInstance(
-      instanceName
-    );
-    for (const existId of worker.installIds) {
-      const managedInstall: ManagedInstall = this._allInstalls[existId];
-      if (managedInstall) {
-        managedInstall.status = InstallStatus.Started;
-        managedInstall.updatedMillisecond = Date.now();
-      } else {
-        // ghost
-        logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
+    const worker = await this._workerStore.getWorkerInstance(instanceName);
+    if (worker) {
+      for (const existId of worker.installIds) {
+        const managedInstall: ManagedInstall = this._allInstalls[existId];
+        if (managedInstall) {
+          managedInstall.status = InstallStatus.Started;
+          managedInstall.updatedMillisecond = Date.now();
+        } else {
+          // ghost
+          logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
+        }
       }
     }
   }
@@ -513,7 +522,7 @@ export class Manager<T extends Database> {
 
   private async synchronize() {
     const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
-    for (const instanceName in await this._workerStore.getAllWorkerInstance()) {
+    for (const instanceName in await this._workerStore.getAllWorkerInstances()) {
       installsByInstanceName[instanceName] = [];
     }
     for (const id in this._allInstalls) {
@@ -546,10 +555,15 @@ export class Manager<T extends Database> {
     if (this.adaptor instanceof RedisAdaptor) {
       // If adaptor is Redis
       const redis = this.adaptor.getRedisInstance();
-      await redis.set(`master:${this._instanceName}:heartbeat`, Date.now());
+      await redis.set(
+        `master:${this._instanceName}:heartbeat`,
+        Date.now(),
+        'EX',
+        20
+      );
     }
     // Each room
-    const instances = await this._workerStore.getAllWorkerInstance();
+    const instances = await this._workerStore.getAllWorkerInstances();
     for (const [id, instance] of Object.entries(instances)) {
       if (instance.updatedMillisecond + 30 * 1000 < current) {
         // over time.
@@ -569,7 +583,7 @@ export class Manager<T extends Database> {
 
   public async hasSubClusteredInstances(): Promise<boolean> {
     return (
-      Object.keys(await this._workerStore.getAllWorkerInstance()).length > 1
+      Object.keys(await this._workerStore.getAllWorkerInstances()).length > 1
     );
   }
 
@@ -578,7 +592,7 @@ export class Manager<T extends Database> {
     timeout: number
   ): Promise<{ [key: string]: string }> {
     const waitingInstanceCount = Object.keys(
-      await this._workerStore.getAllWorkerInstance()
+      await this._workerStore.getAllWorkerInstances()
     ).length;
     return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
       try {

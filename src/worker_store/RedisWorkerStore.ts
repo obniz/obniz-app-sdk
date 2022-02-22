@@ -96,6 +96,7 @@ export class RedisWorkerStore extends WorkerStoreBase {
       JSON.stringify(props.installIds)
     );
     if (res !== 'OK') throw new Error('Failed to add worker data.');
+    logger.info(`new worker ${instanceName} added`);
     return {
       name: instanceName,
       installIds: props.installIds,
@@ -110,20 +111,28 @@ export class RedisWorkerStore extends WorkerStoreBase {
     const redis = this._redisAdaptor.getRedisInstance();
     const instance = await this.getWorkerInstance(instanceName);
     if (!instance) throw new Error('Instance not found');
-    if (props.installIds) {
-      const res = await redis.set(
-        `slave:${instanceName}:install-ids`,
-        JSON.stringify(props.installIds)
-      );
-      if (res !== 'OK') throw new Error('Failed to add worker data.');
+    const exist = await redis.exists(`slave:${instanceName}:install-ids`);
+    if (exist === 0) {
+      return await this.addWorkerInstance(instanceName, {
+        installIds: props.installIds ?? [],
+        updatedMillisecond: props.updatedMillisecond ?? 0,
+      });
+    } else {
+      if (props.installIds) {
+        const res = await redis.set(
+          `slave:${instanceName}:install-ids`,
+          JSON.stringify(props.installIds)
+        );
+        if (res !== 'OK') throw new Error('Failed to add worker data.');
+      }
+      const current = await this.getWorkerInstance(instanceName);
+      if (!current) throw new Error('Instance not found');
+      return {
+        name: instanceName,
+        installIds: current.installIds,
+        updatedMillisecond: current.updatedMillisecond,
+      };
     }
-    const current = await this.getWorkerInstance(instanceName);
-    if (!current) throw new Error('Instance not found');
-    return {
-      name: instanceName,
-      installIds: current.installIds,
-      updatedMillisecond: current.updatedMillisecond,
-    };
   }
 
   public async deleteWorkerInstance(instanceName: string): Promise<void> {

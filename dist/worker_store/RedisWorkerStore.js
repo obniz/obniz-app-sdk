@@ -91,6 +91,7 @@ class RedisWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
         const res = await redis.set(`slave:${instanceName}:install-ids`, JSON.stringify(props.installIds));
         if (res !== 'OK')
             throw new Error('Failed to add worker data.');
+        logger_1.logger.info(`new worker ${instanceName} added`);
         return {
             name: instanceName,
             installIds: props.installIds,
@@ -98,23 +99,33 @@ class RedisWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
         };
     }
     async updateWorkerInstance(instanceName, props) {
+        var _a, _b;
         const redis = this._redisAdaptor.getRedisInstance();
         const instance = await this.getWorkerInstance(instanceName);
         if (!instance)
             throw new Error('Instance not found');
-        if (props.installIds) {
-            const res = await redis.set(`slave:${instanceName}:install-ids`, JSON.stringify(props.installIds));
-            if (res !== 'OK')
-                throw new Error('Failed to add worker data.');
+        const exist = await redis.exists(`slave:${instanceName}:install-ids`);
+        if (exist === 0) {
+            return await this.addWorkerInstance(instanceName, {
+                installIds: (_a = props.installIds) !== null && _a !== void 0 ? _a : [],
+                updatedMillisecond: (_b = props.updatedMillisecond) !== null && _b !== void 0 ? _b : 0,
+            });
         }
-        const current = await this.getWorkerInstance(instanceName);
-        if (!current)
-            throw new Error('Instance not found');
-        return {
-            name: instanceName,
-            installIds: current.installIds,
-            updatedMillisecond: current.updatedMillisecond,
-        };
+        else {
+            if (props.installIds) {
+                const res = await redis.set(`slave:${instanceName}:install-ids`, JSON.stringify(props.installIds));
+                if (res !== 'OK')
+                    throw new Error('Failed to add worker data.');
+            }
+            const current = await this.getWorkerInstance(instanceName);
+            if (!current)
+                throw new Error('Instance not found');
+            return {
+                name: instanceName,
+                installIds: current.installIds,
+                updatedMillisecond: current.updatedMillisecond,
+            };
+        }
     }
     async deleteWorkerInstance(instanceName) {
         // installIds を削除

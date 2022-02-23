@@ -220,8 +220,15 @@ class App {
     }
     async _startOneWorker(install) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);
+        let access_token = this._options.appToken;
+        // @ts-ignore
+        if (this._appTokenForObniz) {
+            // @ts-ignore
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+            access_token = this._appTokenForObniz(install);
+        }
         const wclass = this._options.workerClassFunction(install);
-        const worker = new wclass(install, this, Object.assign(Object.assign({}, this._options.obnizOption), { access_token: this._options.appToken }));
+        const worker = new wclass(install, this, Object.assign(Object.assign({}, this._options.obnizOption), { access_token }));
         this._workers[install.id] = worker;
         await worker.start();
     }

@@ -352,10 +352,19 @@ export class App<O extends IObniz> {
   protected async _startOneWorker(install: InstalledDevice): Promise<void> {
     logger.info(`New Worker Start id=${install.id}`);
 
+    let access_token = this._options.appToken;
+
+    // @ts-ignore
+    if (this._appTokenForObniz) {
+      // @ts-ignore
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+      access_token = this._appTokenForObniz(install);
+    }
+
     const wclass = this._options.workerClassFunction(install);
     const worker = new wclass(install, this, {
       ...this._options.obnizOption,
-      access_token: this._options.appToken,
+      access_token,
     });
 
     this._workers[install.id] = worker;

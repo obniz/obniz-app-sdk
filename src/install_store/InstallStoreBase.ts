@@ -15,17 +15,62 @@ export interface ManagedInstall {
 }
 
 export abstract class InstallStoreBase {
-  public abstract getAllInstalls(): Promise<{ [id: string]: ManagedInstall }>;
+  /**
+   * Get an install.
+   * @param id obnizId
+   */
+  public abstract get(id: string): Promise<ManagedInstall | undefined>;
 
-  public abstract createInstall(
+  /**
+   * Get the Installs on a specific Worker.
+   */
+  public abstract getByWorker(
+    name: string
+  ): Promise<{ [id: string]: ManagedInstall }>;
+
+  /**
+   * Get all the installs on the InstallStore.
+   */
+  public abstract getAll(): Promise<{ [id: string]: ManagedInstall }>;
+
+  /**
+   * Automatically selects an optimal Slave and creates an Install.
+   * @param id obnizId
+   */
+  public abstract autoCreate(
+    id: string,
+    device: InstalledDevice
+  ): Promise<ManagedInstall>;
+
+  /**
+   * Create an Install from the data.
+   * @param id obnizId
+   * @param install Install Data
+   */
+  public abstract manualCreate(
     id: string,
     install: ManagedInstall
   ): Promise<ManagedInstall>;
 
-  public abstract updateInstall(
+  /**
+   * Update the Install data.
+   * @param id obnizId
+   * @param props Install Data
+   */
+  public abstract update(
     id: string,
     props: Partial<ManagedInstall>
   ): Promise<ManagedInstall>;
 
-  public abstract removeInstall(id: string): Promise<void>;
+  /**
+   * Automatically relocates the Install.
+   * @param id obnizId
+   */
+  public abstract autoRelocate(id: string): Promise<ManagedInstall>;
+
+  /**
+   * Remove Install.
+   * @param id obnizId
+   */
+  public abstract remove(id: string): Promise<void>;
 }

@@ -106,13 +106,15 @@ class Slave {
      * Let Master know worker is working.
      */
     async _reportToMaster() {
-        const keys = Object.keys(this._workers);
         if (this._adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             // If adaptor is Redis
             const redis = this._adaptor.getRedisInstance();
             await redis.set(`slave:${this._app._options.instanceName}:heartbeat`, Date.now(), 'EX', 20);
         }
-        await this._adaptor.report(this._app._options.instanceName, keys);
+        else {
+            const keys = Object.keys(this._workers);
+            await this._adaptor.report(this._app._options.instanceName, keys);
+        }
     }
     startSyncing() {
         // every minutes

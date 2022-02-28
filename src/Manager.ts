@@ -22,19 +22,18 @@ import {
 } from './worker_store/WorkerStoreBase';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { RedisWorkerStore } from './worker_store/RedisWorkerStore';
+import {
+  InstallStoreBase,
+  ManagedInstall,
+} from './install_store/InstallStoreBase';
+import { RedisInstallStore } from './install_store/RedisInstallStore';
+import { MemoryInstallStore } from './install_store/MemoryInstallStore';
 
 enum InstallStatus {
   Starting,
   Started,
   Stopping,
   Stopped,
-}
-
-interface ManagedInstall {
-  instanceName: string; // Which Instance handling this
-  install: InstalledDevice;
-  status: InstallStatus;
-  updatedMillisecond: number;
 }
 
 interface AppStartOptionInternal extends AppStartOption {
@@ -64,7 +63,10 @@ export class Manager<T extends Database> {
   private _syncing = false;
   private _syncTimeout: any;
   private _workerStore: WorkerStoreBase;
-  private _allInstalls: { [key: string]: ManagedInstall } = {};
+  private _installStore: InstallStoreBase;
+
+  // Note: moved to _installStore
+  // private _allInstalls: { [key: string]: ManagedInstall } = {};
 
   // Note: moved to _workerStore
   // private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
@@ -142,8 +144,11 @@ export class Manager<T extends Database> {
 
     if (this.adaptor instanceof RedisAdaptor) {
       this._workerStore = new RedisWorkerStore(this.adaptor);
+      this._installStore = new RedisInstallStore(this.adaptor);
     } else {
-      this._workerStore = new MemoryWorkerStore();
+      const workerStore = new MemoryWorkerStore();
+      this._workerStore = workerStore;
+      this._installStore = new MemoryInstallStore(workerStore);
     }
   }
 
@@ -196,34 +201,6 @@ export class Manager<T extends Database> {
   }
 
   /**
-   * 空き状況から最適なWorkerを推測
-   */
-  private async bestWorkerInstance(): Promise<WorkerInstance> {
-    const installCounts: any = {};
-    const instances = await this._workerStore.getAllWorkerInstances();
-    for (const name in instances) {
-      installCounts[name] = 0;
-    }
-    for (const id in this._allInstalls) {
-      const managedInstall = this._allInstalls[id];
-      if (installCounts[managedInstall.instanceName] === undefined) continue;
-      installCounts[managedInstall.instanceName] += 1;
-    }
-    let minNumber = 1000 * 1000;
-    let minInstance: WorkerInstance | null = null;
-    for (const key in installCounts) {
-      if (installCounts[key] < minNumber) {
-        minInstance = instances[key];
-        minNumber = installCounts[key];
-      }
-    }
-    if (!minInstance) {
-      throw new Error(`No Valid Instance`);
-    }
-    return minInstance;
-  }
-
-  /**
    * instanceId がidのWorkerが新たに参加した
    * @param id
    */
@@ -245,13 +222,11 @@ export class Manager<T extends Database> {
     await this._workerStore.deleteWorkerInstance(instanceName);
 
     // Replacing missed instance workers.
-    for (const id in this._allInstalls) {
-      const managedInstall = this._allInstalls[id];
-      if (managedInstall.instanceName === diedWorker.name) {
-        const nextWorker = await this.bestWorkerInstance();
-        managedInstall.instanceName = nextWorker.name;
-        managedInstall.status = InstallStatus.Starting;
-      }
+    const missedInstalls = await this._installStore.getByWorker(
+      diedWorker.name
+    );
+    for (const install of Object.keys(missedInstalls)) {
+      await this._installStore.autoRelocate(install);
     }
 
     // synchronize
@@ -270,7 +245,7 @@ export class Manager<T extends Database> {
     const worker = await this._workerStore.getWorkerInstance(instanceName);
     if (worker) {
       for (const existId of worker.installIds) {
-        const managedInstall: ManagedInstall = this._allInstalls[existId];
+        const managedInstall = await this._installStore.get(existId);
         if (managedInstall) {
           managedInstall.status = InstallStatus.Started;
           managedInstall.updatedMillisecond = Date.now();
@@ -366,24 +341,18 @@ export class Manager<T extends Database> {
     const mustAdds: InstalledDevice[] = [];
     const updated: InstalledDevice[] = [];
     const deleted: ManagedInstall[] = [];
-    for (const install of installsApi) {
-      let found = false;
-      for (const id in this._allInstalls) {
-        const oldInstall = this._allInstalls[id].install;
-        if (install.id === id) {
-          if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
-            // updated
-            updated.push(install);
-          }
-          found = true;
-          break;
+    for await (const device of installsApi) {
+      const install = await this._installStore.get(device.id);
+      if (!install) {
+        mustAdds.push(device);
+      } else {
+        if (JSON.stringify(device) !== JSON.stringify(install.install)) {
+          updated.push(device);
         }
       }
-      if (!found) {
-        mustAdds.push(install);
-      }
     }
-    for (const id in this._allInstalls) {
+    const installs = await this._installStore.getAll();
+    for (const id in installs) {
       let found = false;
       for (const install of installsApi) {
         if (id === install.id) {
@@ -392,13 +361,13 @@ export class Manager<T extends Database> {
         }
       }
       if (!found) {
-        deleted.push(this._allInstalls[id]);
+        deleted.push(installs[id]);
       }
     }
 
     if (mustAdds.length + updated.length + deleted.length > 0) {
       const allNum =
-        Object.keys(this._allInstalls).length +
+        Object.keys(await this._installStore.getAll()).length +
         mustAdds.length -
         deleted.length;
       logger.debug(`all \t| added \t| updated \t| deleted`);
@@ -407,18 +376,16 @@ export class Manager<T extends Database> {
       );
     }
 
-    const updatePromises: Promise<void>[] = [];
-    for (const install of updated) {
-      updatePromises.push(this._updateDevice(install.id, install));
-    }
-    await Promise.all(updatePromises);
-
-    for (const managedInstall of deleted) {
-      this._deleteDevice(managedInstall.install.id);
+    for await (const updDevice of updated) {
+      await this._updateDevice(updDevice.id, updDevice);
     }
 
-    for await (const install of mustAdds) {
-      await this._addDevice(install.id, install);
+    for await (const delInstall of deleted) {
+      await this._deleteDevice(delInstall.install.id);
+    }
+
+    for await (const addDevice of mustAdds) {
+      await this._addDevice(addDevice.id, addDevice);
     }
   }
 
@@ -454,7 +421,10 @@ export class Manager<T extends Database> {
         .length;
       const deleteNum = events.filter((e) => e.type === 'install.delete')
         .length;
-      const allNum = Object.keys(this._allInstalls).length + addNum - deleteNum;
+      const allNum =
+        Object.keys(await this._installStore.getAll()).length +
+        addNum -
+        deleteNum;
       logger.debug(`all \t| added \t| updated \t| deleted`);
       logger.debug(`${allNum} \t| ${addNum} \t| ${updateNum} \t| ${deleteNum}`);
     }
@@ -468,7 +438,7 @@ export class Manager<T extends Database> {
       }
     }
 
-    for (const key in list) {
+    for await (const key of Object.keys(list)) {
       const one = list[key];
       if (one.type === 'install.update' && one.payload.device) {
         this._updateDevice(
@@ -476,7 +446,7 @@ export class Manager<T extends Database> {
           one.payload.device as InstalledDevice
         );
       } else if (one.type === 'install.delete' && one.payload.device) {
-        this._deleteDevice(one.payload.device.id);
+        await this._deleteDevice(one.payload.device.id);
       } else if (one.type === 'install.create' && one.payload.device) {
         await this._addDevice(
           one.payload.device.id,
@@ -487,37 +457,27 @@ export class Manager<T extends Database> {
   }
 
   private async _addDevice(obnizId: string, device: InstalledDevice) {
-    if (this._allInstalls[obnizId]) {
-      // already exist
-      this._updateDevice(obnizId, device);
-      return;
-    }
-    const instance = await this.bestWorkerInstance(); // maybe throw
-    const managedInstall: ManagedInstall = {
-      instanceName: instance.name,
-      status: InstallStatus.Starting,
-      updatedMillisecond: Date.now(),
-      install: device,
-    };
-    this._allInstalls[obnizId] = managedInstall;
+    const createdInstall = await this._installStore.autoCreate(obnizId, device);
+    return createdInstall;
   }
 
   private async _updateDevice(obnizId: string, device: InstalledDevice) {
-    const managedInstall = this._allInstalls[obnizId];
-    if (!managedInstall) {
-      await this._addDevice(obnizId, device);
-      return;
+    const install = await this._installStore.get(obnizId);
+    if (!install) {
+      const createdInstall = await this._installStore.autoCreate(
+        obnizId,
+        device
+      );
+      return createdInstall;
     }
-    managedInstall.install = device;
+    const updatedInstall = await this._installStore.update(obnizId, {
+      install: device,
+    });
+    return updatedInstall;
   }
 
-  private _deleteDevice(obnizId: string) {
-    if (!this._allInstalls[obnizId]) {
-      // not exist
-      return;
-    }
-    this._allInstalls[obnizId].status = InstallStatus.Stopping;
-    delete this._allInstalls[obnizId];
+  private async _deleteDevice(obnizId: string) {
+    await this._installStore.remove(obnizId);
   }
 
   private async synchronize() {
@@ -525,8 +485,9 @@ export class Manager<T extends Database> {
     for (const instanceName in await this._workerStore.getAllWorkerInstances()) {
       installsByInstanceName[instanceName] = [];
     }
-    for (const id in this._allInstalls) {
-      const managedInstall: ManagedInstall = this._allInstalls[id];
+    const installs = await this._installStore.getAll();
+    for (const id in installs) {
+      const managedInstall: ManagedInstall = installs[id];
       const instanceName = managedInstall.instanceName;
       installsByInstanceName[instanceName].push(managedInstall.install);
     }
@@ -543,14 +504,6 @@ export class Manager<T extends Database> {
 
   private async _healthCheck() {
     const current = Date.now();
-    // each install
-    // for (const id in this._allInstalls) {
-    //   const managedInstall = this._allInstalls[id];
-    //   if (managedInstall.updatedMillisecond + 60 * 1000 < current) {
-    //     // over time.
-    //     this._onHealthCheckFailedInstall(managedInstall);
-    //   }
-    // }
     // Me
     if (this.adaptor instanceof RedisAdaptor) {
       // If adaptor is Redis

@@ -143,7 +143,6 @@ export class Slave<O extends IObniz> {
    * Let Master know worker is working.
    */
   protected async _reportToMaster(): Promise<void> {
-    const keys = Object.keys(this._workers);
     if (this._adaptor instanceof RedisAdaptor) {
       // If adaptor is Redis
       const redis = this._adaptor.getRedisInstance();
@@ -153,8 +152,10 @@ export class Slave<O extends IObniz> {
         'EX',
         20
       );
+    } else {
+      const keys = Object.keys(this._workers);
+      await this._adaptor.report(this._app._options.instanceName, keys);
     }
-    await this._adaptor.report(this._app._options.instanceName, keys);
   }
 
   public startSyncing(): void {

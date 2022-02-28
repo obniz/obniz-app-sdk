@@ -12,10 +12,48 @@ export interface ManagedInstall {
     updatedMillisecond: number;
 }
 export declare abstract class InstallStoreBase {
-    abstract getAllInstalls(): Promise<{
+    /**
+     * Get an install.
+     * @param id obnizId
+     */
+    abstract get(id: string): Promise<ManagedInstall | undefined>;
+    /**
+     * Get the Installs on a specific Worker.
+     */
+    abstract getByWorker(name: string): Promise<{
         [id: string]: ManagedInstall;
     }>;
-    abstract createInstall(id: string, install: ManagedInstall): Promise<ManagedInstall>;
-    abstract updateInstall(id: string, props: Partial<ManagedInstall>): Promise<ManagedInstall>;
-    abstract removeInstall(id: string): Promise<void>;
+    /**
+     * Get all the installs on the InstallStore.
+     */
+    abstract getAll(): Promise<{
+        [id: string]: ManagedInstall;
+    }>;
+    /**
+     * Automatically selects an optimal Slave and creates an Install.
+     * @param id obnizId
+     */
+    abstract autoCreate(id: string, device: InstalledDevice): Promise<ManagedInstall>;
+    /**
+     * Create an Install from the data.
+     * @param id obnizId
+     * @param install Install Data
+     */
+    abstract manualCreate(id: string, install: ManagedInstall): Promise<ManagedInstall>;
+    /**
+     * Update the Install data.
+     * @param id obnizId
+     * @param props Install Data
+     */
+    abstract update(id: string, props: Partial<ManagedInstall>): Promise<ManagedInstall>;
+    /**
+     * Automatically relocates the Install.
+     * @param id obnizId
+     */
+    abstract autoRelocate(id: string): Promise<ManagedInstall>;
+    /**
+     * Remove Install.
+     * @param id obnizId
+     */
+    abstract remove(id: string): Promise<void>;
 }

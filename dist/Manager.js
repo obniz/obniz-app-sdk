@@ -20,6 +20,8 @@ const Errors_1 = require("./Errors");
 const MemoryWorkerStore_1 = require("./worker_store/MemoryWorkerStore");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const RedisWorkerStore_1 = require("./worker_store/RedisWorkerStore");
+const RedisInstallStore_1 = require("./install_store/RedisInstallStore");
+const MemoryInstallStore_1 = require("./install_store/MemoryInstallStore");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -30,7 +32,8 @@ var InstallStatus;
 class Manager {
     constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
         this._syncing = false;
-        this._allInstalls = {};
+        // Note: moved to _installStore
+        // private _allInstalls: { [key: string]: ManagedInstall } = {};
         // Note: moved to _workerStore
         // private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
         this._keyRequestExecutes = {};
@@ -74,9 +77,12 @@ class Manager {
         };
         if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             this._workerStore = new RedisWorkerStore_1.RedisWorkerStore(this.adaptor);
+            this._installStore = new RedisInstallStore_1.RedisInstallStore(this.adaptor);
         }
         else {
-            this._workerStore = new MemoryWorkerStore_1.MemoryWorkerStore();
+            const workerStore = new MemoryWorkerStore_1.MemoryWorkerStore();
+            this._workerStore = workerStore;
+            this._installStore = new MemoryInstallStore_1.MemoryInstallStore(workerStore);
         }
     }
     start(option) {
@@ -116,34 +122,6 @@ class Manager {
         res.json({});
     }
     /**
-     * 空き状況から最適なWorkerを推測
-     */
-    async bestWorkerInstance() {
-        const installCounts = {};
-        const instances = await this._workerStore.getAllWorkerInstances();
-        for (const name in instances) {
-            installCounts[name] = 0;
-        }
-        for (const id in this._allInstalls) {
-            const managedInstall = this._allInstalls[id];
-            if (installCounts[managedInstall.instanceName] === undefined)
-                continue;
-            installCounts[managedInstall.instanceName] += 1;
-        }
-        let minNumber = 1000 * 1000;
-        let minInstance = null;
-        for (const key in installCounts) {
-            if (installCounts[key] < minNumber) {
-                minInstance = instances[key];
-                minNumber = installCounts[key];
-            }
-        }
-        if (!minInstance) {
-            throw new Error(`No Valid Instance`);
-        }
-        return minInstance;
-    }
-    /**
      * instanceId がidのWorkerが新たに参加した
      * @param id
      */
@@ -164,13 +142,9 @@ class Manager {
             throw new Error('Failed get diedWorker status');
         await this._workerStore.deleteWorkerInstance(instanceName);
         // Replacing missed instance workers.
-        for (const id in this._allInstalls) {
-            const managedInstall = this._allInstalls[id];
-            if (managedInstall.instanceName === diedWorker.name) {
-                const nextWorker = await this.bestWorkerInstance();
-                managedInstall.instanceName = nextWorker.name;
-                managedInstall.status = InstallStatus.Starting;
-            }
+        const missedInstalls = await this._installStore.getByWorker(diedWorker.name);
+        for (const install of Object.keys(missedInstalls)) {
+            await this._installStore.autoRelocate(install);
         }
         // synchronize
         this.synchronize()
@@ -187,7 +161,7 @@ class Manager {
         const worker = await this._workerStore.getWorkerInstance(instanceName);
         if (worker) {
             for (const existId of worker.installIds) {
-                const managedInstall = this._allInstalls[existId];
+                const managedInstall = await this._installStore.get(existId);
                 if (managedInstall) {
                     managedInstall.status = InstallStatus.Started;
                     managedInstall.updatedMillisecond = Date.now();
@@ -250,7 +224,7 @@ class Manager {
         return success;
     }
     async _checkAllInstalls() {
-        var e_1, _a;
+        var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
         const startedTime = Date.now();
         logger_1.logger.debug('API Sync Start');
         const installsApi = [];
@@ -270,24 +244,29 @@ class Manager {
         const mustAdds = [];
         const updated = [];
         const deleted = [];
-        for (const install of installsApi) {
-            let found = false;
-            for (const id in this._allInstalls) {
-                const oldInstall = this._allInstalls[id].install;
-                if (install.id === id) {
-                    if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
-                        // updated
-                        updated.push(install);
+        try {
+            for (var installsApi_1 = __asyncValues(installsApi), installsApi_1_1; installsApi_1_1 = await installsApi_1.next(), !installsApi_1_1.done;) {
+                const device = installsApi_1_1.value;
+                const install = await this._installStore.get(device.id);
+                if (!install) {
+                    mustAdds.push(device);
+                }
+                else {
+                    if (JSON.stringify(device) !== JSON.stringify(install.install)) {
+                        updated.push(device);
                     }
-                    found = true;
-                    break;
                 }
             }
-            if (!found) {
-                mustAdds.push(install);
-            }
         }
-        for (const id in this._allInstalls) {
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (installsApi_1_1 && !installsApi_1_1.done && (_a = installsApi_1.return)) await _a.call(installsApi_1);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        const installs = await this._installStore.getAll();
+        for (const id in installs) {
             let found = false;
             for (const install of installsApi) {
                 if (id === install.id) {
@@ -296,39 +275,58 @@ class Manager {
                 }
             }
             if (!found) {
-                deleted.push(this._allInstalls[id]);
+                deleted.push(installs[id]);
             }
         }
         if (mustAdds.length + updated.length + deleted.length > 0) {
-            const allNum = Object.keys(this._allInstalls).length +
+            const allNum = Object.keys(await this._installStore.getAll()).length +
                 mustAdds.length -
                 deleted.length;
             logger_1.logger.debug(`all \t| added \t| updated \t| deleted`);
             logger_1.logger.debug(`${allNum} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
         }
-        const updatePromises = [];
-        for (const install of updated) {
-            updatePromises.push(this._updateDevice(install.id, install));
+        try {
+            for (var updated_1 = __asyncValues(updated), updated_1_1; updated_1_1 = await updated_1.next(), !updated_1_1.done;) {
+                const updDevice = updated_1_1.value;
+                await this._updateDevice(updDevice.id, updDevice);
+            }
         }
-        await Promise.all(updatePromises);
-        for (const managedInstall of deleted) {
-            this._deleteDevice(managedInstall.install.id);
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        finally {
+            try {
+                if (updated_1_1 && !updated_1_1.done && (_b = updated_1.return)) await _b.call(updated_1);
+            }
+            finally { if (e_2) throw e_2.error; }
+        }
+        try {
+            for (var deleted_1 = __asyncValues(deleted), deleted_1_1; deleted_1_1 = await deleted_1.next(), !deleted_1_1.done;) {
+                const delInstall = deleted_1_1.value;
+                await this._deleteDevice(delInstall.install.id);
+            }
+        }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        finally {
+            try {
+                if (deleted_1_1 && !deleted_1_1.done && (_c = deleted_1.return)) await _c.call(deleted_1);
+            }
+            finally { if (e_3) throw e_3.error; }
         }
         try {
             for (var mustAdds_1 = __asyncValues(mustAdds), mustAdds_1_1; mustAdds_1_1 = await mustAdds_1.next(), !mustAdds_1_1.done;) {
-                const install = mustAdds_1_1.value;
-                await this._addDevice(install.id, install);
+                const addDevice = mustAdds_1_1.value;
+                await this._addDevice(addDevice.id, addDevice);
             }
         }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
-                if (mustAdds_1_1 && !mustAdds_1_1.done && (_a = mustAdds_1.return)) await _a.call(mustAdds_1);
+                if (mustAdds_1_1 && !mustAdds_1_1.done && (_d = mustAdds_1.return)) await _d.call(mustAdds_1);
             }
-            finally { if (e_1) throw e_1.error; }
+            finally { if (e_4) throw e_4.error; }
         }
     }
     async _checkDiffInstalls() {
+        var e_5, _a;
         const startedTime = Date.now();
         logger_1.logger.debug('API Diff Sync Start');
         const events = [];
@@ -348,7 +346,9 @@ class Manager {
                 .length;
             const deleteNum = events.filter((e) => e.type === 'install.delete')
                 .length;
-            const allNum = Object.keys(this._allInstalls).length + addNum - deleteNum;
+            const allNum = Object.keys(await this._installStore.getAll()).length +
+                addNum -
+                deleteNum;
             logger_1.logger.debug(`all \t| added \t| updated \t| deleted`);
             logger_1.logger.debug(`${allNum} \t| ${addNum} \t| ${updateNum} \t| ${deleteNum}`);
         }
@@ -359,57 +359,55 @@ class Manager {
                 list[one.payload.device.id] = one;
             }
         }
-        for (const key in list) {
-            const one = list[key];
-            if (one.type === 'install.update' && one.payload.device) {
-                this._updateDevice(one.payload.device.id, one.payload.device);
+        try {
+            for (var _b = __asyncValues(Object.keys(list)), _c; _c = await _b.next(), !_c.done;) {
+                const key = _c.value;
+                const one = list[key];
+                if (one.type === 'install.update' && one.payload.device) {
+                    this._updateDevice(one.payload.device.id, one.payload.device);
+                }
+                else if (one.type === 'install.delete' && one.payload.device) {
+                    await this._deleteDevice(one.payload.device.id);
+                }
+                else if (one.type === 'install.create' && one.payload.device) {
+                    await this._addDevice(one.payload.device.id, one.payload.device);
+                }
             }
-            else if (one.type === 'install.delete' && one.payload.device) {
-                this._deleteDevice(one.payload.device.id);
+        }
+        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
             }
-            else if (one.type === 'install.create' && one.payload.device) {
-                await this._addDevice(one.payload.device.id, one.payload.device);
-            }
+            finally { if (e_5) throw e_5.error; }
         }
     }
     async _addDevice(obnizId, device) {
-        if (this._allInstalls[obnizId]) {
-            // already exist
-            this._updateDevice(obnizId, device);
-            return;
-        }
-        const instance = await this.bestWorkerInstance(); // maybe throw
-        const managedInstall = {
-            instanceName: instance.name,
-            status: InstallStatus.Starting,
-            updatedMillisecond: Date.now(),
-            install: device,
-        };
-        this._allInstalls[obnizId] = managedInstall;
+        const createdInstall = await this._installStore.autoCreate(obnizId, device);
+        return createdInstall;
     }
     async _updateDevice(obnizId, device) {
-        const managedInstall = this._allInstalls[obnizId];
-        if (!managedInstall) {
-            await this._addDevice(obnizId, device);
-            return;
+        const install = await this._installStore.get(obnizId);
+        if (!install) {
+            const createdInstall = await this._installStore.autoCreate(obnizId, device);
+            return createdInstall;
         }
-        managedInstall.install = device;
+        const updatedInstall = await this._installStore.update(obnizId, {
+            install: device,
+        });
+        return updatedInstall;
     }
-    _deleteDevice(obnizId) {
-        if (!this._allInstalls[obnizId]) {
-            // not exist
-            return;
-        }
-        this._allInstalls[obnizId].status = InstallStatus.Stopping;
-        delete this._allInstalls[obnizId];
+    async _deleteDevice(obnizId) {
+        await this._installStore.remove(obnizId);
     }
     async synchronize() {
         const installsByInstanceName = {};
         for (const instanceName in await this._workerStore.getAllWorkerInstances()) {
             installsByInstanceName[instanceName] = [];
         }
-        for (const id in this._allInstalls) {
-            const managedInstall = this._allInstalls[id];
+        const installs = await this._installStore.getAll();
+        for (const id in installs) {
+            const managedInstall = installs[id];
             const instanceName = managedInstall.instanceName;
             installsByInstanceName[instanceName].push(managedInstall.install);
         }
@@ -420,14 +418,6 @@ class Manager {
     }
     async _healthCheck() {
         const current = Date.now();
-        // each install
-        // for (const id in this._allInstalls) {
-        //   const managedInstall = this._allInstalls[id];
-        //   if (managedInstall.updatedMillisecond + 60 * 1000 < current) {
-        //     // over time.
-        //     this._onHealthCheckFailedInstall(managedInstall);
-        //   }
-        // }
         // Me
         if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             // If adaptor is Redis

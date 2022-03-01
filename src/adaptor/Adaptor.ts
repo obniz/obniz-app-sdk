@@ -17,12 +17,21 @@ export interface ReportRequestMessage {
   action: 'reportRequest';
 }
 
-export interface SynchronizeRequestMessage {
+export type SynchronizeRequestType = 'attachList' | 'redisList';
+
+export type SynchronizeRequestMessage = {
   toMaster: false;
   instanceName: string;
   action: 'synchronize';
-  installs: InstalledDevice[];
-}
+} & (
+  | {
+      syncType: 'attachList';
+      installs: InstalledDevice[];
+    }
+  | {
+      syncType: 'redisList';
+    }
+);
 
 export interface KeyRequestMessage {
   toMaster: false;
@@ -66,7 +75,10 @@ export abstract class Adaptor {
     instanceName: string,
     results: { [key: string]: string }
   ) => Promise<void>;
-  public onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
+  public onSynchronize?: (
+    syncType: SynchronizeRequestType,
+    installs: InstalledDevice[]
+  ) => Promise<void>;
   public onReported?: (
     instanceName: string,
     installIds: string[]
@@ -107,7 +119,11 @@ export abstract class Adaptor {
   protected _onSlaveMessage(message: ToSlaveMessage): void {
     if (message.action === 'synchronize') {
       if (this.onSynchronize) {
-        this.onSynchronize(message.installs)
+        // FIXME
+        this.onSynchronize(
+          message.syncType,
+          message.syncType === 'attachList' ? message.installs : []
+        )
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -206,14 +222,26 @@ export abstract class Adaptor {
 
   async synchronize(
     instanceName: string,
-    installs: Installed_Device[]
+    syncType: SynchronizeRequestType,
+    installs: Installed_Device[] = []
   ): Promise<void> {
-    await this._send({
-      action: 'synchronize',
-      instanceName,
-      toMaster: false,
-      installs,
-    });
+    // FIXME
+    if (syncType === 'attachList') {
+      await this._send({
+        action: 'synchronize',
+        instanceName,
+        toMaster: false,
+        syncType,
+        installs,
+      });
+    } else {
+      await this._send({
+        action: 'synchronize',
+        instanceName,
+        toMaster: false,
+        syncType,
+      });
+    }
   }
 
   protected abstract _send(json: MessageBetweenInstance): Promise<void>;

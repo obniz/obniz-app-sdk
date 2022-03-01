@@ -22,6 +22,7 @@ const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
 const RedisWorkerStore_1 = require("./worker_store/RedisWorkerStore");
 const RedisInstallStore_1 = require("./install_store/RedisInstallStore");
 const MemoryInstallStore_1 = require("./install_store/MemoryInstallStore");
+const fast_equals_1 = require("fast-equals");
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -263,9 +264,8 @@ class Manager {
                     mustAdds.push(device);
                 }
                 else {
-                    if (JSON.stringify(device) !== JSON.stringify(install.install)) {
+                    if (!fast_equals_1.deepEqual(device, install.install))
                         updated.push(device);
-                    }
                 }
             }
         }
@@ -412,19 +412,50 @@ class Manager {
         await this._installStore.remove(obnizId);
     }
     async synchronize() {
+        var e_7, _a, e_8, _b;
         const installsByInstanceName = {};
-        for (const instanceName in await this._workerStore.getAllWorkerInstances()) {
-            installsByInstanceName[instanceName] = [];
+        const instances = await this._workerStore.getAllWorkerInstances();
+        const instanceKeys = Object.keys(instances);
+        if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
+            try {
+                for (var instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), !instanceKeys_1_1.done;) {
+                    const instanceName = instanceKeys_1_1.value;
+                    logger_1.logger.debug(`synchronize sent to ${instanceName} via Redis`);
+                    await this.adaptor.synchronize(instanceName, 'redisList');
+                }
+            }
+            catch (e_7_1) { e_7 = { error: e_7_1 }; }
+            finally {
+                try {
+                    if (instanceKeys_1_1 && !instanceKeys_1_1.done && (_a = instanceKeys_1.return)) await _a.call(instanceKeys_1);
+                }
+                finally { if (e_7) throw e_7.error; }
+            }
         }
-        const installs = await this._installStore.getAll();
-        for (const id in installs) {
-            const managedInstall = installs[id];
-            const instanceName = managedInstall.instanceName;
-            installsByInstanceName[instanceName].push(managedInstall.install);
-        }
-        for (const instanceName in installsByInstanceName) {
-            logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
-            await this.adaptor.synchronize(instanceName, installsByInstanceName[instanceName]);
+        else {
+            for (const instanceName in instances) {
+                installsByInstanceName[instanceName] = [];
+            }
+            const installs = await this._installStore.getAll();
+            for (const id in installs) {
+                const managedInstall = installs[id];
+                const instanceName = managedInstall.instanceName;
+                installsByInstanceName[instanceName].push(managedInstall.install);
+            }
+            try {
+                for (var instanceKeys_2 = __asyncValues(instanceKeys), instanceKeys_2_1; instanceKeys_2_1 = await instanceKeys_2.next(), !instanceKeys_2_1.done;) {
+                    const instanceName = instanceKeys_2_1.value;
+                    logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
+                    await this.adaptor.synchronize(instanceName, 'attachList', installsByInstanceName[instanceName]);
+                }
+            }
+            catch (e_8_1) { e_8 = { error: e_8_1 }; }
+            finally {
+                try {
+                    if (instanceKeys_2_1 && !instanceKeys_2_1.done && (_b = instanceKeys_2.return)) await _b.call(instanceKeys_2);
+                }
+                finally { if (e_8) throw e_8.error; }
+            }
         }
     }
     async _healthCheck() {

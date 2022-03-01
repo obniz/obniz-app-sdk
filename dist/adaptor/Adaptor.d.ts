@@ -10,12 +10,17 @@ export interface ReportRequestMessage {
     instanceName: string;
     action: 'reportRequest';
 }
-export interface SynchronizeRequestMessage {
+export declare type SynchronizeRequestType = 'attachList' | 'redisList';
+export declare type SynchronizeRequestMessage = {
     toMaster: false;
     instanceName: string;
     action: 'synchronize';
+} & ({
+    syncType: 'attachList';
     installs: InstalledDevice[];
-}
+} | {
+    syncType: 'redisList';
+});
 export interface KeyRequestMessage {
     toMaster: false;
     instanceName: string;
@@ -50,7 +55,7 @@ export declare abstract class Adaptor {
     onKeyRequestResponse?: (requestId: string, instanceName: string, results: {
         [key: string]: string;
     }) => Promise<void>;
-    onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
+    onSynchronize?: (syncType: SynchronizeRequestType, installs: InstalledDevice[]) => Promise<void>;
     onReported?: (instanceName: string, installIds: string[]) => Promise<void>;
     onRequestRequested?: (key: string) => Promise<{
         [key: string]: string;
@@ -66,6 +71,6 @@ export declare abstract class Adaptor {
     keyRequestResponse(requestId: string, instanceName: string, results: {
         [key: string]: string;
     }): Promise<void>;
-    synchronize(instanceName: string, installs: Installed_Device[]): Promise<void>;
+    synchronize(instanceName: string, syncType: SynchronizeRequestType, installs?: Installed_Device[]): Promise<void>;
     protected abstract _send(json: MessageBetweenInstance): Promise<void>;
 }

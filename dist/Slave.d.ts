@@ -1,5 +1,5 @@
 import { IObniz } from './Obniz.interface';
-import { Adaptor } from './adaptor/Adaptor';
+import { Adaptor, SynchronizeRequestType } from './adaptor/Adaptor';
 import { Worker } from './Worker';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { App } from './App';
@@ -15,11 +15,12 @@ export declare class Slave<O extends IObniz> {
     constructor(_adaptor: Adaptor, _instanceName: string, _app: App<O>);
     private bindAdaptorCallbacks;
     protected _keyRequestProcess(requestId: string, key: string): Promise<void>;
+    private _getInstallsFromRedis;
     /**
      * Receive Master Generated List and compare current apps.
      * @param installs
      */
-    protected _synchronize(installs: InstalledDevice[]): Promise<void>;
+    protected _synchronize(syncType: SynchronizeRequestType, installs: InstalledDevice[]): Promise<void>;
     protected _startOneWorker(install: InstalledDevice): Promise<void>;
     protected _startOrRestartOneWorker(install: InstalledDevice): Promise<void>;
     protected _stopOneWorker(installId: string): Promise<void>;

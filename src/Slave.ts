@@ -1,10 +1,11 @@
 import { IObniz } from './Obniz.interface';
-import { Adaptor } from './adaptor/Adaptor';
+import { Adaptor, SynchronizeRequestType } from './adaptor/Adaptor';
 import { Worker } from './Worker';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from './logger';
 import { App } from './App';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
+import { ManagedInstall } from './install_store/InstallStoreBase';
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
@@ -30,8 +31,11 @@ export class Slave<O extends IObniz> {
       return results;
     };
 
-    this._adaptor.onSynchronize = async (installs: InstalledDevice[]) => {
-      await this._synchronize(installs);
+    this._adaptor.onSynchronize = async (
+      syncType: SynchronizeRequestType,
+      installs: InstalledDevice[]
+    ) => {
+      await this._synchronize(syncType, installs);
     };
 
     this._adaptor.onReportRequest = async () => {
@@ -58,25 +62,57 @@ export class Slave<O extends IObniz> {
     );
   }
 
+  private async _getInstallsFromRedis(): Promise<{
+    [id: string]: InstalledDevice;
+  }> {
+    if (!(this._adaptor instanceof RedisAdaptor)) {
+      throw new Error(
+        'Cannot fetch installs from Redis because the instance is not connected to Redis.'
+      );
+    }
+    try {
+      const redis = this._adaptor.getRedisInstance();
+      const rawInstalls = await redis.hgetall(
+        `workers:${this._app._options.instanceName}`
+      );
+      const installs: { [id: string]: InstalledDevice } = {};
+      for (const obnizId in rawInstalls) {
+        installs[obnizId] = (JSON.parse(
+          rawInstalls[obnizId]
+        ) as ManagedInstall).install;
+      }
+      return installs;
+    } catch (e) {
+      logger.error(e);
+    }
+    return {};
+  }
+
   /**
    * Receive Master Generated List and compare current apps.
    * @param installs
    */
-  protected async _synchronize(installs: InstalledDevice[]): Promise<void> {
+  protected async _synchronize(
+    syncType: SynchronizeRequestType,
+    installs: InstalledDevice[]
+  ): Promise<void> {
+    if (this._syncing) {
+      return;
+    }
+    this._syncing = true;
+
+    const list =
+      syncType === 'attachList'
+        ? installs
+        : Object.values(await this._getInstallsFromRedis());
+
     try {
-      if (this._syncing) {
-        return;
-      }
-      this._syncing = true;
-
-      // logger.debug("receive synchronize message");
-
       const exists: any = {};
       for (const install_id in this._workers) {
         exists[install_id] = this._workers[install_id];
       }
 
-      for (const install of installs) {
+      for await (const install of list) {
         await this._startOrRestartOneWorker(install);
         if (exists[install.id]) {
           delete exists[install.id];
@@ -84,7 +120,7 @@ export class Slave<O extends IObniz> {
       }
 
       // Apps which not listed
-      for (const install_id in exists) {
+      for await (const install_id of Object.keys(exists)) {
         await this._stopOneWorker(install_id);
       }
     } catch (e) {

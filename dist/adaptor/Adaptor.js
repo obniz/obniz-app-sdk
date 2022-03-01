@@ -38,7 +38,8 @@ class Adaptor {
     _onSlaveMessage(message) {
         if (message.action === 'synchronize') {
             if (this.onSynchronize) {
-                this.onSynchronize(message.installs)
+                // FIXME
+                this.onSynchronize(message.syncType, message.syncType === 'attachList' ? message.installs : [])
                     .then(() => { })
                     .catch((e) => {
                     logger_1.logger.error(e);
@@ -126,13 +127,25 @@ class Adaptor {
             requestId,
         });
     }
-    async synchronize(instanceName, installs) {
-        await this._send({
-            action: 'synchronize',
-            instanceName,
-            toMaster: false,
-            installs,
-        });
+    async synchronize(instanceName, syncType, installs = []) {
+        // FIXME
+        if (syncType === 'attachList') {
+            await this._send({
+                action: 'synchronize',
+                instanceName,
+                toMaster: false,
+                syncType,
+                installs,
+            });
+        }
+        else {
+            await this._send({
+                action: 'synchronize',
+                instanceName,
+                toMaster: false,
+                syncType,
+            });
+        }
     }
 }
 exports.Adaptor = Adaptor;

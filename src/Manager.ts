@@ -28,6 +28,7 @@ import {
 } from './install_store/InstallStoreBase';
 import { RedisInstallStore } from './install_store/RedisInstallStore';
 import { MemoryInstallStore } from './install_store/MemoryInstallStore';
+import { deepEqual } from 'fast-equals';
 
 enum InstallStatus {
   Starting,
@@ -347,9 +348,7 @@ export class Manager<T extends Database> {
       if (!install) {
         mustAdds.push(device);
       } else {
-        if (JSON.stringify(device) !== JSON.stringify(install.install)) {
-          updated.push(device);
-        }
+        if (!deepEqual(device, install.install)) updated.push(device);
       }
     }
     const installs = await this._installStore.getAll();
@@ -483,23 +482,33 @@ export class Manager<T extends Database> {
 
   private async synchronize() {
     const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
-    for (const instanceName in await this._workerStore.getAllWorkerInstances()) {
-      installsByInstanceName[instanceName] = [];
-    }
-    const installs = await this._installStore.getAll();
-    for (const id in installs) {
-      const managedInstall: ManagedInstall = installs[id];
-      const instanceName = managedInstall.instanceName;
-      installsByInstanceName[instanceName].push(managedInstall.install);
-    }
-    for (const instanceName in installsByInstanceName) {
-      logger.debug(
-        `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
-      );
-      await this.adaptor.synchronize(
-        instanceName,
-        installsByInstanceName[instanceName]
-      );
+    const instances = await this._workerStore.getAllWorkerInstances();
+    const instanceKeys = Object.keys(instances);
+    if (this.adaptor instanceof RedisAdaptor) {
+      for await (const instanceName of instanceKeys) {
+        logger.debug(`synchronize sent to ${instanceName} via Redis`);
+        await this.adaptor.synchronize(instanceName, 'redisList');
+      }
+    } else {
+      for (const instanceName in instances) {
+        installsByInstanceName[instanceName] = [];
+      }
+      const installs = await this._installStore.getAll();
+      for (const id in installs) {
+        const managedInstall: ManagedInstall = installs[id];
+        const instanceName = managedInstall.instanceName;
+        installsByInstanceName[instanceName].push(managedInstall.install);
+      }
+      for await (const instanceName of instanceKeys) {
+        logger.debug(
+          `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
+        );
+        await this.adaptor.synchronize(
+          instanceName,
+          'attachList',
+          installsByInstanceName[instanceName]
+        );
+      }
     }
   }
 

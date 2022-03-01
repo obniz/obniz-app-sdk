@@ -1,43 +1,47 @@
 -- get slaves
-local workerKeys = redis.call('KEYS', 'workers:*')
-if #workerKeys == 0 then return {err='worker not found'} end
--- check exist
-local nowKey
-local expectNowKeys = {}
-for i = 1 , #workerKeys do
+local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
+local assignedWorkerKeys = redis.call('KEYS', 'workers:*')
+if #runningWorkerKeys == 0 then return {err='NO_ACCEPTABLE_WORKER'} end
+if #runningWorkerKeys == 1 then return {err='NO_OTHER_ACCEPTABLE_WORKER'} end
+
+-- check obnizId exist
+local nowWorkerName
+for i = 1 , #assignedWorkerKeys do
   -- note: this will not work on redis cluster
-  local exist = redis.call('HEXISTS', workerKeys[i], ARGV[1])
+  local exist = redis.call('HEXISTS', assignedWorkerKeys[i], ARGV[1])
   if exist == 1 then
-    nowKey = workerKeys[i]
-  else
-    table.insert(expectNowKeys, workerKeys[i])
+    nowWorkerName = string.match(assignedWorkerKeys[i], "workers:(.+)")
+    break
   end
+  -- else
+    -- table.insert(expectNowKeys, assignedWorkerKeys[i])
 end
-if nowKey == nil then return {err='not installed'} end
-if #expectNowKeys == 0 then return {err='no other available instances'} end
--- get counts and check min expect
-local minKey = expectNowKeys[1]
+if nowWorkerName == nil then return {err='NOT_INSTALLED'} end
+
+-- get a less busy worker expect nowWorkerName
+local minWorkerName
 local minCount
-for i = 1 , #expectNowKeys do
-  local count = redis.call('HLEN', expectNowKeys[i])
-  if minCount == nil then
-    minCount = count
-  end
-  if minCount >= count then
-    minKey = expectNowKeys[i]
-    minCount = count
+for i = 1 , #runningWorkerKeys do
+  local workerName = string.match(runningWorkerKeys[i], "slave:(.+):heartbeat")
+  -- expect nowWorkerName
+  if not(workerName == nowWorkerName) then
+    local count = redis.call('HLEN', 'workers:'..workerName)
+    if minCount == nil or minCount >= count then
+      minWorkerName = workerName
+      minCount = count
+    end
   end
 end
+
 -- add
-local instName = string.match(minKey, "workers:(.+)")
-local nowObj = cjson.decode(redis.call('HGET', nowKey, ARGV[1]))
+local nowObj = cjson.decode(redis.call('HGET', 'workers:'..nowWorkerName, ARGV[1]))
 local newObj = nowObj
 local timeres = redis.call('TIME')
 local timestamp = timeres[1]
-newObj['instanceName'] = instName
+newObj['instanceName'] = minWorkerName
 newObj['updatedMillisecond'] = timestamp
 local json = cjson.encode(newObj)
-local setres = redis.call('HSET', minKey, ARGV[1], json)
-local result = redis.call('HGET', minKey, ARGV[1])
-local delres = redis.call('HDEL', nowKey, ARGV[1])
+local setres = redis.call('HSET', 'workers:'..minWorkerName, ARGV[1], json)
+local result = redis.call('HGET', 'workers:'..minWorkerName, ARGV[1])
+local delres = redis.call('HDEL', 'workers:'..nowWorkerName, ARGV[1])
 return { result }

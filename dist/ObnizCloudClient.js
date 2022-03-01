@@ -75,4 +75,4 @@ class ObnizCloudClient {
 }
 exports.ObnizCloudClient = ObnizCloudClient;
 exports.obnizCloudClientInstance = new ObnizCloudClient();
-//# sourceMappingURL=obnizCloudClient.js.map
+//# sourceMappingURL=ObnizCloudClient.js.map

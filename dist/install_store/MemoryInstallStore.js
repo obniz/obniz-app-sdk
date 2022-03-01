@@ -22,7 +22,7 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
     getAll() {
         return new Promise((r) => r(this._installs));
     }
-    async getBestWorkerInstance() {
+    async getBestWorkerInstance(exceptInstanceName = []) {
         const installCounts = {};
         const instances = await this._workerStore.getAllWorkerInstances();
         for (const name in instances) {
@@ -37,18 +37,19 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
         let minNumber = 1000 * 1000;
         let minInstance = null;
         for (const key in installCounts) {
+            if (exceptInstanceName.includes(key))
+                continue;
             if (installCounts[key] < minNumber) {
                 minInstance = instances[key];
                 minNumber = installCounts[key];
             }
         }
-        if (!minInstance) {
-            throw new Error(`No Valid Instance`);
-        }
         return minInstance;
     }
     async autoCreate(id, device) {
         const worker = await this.getBestWorkerInstance();
+        if (!worker)
+            throw new Error('NO_AVAILABLE_WORKER');
         return this.manualCreate(id, {
             instanceName: worker.name,
             install: device,
@@ -61,7 +62,12 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
         return new Promise((r) => r(this._installs[id]));
     }
     async autoRelocate(id) {
-        const worker = await this.getBestWorkerInstance();
+        const nowInstall = await this.get(id);
+        if (!nowInstall)
+            throw new Error('INSTALL_NOT_FOUND');
+        const worker = await this.getBestWorkerInstance([nowInstall.instanceName]);
+        if (!worker)
+            throw new Error('NO_AVAILABLE_WORKER');
         return this.update(id, {
             instanceName: worker.name,
             status: InstallStoreBase_1.InstallStatus.Starting,

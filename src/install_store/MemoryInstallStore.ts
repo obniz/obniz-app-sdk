@@ -16,7 +16,7 @@ export class MemoryInstallStore extends InstallStoreBase {
     this._workerStore = store;
   }
 
-  public get(id: string): Promise<ManagedInstall> {
+  public get(id: string): Promise<ManagedInstall | undefined> {
     return new Promise((r) => r(this._installs[id]));
   }
 
@@ -32,7 +32,9 @@ export class MemoryInstallStore extends InstallStoreBase {
     return new Promise((r) => r(this._installs));
   }
 
-  private async getBestWorkerInstance(): Promise<WorkerInstance> {
+  private async getBestWorkerInstance(
+    exceptInstanceName: string[] = []
+  ): Promise<WorkerInstance | null> {
     const installCounts: any = {};
     const instances = await this._workerStore.getAllWorkerInstances();
     for (const name in instances) {
@@ -46,13 +48,11 @@ export class MemoryInstallStore extends InstallStoreBase {
     let minNumber = 1000 * 1000;
     let minInstance: WorkerInstance | null = null;
     for (const key in installCounts) {
+      if (exceptInstanceName.includes(key)) continue;
       if (installCounts[key] < minNumber) {
         minInstance = instances[key];
         minNumber = installCounts[key];
       }
-    }
-    if (!minInstance) {
-      throw new Error(`No Valid Instance`);
     }
     return minInstance;
   }
@@ -62,6 +62,7 @@ export class MemoryInstallStore extends InstallStoreBase {
     device: InstalledDevice
   ): Promise<ManagedInstall> {
     const worker = await this.getBestWorkerInstance();
+    if (!worker) throw new Error('NO_AVAILABLE_WORKER');
     return this.manualCreate(id, {
       instanceName: worker.name,
       install: device,
@@ -79,7 +80,10 @@ export class MemoryInstallStore extends InstallStoreBase {
   }
 
   public async autoRelocate(id: string): Promise<ManagedInstall> {
-    const worker = await this.getBestWorkerInstance();
+    const nowInstall = await this.get(id);
+    if (!nowInstall) throw new Error('INSTALL_NOT_FOUND');
+    const worker = await this.getBestWorkerInstance([nowInstall.instanceName]);
+    if (!worker) throw new Error('NO_AVAILABLE_WORKER');
     return this.update(id, {
       instanceName: worker.name,
       status: InstallStatus.Starting,

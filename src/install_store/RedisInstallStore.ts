@@ -3,35 +3,70 @@ import { RedisAdaptor } from '../adaptor/RedisAdaptor';
 import { logger } from '../logger';
 import { InstallStoreBase, ManagedInstall } from './InstallStoreBase';
 
-const AutoCreateLuaScript = `-- get slaves
-local workerKeys = redis.call('KEYS', 'workers:*')
-if #workerKeys == 0 then return {err='worker not found'} end
--- check exist
-for i = 1 , #workerKeys do
-  -- note: this will not work on redis cluster
-  local exist = redis.call('HEXISTS', workerKeys[i], KEYS[1])
-  if exist == 1 then return {err='already installed'} end
+const AutoCreateLuaScript = `local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
+local assignedWorkerKeys = redis.call('KEYS', 'workers:*')
+if #runningWorkerKeys == 0 then return {err='NO_ACCEPTABLE_WORKER'} end
+for i = 1 , #assignedWorkerKeys do
+  local exist = redis.call('HEXISTS', assignedWorkerKeys[i], KEYS[1])
+  if exist == 1 then return {err='ALREADY_INSTALLED'} end
 end
--- get counts and check min
-local minKey = workerKeys[1]
+local minWorkerName
 local minCount
-for i = 1 , #workerKeys do
-  local count = redis.call('HLEN', workerKeys[i])
-  if minCount == nil then
-    minCount = count
-  end
-  if minCount >= count then
-    minKey = workerKeys[i]
+for i = 1 , #runningWorkerKeys do
+  local workerName = string.match(runningWorkerKeys[i], "slave:(.+):heartbeat")
+  local count = redis.call('HLEN', 'workers:'..workerName)
+  if minCount == nil or minCount >= count then
+    minWorkerName = workerName
     minCount = count
   end
 end
--- add
-local instName = string.match(minKey, "workers:(.+)")
 local obj = cjson.decode(ARGV[1])
-obj['instanceName'] = instName
+local timeres = redis.call('TIME')
+local timestamp = timeres[1]
+obj['status'] = 0
+obj['instanceName'] = minWorkerName
+obj['updatedMillisecond'] = timestamp
 local json = cjson.encode(obj)
-local setres = redis.call('HSET', minKey, KEYS[1], json)
-local result = redis.call('HGET', minKey, KEYS[1])
+local setres = redis.call('HSET', 'workers:'..minWorkerName, KEYS[1], json)
+local result = redis.call('HGET', 'workers:'..minWorkerName, KEYS[1])
+return { result }`;
+
+const AutoRelocateLuaScript = `local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
+local assignedWorkerKeys = redis.call('KEYS', 'workers:*')
+if #runningWorkerKeys == 0 then return {err='NO_ACCEPTABLE_WORKER'} end
+local nowWorkerName
+for i = 1 , #assignedWorkerKeys do
+  local exist = redis.call('HEXISTS', assignedWorkerKeys[i], ARGV[1])
+  if exist == 1 then
+    nowWorkerName = string.match(assignedWorkerKeys[i], "workers:(.+)")
+    break
+  end
+end
+if nowWorkerName == nil then return {err='NOT_INSTALLED'} end
+local minWorkerName
+local minCount
+for i = 1 , #runningWorkerKeys do
+  local workerName = string.match(runningWorkerKeys[i], "slave:(.+):heartbeat")
+  if not(workerName == nowWorkerName) then
+    local count = redis.call('HLEN', 'workers:'..workerName)
+    if minCount == nil or minCount >= count then
+      minWorkerName = workerName
+      minCount = count
+    end
+  end
+end
+if minWorkerName == nil then return {err='NO_OTHER_ACCEPTABLE_WORKER'} end
+local nowObj = cjson.decode(redis.call('HGET', 'workers:'..nowWorkerName, ARGV[1]))
+local newObj = nowObj
+local timeres = redis.call('TIME')
+local timestamp = timeres[1]
+newObj['status'] = 0
+newObj['instanceName'] = minWorkerName
+newObj['updatedMillisecond'] = timestamp
+local json = cjson.encode(newObj)
+local setres = redis.call('HSET', 'workers:'..minWorkerName, ARGV[1], json)
+local result = redis.call('HGET', 'workers:'..minWorkerName, ARGV[1])
+local delres = redis.call('HDEL', 'workers:'..nowWorkerName, ARGV[1])
 return { result }`;
 
 export class RedisInstallStore extends InstallStoreBase {
@@ -49,7 +84,7 @@ export class RedisInstallStore extends InstallStoreBase {
     let install: ManagedInstall | undefined;
     for await (const key of workerKeys) {
       // check keys exist
-      const ins = await redis.hget(`workers:${key}`, id);
+      const ins = await redis.hget(key, id);
       if (ins) install = JSON.parse(ins) as ManagedInstall;
     }
     return install;
@@ -59,7 +94,7 @@ export class RedisInstallStore extends InstallStoreBase {
     name: string
   ): Promise<{ [id: string]: ManagedInstall }> {
     const redis = this._redisAdaptor.getRedisInstance();
-    const rawInstalls = await redis.hgetall(`worker:${name}`);
+    const rawInstalls = await redis.hgetall(`workers:${name}`);
     const installs: { [id: string]: ManagedInstall } = {};
     for (const obnizId in rawInstalls) {
       installs[obnizId] = JSON.parse(rawInstalls[obnizId]) as ManagedInstall;
@@ -73,7 +108,14 @@ export class RedisInstallStore extends InstallStoreBase {
     const workerKeys = await redis.keys('workers:*');
     const installs: { [id: string]: ManagedInstall } = {};
     for await (const key of workerKeys) {
-      const workers = await this.getByWorker(key);
+      const workerNameMatch = key.match(/workers:(?<name>.+)/);
+      if (
+        workerNameMatch === null ||
+        workerNameMatch.groups?.name === undefined
+      )
+        continue;
+      const workerName = workerNameMatch.groups.name;
+      const workers = await this.getByWorker(workerName);
       Object.assign(installs, workers);
     }
     return installs;
@@ -84,16 +126,14 @@ export class RedisInstallStore extends InstallStoreBase {
     device: Installed_Device
   ): Promise<ManagedInstall> {
     const redis = this._redisAdaptor.getRedisInstance();
+    // TODO: error handling
     const res = await redis.eval(
       AutoCreateLuaScript,
       1,
       id,
       JSON.stringify({ install: device })
     );
-    console.log(res);
-    const data = await this.get('id');
-    if (!data) throw new Error('unexpected');
-    return data;
+    return JSON.parse(res) as ManagedInstall;
   }
 
   public async manualCreate(
@@ -118,7 +158,9 @@ export class RedisInstallStore extends InstallStoreBase {
 
   public async autoRelocate(id: string): Promise<ManagedInstall> {
     const redis = this._redisAdaptor.getRedisInstance();
-    throw new Error('not implemented');
+    // TODO: error handling
+    const res = await redis.eval(AutoRelocateLuaScript, 0, id);
+    return JSON.parse(res) as ManagedInstall;
   }
 
   public async update(
@@ -146,10 +188,13 @@ export class RedisInstallStore extends InstallStoreBase {
         id,
         JSON.stringify(newInstall)
       );
-      if (res === 'OK') {
+      // Note: HSET should be return number
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      if (res === 0) {
         return newInstall;
       }
-      throw new Error(`failed update: ${id}`);
+      throw new Error(`failed update: ${id} operation returned ${res}`);
     }
   }
 

@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Manager = void 0;
 const logger_1 = require("./logger");
-const obnizCloudClient_1 = require("./obnizCloudClient");
+const ObnizCloudClient_1 = require("./ObnizCloudClient");
 const express_1 = __importDefault(require("express"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 const tools_1 = require("./tools");
@@ -135,17 +135,28 @@ class Manager {
      * @param id
      */
     async onInstanceMissed(instanceName) {
+        var e_1, _a;
         logger_1.logger.info(`worker lost ${instanceName}`);
         // delete immediately
         const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
         if (!diedWorker)
             throw new Error('Failed get diedWorker status');
-        await this._workerStore.deleteWorkerInstance(instanceName);
         // Replacing missed instance workers.
         const missedInstalls = await this._installStore.getByWorker(diedWorker.name);
-        for (const install of Object.keys(missedInstalls)) {
-            await this._installStore.autoRelocate(install);
+        try {
+            for (var _b = __asyncValues(Object.keys(missedInstalls)), _c; _c = await _b.next(), !_c.done;) {
+                const install = _c.value;
+                await this._installStore.autoRelocate(install);
+            }
         }
+        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        finally {
+            try {
+                if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
+            }
+            finally { if (e_1) throw e_1.error; }
+        }
+        await this._workerStore.deleteWorkerInstance(instanceName);
         // synchronize
         this.synchronize()
             .then()
@@ -224,14 +235,14 @@ class Manager {
         return success;
     }
     async _checkAllInstalls() {
-        var e_1, _a, e_2, _b, e_3, _c, e_4, _d;
+        var e_2, _a, e_3, _b, e_4, _c, e_5, _d;
         const startedTime = Date.now();
         logger_1.logger.debug('API Sync Start');
         const installsApi = [];
         try {
             // set current id before getting data
-            this._currentAppEventsSequenceNo = await obnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo(this._appToken, this._obnizSdkOption);
-            installsApi.push(...(await obnizCloudClient_1.obnizCloudClientInstance.getListFromObnizCloud(this._appToken, this._obnizSdkOption)));
+            this._currentAppEventsSequenceNo = await ObnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo(this._appToken, this._obnizSdkOption);
+            installsApi.push(...(await ObnizCloudClient_1.obnizCloudClientInstance.getListFromObnizCloud(this._appToken, this._obnizSdkOption)));
         }
         catch (e) {
             console.error(e);
@@ -258,12 +269,12 @@ class Manager {
                 }
             }
         }
-        catch (e_1_1) { e_1 = { error: e_1_1 }; }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
         finally {
             try {
                 if (installsApi_1_1 && !installsApi_1_1.done && (_a = installsApi_1.return)) await _a.call(installsApi_1);
             }
-            finally { if (e_1) throw e_1.error; }
+            finally { if (e_2) throw e_2.error; }
         }
         const installs = await this._installStore.getAll();
         for (const id in installs) {
@@ -291,12 +302,12 @@ class Manager {
                 await this._updateDevice(updDevice.id, updDevice);
             }
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
                 if (updated_1_1 && !updated_1_1.done && (_b = updated_1.return)) await _b.call(updated_1);
             }
-            finally { if (e_2) throw e_2.error; }
+            finally { if (e_3) throw e_3.error; }
         }
         try {
             for (var deleted_1 = __asyncValues(deleted), deleted_1_1; deleted_1_1 = await deleted_1.next(), !deleted_1_1.done;) {
@@ -304,12 +315,12 @@ class Manager {
                 await this._deleteDevice(delInstall.install.id);
             }
         }
-        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
                 if (deleted_1_1 && !deleted_1_1.done && (_c = deleted_1.return)) await _c.call(deleted_1);
             }
-            finally { if (e_3) throw e_3.error; }
+            finally { if (e_4) throw e_4.error; }
         }
         try {
             for (var mustAdds_1 = __asyncValues(mustAdds), mustAdds_1_1; mustAdds_1_1 = await mustAdds_1.next(), !mustAdds_1_1.done;) {
@@ -317,21 +328,21 @@ class Manager {
                 await this._addDevice(addDevice.id, addDevice);
             }
         }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
+        catch (e_5_1) { e_5 = { error: e_5_1 }; }
         finally {
             try {
                 if (mustAdds_1_1 && !mustAdds_1_1.done && (_d = mustAdds_1.return)) await _d.call(mustAdds_1);
             }
-            finally { if (e_4) throw e_4.error; }
+            finally { if (e_5) throw e_5.error; }
         }
     }
     async _checkDiffInstalls() {
-        var e_5, _a;
+        var e_6, _a;
         const startedTime = Date.now();
         logger_1.logger.debug('API Diff Sync Start');
         const events = [];
         try {
-            const { maxId, appEvents, } = await obnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud(this._appToken, this._obnizSdkOption, this._currentAppEventsSequenceNo);
+            const { maxId, appEvents, } = await ObnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud(this._appToken, this._obnizSdkOption, this._currentAppEventsSequenceNo);
             events.push(...appEvents);
             this._currentAppEventsSequenceNo = maxId;
         }
@@ -374,12 +385,12 @@ class Manager {
                 }
             }
         }
-        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+        catch (e_6_1) { e_6 = { error: e_6_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
             }
-            finally { if (e_5) throw e_5.error; }
+            finally { if (e_6) throw e_6.error; }
         }
     }
     async _addDevice(obnizId, device) {

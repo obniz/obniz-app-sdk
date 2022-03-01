@@ -1,5 +1,5 @@
 import { logger } from './logger';
-import { obnizCloudClientInstance, AppEvent } from './obnizCloudClient';
+import { obnizCloudClientInstance, AppEvent } from './ObnizCloudClient';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
@@ -219,15 +219,16 @@ export class Manager<T extends Database> {
     // delete immediately
     const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
     if (!diedWorker) throw new Error('Failed get diedWorker status');
-    await this._workerStore.deleteWorkerInstance(instanceName);
 
     // Replacing missed instance workers.
     const missedInstalls = await this._installStore.getByWorker(
       diedWorker.name
     );
-    for (const install of Object.keys(missedInstalls)) {
+    for await (const install of Object.keys(missedInstalls)) {
       await this._installStore.autoRelocate(install);
     }
+
+    await this._workerStore.deleteWorkerInstance(instanceName);
 
     // synchronize
     this.synchronize()

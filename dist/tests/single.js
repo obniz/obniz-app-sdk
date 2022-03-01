@@ -7,7 +7,7 @@ const mocha_1 = require("mocha");
 const chai_1 = require("chai");
 const sinon_1 = __importDefault(require("sinon"));
 const index_1 = require("../index");
-const obnizCloudClient_1 = require("../obnizCloudClient");
+const ObnizCloudClient_1 = require("../ObnizCloudClient");
 const tools_1 = require("./../tools");
 const DummyObniz_1 = require("./util/DummyObniz");
 const Device_1 = require("./util/Device");
@@ -232,16 +232,16 @@ mocha_1.describe('single', () => {
 function obnizApiStub() {
     const getListFromObnizCloudStub = sinon_1.default.stub();
     getListFromObnizCloudStub.returns([Device_1.deviceA, Device_1.deviceB]);
-    obnizCloudClient_1.obnizCloudClientInstance.getListFromObnizCloud = getListFromObnizCloudStub;
+    ObnizCloudClient_1.obnizCloudClientInstance.getListFromObnizCloud = getListFromObnizCloudStub;
     const getDiffListFromObnizCloudStub = sinon_1.default.stub();
     getDiffListFromObnizCloudStub.returns({
         appEvents: AppEvent_1.appEvnetSamples,
         maxId: 4,
     });
-    obnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
+    ObnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
     const getCurrentEventNoStub = sinon_1.default.stub();
     getCurrentEventNoStub.returns(0);
-    obnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo = getCurrentEventNoStub;
+    ObnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo = getCurrentEventNoStub;
     return {
         getListFromObnizCloudStub,
         getDiffListFromObnizCloudStub,

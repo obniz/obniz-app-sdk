@@ -1,4 +1,4 @@
-import { AppEvent } from '../../obnizCloudClient';
+import { AppEvent } from '../../ObnizCloudClient';
 export declare const appEvnetSamples: AppEvent[];
 export declare const appEventAddSamples: AppEvent[];
 export declare const appEventDeleteSamples: AppEvent[];

@@ -5,7 +5,7 @@ export declare class MemoryInstallStore extends InstallStoreBase {
     private _workerStore;
     private _installs;
     constructor(store: MemoryWorkerStore);
-    get(id: string): Promise<ManagedInstall>;
+    get(id: string): Promise<ManagedInstall | undefined>;
     getByWorker(name: string): Promise<{
         [id: string]: ManagedInstall;
     }>;

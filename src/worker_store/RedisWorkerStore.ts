@@ -19,12 +19,11 @@ export class RedisWorkerStore extends WorkerStoreBase {
   ): Promise<WorkerInstance | undefined> {
     const redis = this._redisAdaptor.getRedisInstance();
     const heartbeat = await redis.get(`slave:${instanceName}:heartbeat`);
-    const installIdsJson = await redis.get(`slave:${instanceName}:install-ids`);
-    if (heartbeat === null && installIdsJson === null) return undefined;
+    const installIds = await redis.hkeys(`workers:${instanceName}`);
+    if (heartbeat === null && installIds === null) return undefined;
     return {
       name: instanceName,
-      installIds:
-        installIdsJson === null ? [] : (JSON.parse(installIdsJson) as string[]),
+      installIds: installIds ?? [],
       updatedMillisecond: heartbeat === null ? Number(heartbeat) : 1,
     };
   }
@@ -34,40 +33,30 @@ export class RedisWorkerStore extends WorkerStoreBase {
   }> {
     const redis = this._redisAdaptor.getRedisInstance();
     // FIXME: Using keys
-    const keys = await redis.keys('slave:*');
+    const workingKeys = await redis.keys('slave:*:heartbeat');
+    const assignedKeys = await redis.keys('workers:*');
     const instancePartials: {
       [instanceName: string]: Partial<WorkerInstance>;
     } = {};
-    for await (const key of keys) {
-      const match = key.match(/slave:(?<name>.*):(?<type>.*)/);
-      if (
-        match === null ||
-        match.groups?.name === undefined ||
-        match.groups?.type === undefined
-      ) {
-        continue;
-      }
-      const instanceName = match.groups.name;
-      const type = match.groups.type;
-
-      if (instancePartials[instanceName] === undefined)
-        instancePartials[instanceName] = {};
-
-      if (type === 'heartbeat') {
-        const heartbeat = await redis.get(`slave:${instanceName}:heartbeat`);
-        if (heartbeat === null) continue;
-        instancePartials[instanceName].updatedMillisecond = Number(heartbeat);
-      } else if (type === 'install-ids') {
-        const installIdsJson = await redis.get(
-          `slave:${instanceName}:install-ids`
-        );
-        if (installIdsJson === null) continue;
-        instancePartials[instanceName].installIds = JSON.parse(
-          installIdsJson
-        ) as string[];
-      } else {
-        continue;
-      }
+    for await (const workingKey of workingKeys) {
+      const match = workingKey.match(/slave:(?<name>.+):heartbeat/);
+      if (match === null || match.groups?.name === undefined) continue;
+      const workerName = match.groups.name;
+      if (instancePartials[workerName] === undefined)
+        instancePartials[workerName] = {};
+      const heartbeat = await redis.get(`slave:${workerName}:heartbeat`);
+      if (heartbeat === null) continue;
+      instancePartials[workerName].updatedMillisecond = Number(heartbeat);
+    }
+    for await (const assignKey of assignedKeys) {
+      const match = assignKey.match(/workers:(?<name>.+)/);
+      if (match === null || match.groups?.name === undefined) continue;
+      const workerName = match.groups.name;
+      if (instancePartials[workerName] === undefined)
+        instancePartials[workerName] = {};
+      instancePartials[workerName].installIds = await redis.hkeys(
+        `workers:${workerName}`
+      );
     }
     const instances: {
       [instanceName: string]: WorkerInstance;
@@ -87,16 +76,9 @@ export class RedisWorkerStore extends WorkerStoreBase {
     props: WorkerProperties
   ): Promise<WorkerInstance> {
     const redis = this._redisAdaptor.getRedisInstance();
-    // TODO: 既にある場合はリセット
     // ハートビートがあるか確認
     const heartbeat = await redis.get(`slave:${instanceName}:heartbeat`);
     if (!heartbeat) throw new Error('Instance not found');
-    const res = await redis.set(
-      `slave:${instanceName}:install-ids`,
-      JSON.stringify(props.installIds)
-    );
-    if (res !== 'OK') throw new Error('Failed to add worker data.');
-    logger.info(`new worker ${instanceName} added`);
     return {
       name: instanceName,
       installIds: props.installIds,
@@ -139,15 +121,15 @@ export class RedisWorkerStore extends WorkerStoreBase {
     // installIds を削除
     const redis = this._redisAdaptor.getRedisInstance();
     const res1 = await redis.del(`slave:${instanceName}:heartbeat`);
-    const res2 = await redis.del(`slave:${instanceName}:install-ids`);
+    const res2 = await redis.del(`workers:${instanceName}`);
     if (res1 > 1) {
       logger.warn(
         `Invalid data detected on ${instanceName}: heartbeat delete operation returned ${res1}`
       );
     }
-    if (res2 !== 1) {
+    if (res2 > 1) {
       logger.warn(
-        `Invalid data detected on ${instanceName}: ids delete operation returned ${res2}`
+        `Invalid data detected on ${instanceName}: workers delete operation returned ${res2}`
       );
     }
   }

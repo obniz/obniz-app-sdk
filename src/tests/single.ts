@@ -2,7 +2,7 @@ import { describe, it, beforeEach } from 'mocha';
 import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
-import { obnizCloudClientInstance } from '../obnizCloudClient';
+import { obnizCloudClientInstance } from '../ObnizCloudClient';
 import { wait } from './../tools';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';

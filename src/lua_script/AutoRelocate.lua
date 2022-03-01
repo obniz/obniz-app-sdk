@@ -18,11 +18,8 @@ if nowWorkerName == nil then return {err='NOT_INSTALLED'} end
 
 -- if force = 'false' and nowWorker running, skip
 if ARGV[1] == 'false' then
-  local nowWorkerHeartbeat = redis.call('GET', 'slave:'..nowWorkerName..':heartbeat')
-  redis.log(redis.LOG_WARNING, 'slave:'..nowWorkerName..':heartbeat')
-  redis.log(redis.LOG_WARNING, nowWorkerHeartbeat)
-  redis.log(redis.LOG_WARNING, nowWorkerHeartbeat == nil and 'true' or 'false')
-  if not(nowWorkerHeartbeat == nil) then return {err='NO_NEED_TO_RELOCATE'} end
+  local isNowWorkerRunning = redis.call('EXISTS', 'slave:'..nowWorkerName..':heartbeat')
+  if not(isNowWorkerRunning == 0) then return {err='NO_NEED_TO_RELOCATE'} end
 end
 
 -- get a less busy worker expect nowWorkerName

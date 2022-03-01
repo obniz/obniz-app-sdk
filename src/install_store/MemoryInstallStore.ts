@@ -60,7 +60,7 @@ export class MemoryInstallStore extends InstallStoreBase {
   public async autoCreate(
     id: string,
     device: InstalledDevice
-  ): Promise<ManagedInstall> {
+  ): Promise<ManagedInstall | null> {
     const worker = await this.getBestWorkerInstance();
     if (!worker) throw new Error('NO_AVAILABLE_WORKER');
     return this.manualCreate(id, {
@@ -79,7 +79,10 @@ export class MemoryInstallStore extends InstallStoreBase {
     return new Promise((r) => r(this._installs[id]));
   }
 
-  public async autoRelocate(id: string): Promise<ManagedInstall> {
+  public async autoRelocate(
+    id: string,
+    force = false
+  ): Promise<ManagedInstall | null> {
     const nowInstall = await this.get(id);
     if (!nowInstall) throw new Error('INSTALL_NOT_FOUND');
     const worker = await this.getBestWorkerInstance([nowInstall.instanceName]);

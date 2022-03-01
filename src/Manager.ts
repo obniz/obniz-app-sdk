@@ -226,7 +226,8 @@ export class Manager<T extends Database> {
       diedWorker.name
     );
     for await (const install of Object.keys(missedInstalls)) {
-      await this._installStore.autoRelocate(install);
+      const instance = await this._installStore.autoRelocate(install, false);
+      if (!instance) logger.info(`${install} already moved available worker.`);
     }
 
     await this._workerStore.deleteWorkerInstance(instanceName);

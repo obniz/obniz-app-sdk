@@ -33,7 +33,7 @@ export declare abstract class InstallStoreBase {
      * Automatically selects an optimal Slave and creates an Install.
      * @param id obnizId
      */
-    abstract autoCreate(id: string, device: InstalledDevice): Promise<ManagedInstall>;
+    abstract autoCreate(id: string, device: InstalledDevice): Promise<ManagedInstall | null>;
     /**
      * Create an Install from the data.
      * @param id obnizId
@@ -50,7 +50,7 @@ export declare abstract class InstallStoreBase {
      * Automatically relocates the Install.
      * @param id obnizId
      */
-    abstract autoRelocate(id: string): Promise<ManagedInstall>;
+    abstract autoRelocate(id: string, force?: boolean): Promise<ManagedInstall | null>;
     /**
      * Remove Install.
      * @param id obnizId

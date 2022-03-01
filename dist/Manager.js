@@ -147,7 +147,9 @@ class Manager {
         try {
             for (var _b = __asyncValues(Object.keys(missedInstalls)), _c; _c = await _b.next(), !_c.done;) {
                 const install = _c.value;
-                await this._installStore.autoRelocate(install);
+                const instance = await this._installStore.autoRelocate(install, false);
+                if (!instance)
+                    logger_1.logger.info(`${install} already moved available worker.`);
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }

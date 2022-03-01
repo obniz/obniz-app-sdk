@@ -40,7 +40,7 @@ export abstract class InstallStoreBase {
   public abstract autoCreate(
     id: string,
     device: InstalledDevice
-  ): Promise<ManagedInstall>;
+  ): Promise<ManagedInstall | null>;
 
   /**
    * Create an Install from the data.
@@ -66,7 +66,10 @@ export abstract class InstallStoreBase {
    * Automatically relocates the Install.
    * @param id obnizId
    */
-  public abstract autoRelocate(id: string): Promise<ManagedInstall>;
+  public abstract autoRelocate(
+    id: string,
+    force?: boolean
+  ): Promise<ManagedInstall | null>;
 
   /**
    * Remove Install.

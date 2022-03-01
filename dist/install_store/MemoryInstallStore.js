@@ -61,7 +61,7 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
         this._installs[id] = install;
         return new Promise((r) => r(this._installs[id]));
     }
-    async autoRelocate(id) {
+    async autoRelocate(id, force = false) {
         const nowInstall = await this.get(id);
         if (!nowInstall)
             throw new Error('INSTALL_NOT_FOUND');

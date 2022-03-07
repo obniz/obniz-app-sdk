@@ -18,15 +18,5 @@ export abstract class WorkerStoreBase {
     [instanceName: string]: WorkerInstance;
   }>;
 
-  public abstract addWorkerInstance(
-    instanceName: string,
-    props: WorkerProperties
-  ): Promise<WorkerInstance>;
-
-  public abstract updateWorkerInstance(
-    instanceName: string,
-    props: Partial<WorkerProperties>
-  ): Promise<WorkerInstance>;
-
   public abstract deleteWorkerInstance(instanceName: string): Promise<void>;
 }

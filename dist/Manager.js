@@ -49,9 +49,11 @@ class Manager {
          * これが初回連絡の場合、onInstanceAttached()が呼ばれる
          */
         this.adaptor.onReported = async (reportInstanceName, installIds) => {
+            if (!(this._workerStore instanceof MemoryWorkerStore_1.MemoryWorkerStore))
+                return;
             const exist = await this._workerStore.getWorkerInstance(reportInstanceName);
             if (exist) {
-                await this._workerStore.updateWorkerInstance(reportInstanceName, {
+                this._workerStore.updateWorkerInstance(reportInstanceName, {
                     installIds,
                     updatedMillisecond: Date.now(),
                 });
@@ -238,7 +240,7 @@ class Manager {
         return success;
     }
     async _checkAllInstalls() {
-        var e_2, _a, e_3, _b, e_4, _c, e_5, _d;
+        var e_2, _a, e_3, _b, e_4, _c;
         const startedTime = Date.now();
         logger_1.logger.debug('API Sync Start');
         const installsApi = [];
@@ -258,25 +260,17 @@ class Manager {
         const mustAdds = [];
         const updated = [];
         const deleted = [];
-        try {
-            for (var installsApi_1 = __asyncValues(installsApi), installsApi_1_1; installsApi_1_1 = await installsApi_1.next(), !installsApi_1_1.done;) {
-                const device = installsApi_1_1.value;
-                const install = await this._installStore.get(device.id);
-                if (!install) {
-                    mustAdds.push(device);
-                }
-                else {
-                    if (!fast_equals_1.deepEqual(device, install.install))
-                        updated.push(device);
-                }
+        const ids = installsApi.map((d) => d.id);
+        const devices = await this._installStore.getMany(ids);
+        for (const device of installsApi) {
+            const install = devices[device.id];
+            if (!install) {
+                mustAdds.push(device);
             }
-        }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
-        finally {
-            try {
-                if (installsApi_1_1 && !installsApi_1_1.done && (_a = installsApi_1.return)) await _a.call(installsApi_1);
+            else {
+                if (!fast_equals_1.deepEqual(device, install.install))
+                    updated.push(device);
             }
-            finally { if (e_2) throw e_2.error; }
         }
         const installs = await this._installStore.getAll();
         for (const id in installs) {
@@ -292,9 +286,7 @@ class Manager {
             }
         }
         if (mustAdds.length + updated.length + deleted.length > 0) {
-            const allNum = Object.keys(await this._installStore.getAll()).length +
-                mustAdds.length -
-                deleted.length;
+            const allNum = Object.keys(installs).length + mustAdds.length - deleted.length;
             logger_1.logger.debug(`all \t| added \t| updated \t| deleted`);
             logger_1.logger.debug(`${allNum} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
         }
@@ -304,12 +296,12 @@ class Manager {
                 await this._updateDevice(updDevice.id, updDevice);
             }
         }
-        catch (e_3_1) { e_3 = { error: e_3_1 }; }
+        catch (e_2_1) { e_2 = { error: e_2_1 }; }
         finally {
             try {
-                if (updated_1_1 && !updated_1_1.done && (_b = updated_1.return)) await _b.call(updated_1);
+                if (updated_1_1 && !updated_1_1.done && (_a = updated_1.return)) await _a.call(updated_1);
             }
-            finally { if (e_3) throw e_3.error; }
+            finally { if (e_2) throw e_2.error; }
         }
         try {
             for (var deleted_1 = __asyncValues(deleted), deleted_1_1; deleted_1_1 = await deleted_1.next(), !deleted_1_1.done;) {
@@ -317,12 +309,12 @@ class Manager {
                 await this._deleteDevice(delInstall.install.id);
             }
         }
-        catch (e_4_1) { e_4 = { error: e_4_1 }; }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
-                if (deleted_1_1 && !deleted_1_1.done && (_c = deleted_1.return)) await _c.call(deleted_1);
+                if (deleted_1_1 && !deleted_1_1.done && (_b = deleted_1.return)) await _b.call(deleted_1);
             }
-            finally { if (e_4) throw e_4.error; }
+            finally { if (e_3) throw e_3.error; }
         }
         try {
             for (var mustAdds_1 = __asyncValues(mustAdds), mustAdds_1_1; mustAdds_1_1 = await mustAdds_1.next(), !mustAdds_1_1.done;) {
@@ -330,16 +322,16 @@ class Manager {
                 await this._addDevice(addDevice.id, addDevice);
             }
         }
-        catch (e_5_1) { e_5 = { error: e_5_1 }; }
+        catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
-                if (mustAdds_1_1 && !mustAdds_1_1.done && (_d = mustAdds_1.return)) await _d.call(mustAdds_1);
+                if (mustAdds_1_1 && !mustAdds_1_1.done && (_c = mustAdds_1.return)) await _c.call(mustAdds_1);
             }
-            finally { if (e_5) throw e_5.error; }
+            finally { if (e_4) throw e_4.error; }
         }
     }
     async _checkDiffInstalls() {
-        var e_6, _a;
+        var e_5, _a;
         const startedTime = Date.now();
         logger_1.logger.debug('API Diff Sync Start');
         const events = [];
@@ -387,12 +379,12 @@ class Manager {
                 }
             }
         }
-        catch (e_6_1) { e_6 = { error: e_6_1 }; }
+        catch (e_5_1) { e_5 = { error: e_5_1 }; }
         finally {
             try {
                 if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
             }
-            finally { if (e_6) throw e_6.error; }
+            finally { if (e_5) throw e_5.error; }
         }
     }
     async _addDevice(obnizId, device) {
@@ -414,7 +406,7 @@ class Manager {
         await this._installStore.remove(obnizId);
     }
     async synchronize() {
-        var e_7, _a, e_8, _b;
+        var e_6, _a, e_7, _b;
         const installsByInstanceName = {};
         const instances = await this._workerStore.getAllWorkerInstances();
         const instanceKeys = Object.keys(instances);
@@ -426,12 +418,12 @@ class Manager {
                     await this.adaptor.synchronize(instanceName, 'redisList');
                 }
             }
-            catch (e_7_1) { e_7 = { error: e_7_1 }; }
+            catch (e_6_1) { e_6 = { error: e_6_1 }; }
             finally {
                 try {
                     if (instanceKeys_1_1 && !instanceKeys_1_1.done && (_a = instanceKeys_1.return)) await _a.call(instanceKeys_1);
                 }
-                finally { if (e_7) throw e_7.error; }
+                finally { if (e_6) throw e_6.error; }
             }
         }
         else {
@@ -451,12 +443,12 @@ class Manager {
                     await this.adaptor.synchronize(instanceName, 'attachList', installsByInstanceName[instanceName]);
                 }
             }
-            catch (e_8_1) { e_8 = { error: e_8_1 }; }
+            catch (e_7_1) { e_7 = { error: e_7_1 }; }
             finally {
                 try {
                     if (instanceKeys_2_1 && !instanceKeys_2_1.done && (_b = instanceKeys_2.return)) await _b.call(instanceKeys_2);
                 }
-                finally { if (e_8) throw e_8.error; }
+                finally { if (e_7) throw e_7.error; }
             }
         }
     }

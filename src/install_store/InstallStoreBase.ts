@@ -22,6 +22,13 @@ export abstract class InstallStoreBase {
   public abstract get(id: string): Promise<ManagedInstall | undefined>;
 
   /**
+   * Get all installs specified in the ID array.
+   */
+  public abstract getMany(
+    ids: string[]
+  ): Promise<{ [id: string]: ManagedInstall | undefined }>;
+
+  /**
    * Get the Installs on a specific Worker.
    */
   public abstract getByWorker(

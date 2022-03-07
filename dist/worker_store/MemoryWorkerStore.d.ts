@@ -5,7 +5,7 @@ export declare class MemoryWorkerStore extends WorkerStoreBase {
     getAllWorkerInstances(): Promise<{
         [instanceName: string]: WorkerInstance;
     }>;
-    addWorkerInstance(instanceName: string, props: WorkerProperties): Promise<WorkerInstance>;
-    updateWorkerInstance(instanceName: string, props: Partial<WorkerProperties>): Promise<WorkerInstance>;
+    addWorkerInstance(instanceName: string, props: WorkerProperties): WorkerInstance;
+    updateWorkerInstance(instanceName: string, props: Partial<WorkerProperties>): WorkerInstance;
     deleteWorkerInstance(instanceName: string): Promise<void>;
 }

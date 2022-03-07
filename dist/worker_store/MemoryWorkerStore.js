@@ -21,7 +21,7 @@ class MemoryWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
             installIds: props.installIds,
             updatedMillisecond: props.updatedMillisecond,
         };
-        return new Promise((r) => r(this._workerInstances[instanceName]));
+        return this._workerInstances[instanceName];
     }
     updateWorkerInstance(instanceName, props) {
         var _a, _b;
@@ -30,7 +30,7 @@ class MemoryWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
             installIds: (_a = props.installIds) !== null && _a !== void 0 ? _a : this._workerInstances[instanceName].installIds,
             updatedMillisecond: (_b = props.updatedMillisecond) !== null && _b !== void 0 ? _b : this._workerInstances[instanceName].updatedMillisecond,
         };
-        return new Promise((r) => r(this._workerInstances[instanceName]));
+        return this._workerInstances[instanceName];
     }
     deleteWorkerInstance(instanceName) {
         delete this._workerInstances[instanceName];

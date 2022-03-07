@@ -11,6 +11,13 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
     get(id) {
         return new Promise((r) => r(this._installs[id]));
     }
+    async getMany(ids) {
+        const installs = {};
+        for (const id of ids) {
+            installs[id] = this._installs[id];
+        }
+        return installs;
+    }
     getByWorker(name) {
         const installs = {};
         for (const [id, install] of Object.entries(this._installs)) {

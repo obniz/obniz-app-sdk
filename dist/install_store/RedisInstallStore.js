@@ -86,13 +86,11 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
     async get(id) {
         var e_1, _a;
         const redis = this._redisAdaptor.getRedisInstance();
-        // Search where
         const workerKeys = await redis.keys('workers:*');
         let install;
         try {
             for (var workerKeys_1 = __asyncValues(workerKeys), workerKeys_1_1; workerKeys_1_1 = await workerKeys_1.next(), !workerKeys_1_1.done;) {
                 const key = workerKeys_1_1.value;
-                // check keys exist
                 const ins = await redis.hget(key, id);
                 if (ins)
                     install = JSON.parse(ins);
@@ -107,6 +105,30 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
         }
         return install;
     }
+    async getMany(ids) {
+        var e_2, _a;
+        const redis = this._redisAdaptor.getRedisInstance();
+        const workerKeys = await redis.keys('workers:*');
+        const installs = {};
+        for (const id of ids) {
+            try {
+                for (var workerKeys_2 = (e_2 = void 0, __asyncValues(workerKeys)), workerKeys_2_1; workerKeys_2_1 = await workerKeys_2.next(), !workerKeys_2_1.done;) {
+                    const key = workerKeys_2_1.value;
+                    const ins = await redis.hget(key, id);
+                    if (ins)
+                        installs[id] = JSON.parse(ins);
+                }
+            }
+            catch (e_2_1) { e_2 = { error: e_2_1 }; }
+            finally {
+                try {
+                    if (workerKeys_2_1 && !workerKeys_2_1.done && (_a = workerKeys_2.return)) await _a.call(workerKeys_2);
+                }
+                finally { if (e_2) throw e_2.error; }
+            }
+        }
+        return installs;
+    }
     async getByWorker(name) {
         const redis = this._redisAdaptor.getRedisInstance();
         const rawInstalls = await redis.hgetall(`workers:${name}`);
@@ -117,15 +139,15 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
         return installs;
     }
     async getAll() {
-        var e_2, _a;
+        var e_3, _a;
         var _b;
         const redis = this._redisAdaptor.getRedisInstance();
         // Search where
         const workerKeys = await redis.keys('workers:*');
         const installs = {};
         try {
-            for (var workerKeys_2 = __asyncValues(workerKeys), workerKeys_2_1; workerKeys_2_1 = await workerKeys_2.next(), !workerKeys_2_1.done;) {
-                const key = workerKeys_2_1.value;
+            for (var workerKeys_3 = __asyncValues(workerKeys), workerKeys_3_1; workerKeys_3_1 = await workerKeys_3.next(), !workerKeys_3_1.done;) {
+                const key = workerKeys_3_1.value;
                 const workerNameMatch = key.match(/workers:(?<name>.+)/);
                 if (workerNameMatch === null ||
                     ((_b = workerNameMatch.groups) === null || _b === void 0 ? void 0 : _b.name) === undefined)
@@ -135,12 +157,12 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
                 Object.assign(installs, workers);
             }
         }
-        catch (e_2_1) { e_2 = { error: e_2_1 }; }
+        catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
-                if (workerKeys_2_1 && !workerKeys_2_1.done && (_a = workerKeys_2.return)) await _a.call(workerKeys_2);
+                if (workerKeys_3_1 && !workerKeys_3_1.done && (_a = workerKeys_3.return)) await _a.call(workerKeys_3);
             }
-            finally { if (e_2) throw e_2.error; }
+            finally { if (e_3) throw e_3.error; }
         }
         return installs;
     }

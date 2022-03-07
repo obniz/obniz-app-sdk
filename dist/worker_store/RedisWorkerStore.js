@@ -31,7 +31,6 @@ class RedisWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
         var e_1, _a, e_2, _b;
         var _c, _d, _e, _f;
         const redis = this._redisAdaptor.getRedisInstance();
-        // FIXME: Using keys
         const workingKeys = await redis.keys('slave:*:heartbeat');
         const assignedKeys = await redis.keys('workers:*');
         const instancePartials = {};
@@ -77,58 +76,17 @@ class RedisWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
             finally { if (e_2) throw e_2.error; }
         }
         const instances = {};
-        for (const [name, instance] of Object.entries(instancePartials)) {
+        for (const name in instancePartials) {
+            const instancePartial = instancePartials[name];
             instances[name] = {
                 name,
-                installIds: (_e = instance.installIds) !== null && _e !== void 0 ? _e : [],
-                updatedMillisecond: (_f = instance.updatedMillisecond) !== null && _f !== void 0 ? _f : 0,
+                installIds: (_e = instancePartial.installIds) !== null && _e !== void 0 ? _e : [],
+                updatedMillisecond: (_f = instancePartial.updatedMillisecond) !== null && _f !== void 0 ? _f : 0,
             };
         }
         return instances;
     }
-    async addWorkerInstance(instanceName, props) {
-        const redis = this._redisAdaptor.getRedisInstance();
-        // ハートビートがあるか確認
-        const heartbeat = await redis.get(`slave:${instanceName}:heartbeat`);
-        if (!heartbeat)
-            throw new Error('Instance not found');
-        return {
-            name: instanceName,
-            installIds: props.installIds,
-            updatedMillisecond: Number(heartbeat),
-        };
-    }
-    async updateWorkerInstance(instanceName, props) {
-        var _a, _b;
-        const redis = this._redisAdaptor.getRedisInstance();
-        const instance = await this.getWorkerInstance(instanceName);
-        if (!instance)
-            throw new Error('Instance not found');
-        const exist = await redis.exists(`slave:${instanceName}:install-ids`);
-        if (exist === 0) {
-            return await this.addWorkerInstance(instanceName, {
-                installIds: (_a = props.installIds) !== null && _a !== void 0 ? _a : [],
-                updatedMillisecond: (_b = props.updatedMillisecond) !== null && _b !== void 0 ? _b : 0,
-            });
-        }
-        else {
-            if (props.installIds) {
-                const res = await redis.set(`slave:${instanceName}:install-ids`, JSON.stringify(props.installIds));
-                if (res !== 'OK')
-                    throw new Error('Failed to add worker data.');
-            }
-            const current = await this.getWorkerInstance(instanceName);
-            if (!current)
-                throw new Error('Instance not found');
-            return {
-                name: instanceName,
-                installIds: current.installIds,
-                updatedMillisecond: current.updatedMillisecond,
-            };
-        }
-    }
     async deleteWorkerInstance(instanceName) {
-        // installIds を削除
         const redis = this._redisAdaptor.getRedisInstance();
         const res1 = await redis.del(`slave:${instanceName}:heartbeat`);
         const res2 = await redis.del(`workers:${instanceName}`);

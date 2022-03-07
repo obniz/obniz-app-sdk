@@ -1,5 +1,5 @@
 import { RedisAdaptor } from '../adaptor/RedisAdaptor';
-import { WorkerInstance, WorkerProperties, WorkerStoreBase } from './WorkerStoreBase';
+import { WorkerInstance, WorkerStoreBase } from './WorkerStoreBase';
 export declare class RedisWorkerStore extends WorkerStoreBase {
     private _redisAdaptor;
     constructor(adaptor: RedisAdaptor);
@@ -7,7 +7,5 @@ export declare class RedisWorkerStore extends WorkerStoreBase {
     getAllWorkerInstances(): Promise<{
         [instanceName: string]: WorkerInstance;
     }>;
-    addWorkerInstance(instanceName: string, props: WorkerProperties): Promise<WorkerInstance>;
-    updateWorkerInstance(instanceName: string, props: Partial<WorkerProperties>): Promise<WorkerInstance>;
     deleteWorkerInstance(instanceName: string): Promise<void>;
 }

@@ -102,11 +102,12 @@ export class Manager<T extends Database> {
       reportInstanceName: string,
       installIds: string[]
     ) => {
+      if (!(this._workerStore instanceof MemoryWorkerStore)) return;
       const exist = await this._workerStore.getWorkerInstance(
         reportInstanceName
       );
       if (exist) {
-        await this._workerStore.updateWorkerInstance(reportInstanceName, {
+        this._workerStore.updateWorkerInstance(reportInstanceName, {
           installIds,
           updatedMillisecond: Date.now(),
         });
@@ -344,8 +345,10 @@ export class Manager<T extends Database> {
     const mustAdds: InstalledDevice[] = [];
     const updated: InstalledDevice[] = [];
     const deleted: ManagedInstall[] = [];
-    for await (const device of installsApi) {
-      const install = await this._installStore.get(device.id);
+    const ids = installsApi.map((d) => d.id);
+    const devices = await this._installStore.getMany(ids);
+    for (const device of installsApi) {
+      const install = devices[device.id];
       if (!install) {
         mustAdds.push(device);
       } else {
@@ -368,9 +371,7 @@ export class Manager<T extends Database> {
 
     if (mustAdds.length + updated.length + deleted.length > 0) {
       const allNum =
-        Object.keys(await this._installStore.getAll()).length +
-        mustAdds.length -
-        deleted.length;
+        Object.keys(installs).length + mustAdds.length - deleted.length;
       logger.debug(`all \t| added \t| updated \t| deleted`);
       logger.debug(
         `${allNum} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`

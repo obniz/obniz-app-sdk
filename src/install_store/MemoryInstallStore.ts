@@ -20,6 +20,16 @@ export class MemoryInstallStore extends InstallStoreBase {
     return new Promise((r) => r(this._installs[id]));
   }
 
+  public async getMany(
+    ids: string[]
+  ): Promise<{ [id: string]: ManagedInstall | undefined }> {
+    const installs: { [id: string]: ManagedInstall | undefined } = {};
+    for (const id of ids) {
+      installs[id] = this._installs[id];
+    }
+    return installs;
+  }
+
   public getByWorker(name: string): Promise<{ [id: string]: ManagedInstall }> {
     const installs: { [id: string]: ManagedInstall } = {};
     for (const [id, install] of Object.entries(this._installs)) {

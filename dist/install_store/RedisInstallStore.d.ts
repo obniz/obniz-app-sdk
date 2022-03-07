@@ -5,6 +5,9 @@ export declare class RedisInstallStore extends InstallStoreBase {
     private _redisAdaptor;
     constructor(adaptor: RedisAdaptor);
     get(id: string): Promise<ManagedInstall | undefined>;
+    getMany(ids: string[]): Promise<{
+        [id: string]: ManagedInstall | undefined;
+    }>;
     getByWorker(name: string): Promise<{
         [id: string]: ManagedInstall;
     }>;

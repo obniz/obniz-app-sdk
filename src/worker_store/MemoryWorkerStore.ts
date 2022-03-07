@@ -24,19 +24,19 @@ export class MemoryWorkerStore extends WorkerStoreBase {
   public addWorkerInstance(
     instanceName: string,
     props: WorkerProperties
-  ): Promise<WorkerInstance> {
+  ): WorkerInstance {
     this._workerInstances[instanceName] = {
       name: instanceName,
       installIds: props.installIds,
       updatedMillisecond: props.updatedMillisecond,
     };
-    return new Promise((r) => r(this._workerInstances[instanceName]));
+    return this._workerInstances[instanceName];
   }
 
   public updateWorkerInstance(
     instanceName: string,
     props: Partial<WorkerProperties>
-  ): Promise<WorkerInstance> {
+  ): WorkerInstance {
     this._workerInstances[instanceName] = {
       name: instanceName,
       installIds:
@@ -45,7 +45,7 @@ export class MemoryWorkerStore extends WorkerStoreBase {
         props.updatedMillisecond ??
         this._workerInstances[instanceName].updatedMillisecond,
     };
-    return new Promise((r) => r(this._workerInstances[instanceName]));
+    return this._workerInstances[instanceName];
   }
 
   public deleteWorkerInstance(instanceName: string): Promise<void> {

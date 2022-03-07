@@ -83,15 +83,28 @@ export class RedisInstallStore extends InstallStoreBase {
 
   public async get(id: string): Promise<ManagedInstall | undefined> {
     const redis = this._redisAdaptor.getRedisInstance();
-    // Search where
     const workerKeys = await redis.keys('workers:*');
     let install: ManagedInstall | undefined;
     for await (const key of workerKeys) {
-      // check keys exist
       const ins = await redis.hget(key, id);
       if (ins) install = JSON.parse(ins) as ManagedInstall;
     }
     return install;
+  }
+
+  public async getMany(
+    ids: string[]
+  ): Promise<{ [id: string]: ManagedInstall | undefined }> {
+    const redis = this._redisAdaptor.getRedisInstance();
+    const workerKeys = await redis.keys('workers:*');
+    const installs: { [id: string]: ManagedInstall | undefined } = {};
+    for (const id of ids) {
+      for await (const key of workerKeys) {
+        const ins = await redis.hget(key, id);
+        if (ins) installs[id] = JSON.parse(ins) as ManagedInstall;
+      }
+    }
+    return installs;
   }
 
   public async getByWorker(

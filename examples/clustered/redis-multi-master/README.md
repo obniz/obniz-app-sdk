@@ -1,4 +1,3 @@
-
 # Redis Adaptor Multi Master Example
 
 Clustering multiple Managers or Masters with Redis.  
@@ -45,7 +44,7 @@ When using redis, the distinction is as follows internally.
 - Worker / Slave (worker1.js, instanceName: 'worker1')
   - **slave:**&#8203;worker1
 
-Master( and Manager) and Slave work even if they have duplicate names.  
+Masters( or Managers) and Slaves work even if they have duplicate names.  
 If there are duplicate names within masters and managers, it will not work correctly.  
 Similarly, if there are duplicate names within slaves, it will not work properly.  
 

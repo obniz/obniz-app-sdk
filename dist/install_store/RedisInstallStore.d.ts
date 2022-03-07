@@ -14,9 +14,9 @@ export declare class RedisInstallStore extends InstallStoreBase {
     getAll(): Promise<{
         [id: string]: ManagedInstall;
     }>;
-    autoCreate(id: string, device: Installed_Device): Promise<ManagedInstall | null>;
+    autoCreate(id: string, device: Installed_Device): Promise<ManagedInstall>;
     manualCreate(id: string, install: ManagedInstall): Promise<ManagedInstall>;
-    autoRelocate(id: string, force?: boolean): Promise<ManagedInstall | null>;
+    autoRelocate(id: string, force?: boolean): Promise<ManagedInstall>;
     update(id: string, props: Partial<ManagedInstall>): Promise<ManagedInstall>;
     remove(id: string): Promise<void>;
 }

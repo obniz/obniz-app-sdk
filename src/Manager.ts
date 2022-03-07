@@ -227,8 +227,22 @@ export class Manager<T extends Database> {
       diedWorker.name
     );
     for await (const install of Object.keys(missedInstalls)) {
-      const instance = await this._installStore.autoRelocate(install, false);
-      if (!instance) logger.info(`${install} already moved available worker.`);
+      try {
+        const instance = await this._installStore.autoRelocate(install, false);
+      } catch (e) {
+        if (e instanceof Error) {
+          switch (e.message) {
+            case 'NO_NEED_TO_RELOCATE':
+              logger.info(`${install} already moved available worker.`);
+              break;
+            default:
+              logger.error(`Failed autoRelocate: ${e.message} (${e.name})`);
+              break;
+          }
+        } else {
+          logger.error(e);
+        }
+      }
     }
 
     await this._workerStore.deleteWorkerInstance(instanceName);
@@ -459,18 +473,32 @@ export class Manager<T extends Database> {
   }
 
   private async _addDevice(obnizId: string, device: InstalledDevice) {
-    const createdInstall = await this._installStore.autoCreate(obnizId, device);
-    return createdInstall;
-  }
-
-  private async _updateDevice(obnizId: string, device: InstalledDevice) {
-    const install = await this._installStore.get(obnizId);
-    if (!install) {
+    try {
       const createdInstall = await this._installStore.autoCreate(
         obnizId,
         device
       );
       return createdInstall;
+    } catch (e) {
+      if (e instanceof Error) {
+        switch (e.message) {
+          case 'ALREADY_INSTALLED':
+            logger.info(`${obnizId} already created.`);
+            break;
+          default:
+            logger.error(`Failed autoCreate: ${e.message} (${e.name})`);
+            break;
+        }
+      } else {
+        logger.error(e);
+      }
+    }
+  }
+
+  private async _updateDevice(obnizId: string, device: InstalledDevice) {
+    const install = await this._installStore.get(obnizId);
+    if (!install) {
+      return await this._addDevice(obnizId, device);
     }
     const updatedInstall = await this._installStore.update(obnizId, {
       install: device,

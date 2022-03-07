@@ -168,15 +168,22 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
     }
     async autoCreate(id, device) {
         const redis = this._redisAdaptor.getRedisInstance();
-        // TODO: error handling
         try {
             const res = await redis.eval(AutoCreateLuaScript, 1, id, JSON.stringify({ install: device }));
             return JSON.parse(res);
         }
         catch (e) {
-            logger_1.logger.info(e);
+            if (e instanceof Error) {
+                switch (e.message) {
+                    case 'NO_ACCEPTABLE_WORKER':
+                    case 'ALREADY_INSTALLED':
+                        throw new Error(e.message);
+                    default:
+                        throw e;
+                }
+            }
+            throw e;
         }
-        return null;
     }
     async manualCreate(id, install) {
         const redis = this._redisAdaptor.getRedisInstance();
@@ -193,15 +200,24 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
     }
     async autoRelocate(id, force = false) {
         const redis = this._redisAdaptor.getRedisInstance();
-        // TODO: error handling
         try {
             const res = await redis.eval(AutoRelocateLuaScript, 1, id, force ? 'true' : 'false');
             return JSON.parse(res);
         }
         catch (e) {
-            logger_1.logger.info(e);
+            if (e instanceof Error) {
+                switch (e.message) {
+                    case 'NO_ACCEPTABLE_WORKER':
+                    case 'NOT_INSTALLED':
+                    case 'NO_OTHER_ACCEPTABLE_WORKER':
+                    case 'NO_NEED_TO_RELOCATE':
+                        throw new Error(e.message);
+                    default:
+                        throw e;
+                }
+            }
+            throw e;
         }
-        return null;
     }
     async update(id, props) {
         var _a, _b, _c, _d;

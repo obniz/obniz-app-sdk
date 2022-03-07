@@ -16,9 +16,9 @@ export declare class MemoryInstallStore extends InstallStoreBase {
         [id: string]: ManagedInstall;
     }>;
     private getBestWorkerInstance;
-    autoCreate(id: string, device: InstalledDevice): Promise<ManagedInstall | null>;
+    autoCreate(id: string, device: InstalledDevice): Promise<ManagedInstall>;
     manualCreate(id: string, install: ManagedInstall): Promise<ManagedInstall>;
-    autoRelocate(id: string, force?: boolean): Promise<ManagedInstall | null>;
+    autoRelocate(id: string, force?: boolean): Promise<ManagedInstall>;
     update(id: string, props: Partial<ManagedInstall>): Promise<ManagedInstall>;
     remove(id: string): Promise<void>;
 }

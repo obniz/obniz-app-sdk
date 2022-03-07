@@ -47,7 +47,7 @@ export abstract class InstallStoreBase {
   public abstract autoCreate(
     id: string,
     device: InstalledDevice
-  ): Promise<ManagedInstall | null>;
+  ): Promise<ManagedInstall>;
 
   /**
    * Create an Install from the data.
@@ -76,7 +76,7 @@ export abstract class InstallStoreBase {
   public abstract autoRelocate(
     id: string,
     force?: boolean
-  ): Promise<ManagedInstall | null>;
+  ): Promise<ManagedInstall>;
 
   /**
    * Remove Install.

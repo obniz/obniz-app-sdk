@@ -149,9 +149,24 @@ class Manager {
         try {
             for (var _b = __asyncValues(Object.keys(missedInstalls)), _c; _c = await _b.next(), !_c.done;) {
                 const install = _c.value;
-                const instance = await this._installStore.autoRelocate(install, false);
-                if (!instance)
-                    logger_1.logger.info(`${install} already moved available worker.`);
+                try {
+                    const instance = await this._installStore.autoRelocate(install, false);
+                }
+                catch (e) {
+                    if (e instanceof Error) {
+                        switch (e.message) {
+                            case 'NO_NEED_TO_RELOCATE':
+                                logger_1.logger.info(`${install} already moved available worker.`);
+                                break;
+                            default:
+                                logger_1.logger.error(`Failed autoRelocate: ${e.message} (${e.name})`);
+                                break;
+                        }
+                    }
+                    else {
+                        logger_1.logger.error(e);
+                    }
+                }
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
@@ -388,14 +403,30 @@ class Manager {
         }
     }
     async _addDevice(obnizId, device) {
-        const createdInstall = await this._installStore.autoCreate(obnizId, device);
-        return createdInstall;
+        try {
+            const createdInstall = await this._installStore.autoCreate(obnizId, device);
+            return createdInstall;
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                switch (e.message) {
+                    case 'ALREADY_INSTALLED':
+                        logger_1.logger.info(`${obnizId} already created.`);
+                        break;
+                    default:
+                        logger_1.logger.error(`Failed autoCreate: ${e.message} (${e.name})`);
+                        break;
+                }
+            }
+            else {
+                logger_1.logger.error(e);
+            }
+        }
     }
     async _updateDevice(obnizId, device) {
         const install = await this._installStore.get(obnizId);
         if (!install) {
-            const createdInstall = await this._installStore.autoCreate(obnizId, device);
-            return createdInstall;
+            return await this._addDevice(obnizId, device);
         }
         const updatedInstall = await this._installStore.update(obnizId, {
             install: device,

@@ -141,9 +141,8 @@ export class RedisInstallStore extends InstallStoreBase {
   public async autoCreate(
     id: string,
     device: Installed_Device
-  ): Promise<ManagedInstall | null> {
+  ): Promise<ManagedInstall> {
     const redis = this._redisAdaptor.getRedisInstance();
-    // TODO: error handling
     try {
       const res = await redis.eval(
         AutoCreateLuaScript,
@@ -153,9 +152,17 @@ export class RedisInstallStore extends InstallStoreBase {
       );
       return JSON.parse(res) as ManagedInstall;
     } catch (e) {
-      logger.info(e);
+      if (e instanceof Error) {
+        switch (e.message) {
+          case 'NO_ACCEPTABLE_WORKER':
+          case 'ALREADY_INSTALLED':
+            throw new Error(e.message);
+          default:
+            throw e;
+        }
+      }
+      throw e;
     }
-    return null;
   }
 
   public async manualCreate(
@@ -181,9 +188,8 @@ export class RedisInstallStore extends InstallStoreBase {
   public async autoRelocate(
     id: string,
     force = false
-  ): Promise<ManagedInstall | null> {
+  ): Promise<ManagedInstall> {
     const redis = this._redisAdaptor.getRedisInstance();
-    // TODO: error handling
     try {
       const res = await redis.eval(
         AutoRelocateLuaScript,
@@ -193,9 +199,19 @@ export class RedisInstallStore extends InstallStoreBase {
       );
       return JSON.parse(res) as ManagedInstall;
     } catch (e) {
-      logger.info(e);
+      if (e instanceof Error) {
+        switch (e.message) {
+          case 'NO_ACCEPTABLE_WORKER':
+          case 'NOT_INSTALLED':
+          case 'NO_OTHER_ACCEPTABLE_WORKER':
+          case 'NO_NEED_TO_RELOCATE':
+            throw new Error(e.message);
+          default:
+            throw e;
+        }
+      }
+      throw e;
     }
-    return null;
   }
 
   public async update(

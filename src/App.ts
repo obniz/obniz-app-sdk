@@ -200,8 +200,14 @@ export class App<O extends IObniz> {
   }
 
   start(option?: AppStartOption): void {
-    if (this._manager) this._manager.start(option);
-    if (this._slave) this._slave.startSyncing();
+    if (this._manager) {
+      this._manager.start(option);
+      logger.info('ManagerClass started');
+    }
+    if (this._slave) {
+      this._slave.startSyncing();
+      logger.info('SlaveClass started');
+    }
   }
 
   async getAllUsers(): Promise<User[]> {

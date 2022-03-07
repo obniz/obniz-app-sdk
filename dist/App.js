@@ -95,10 +95,14 @@ class App {
         (_a = this._manager) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
     }
     start(option) {
-        if (this._manager)
+        if (this._manager) {
             this._manager.start(option);
-        if (this._slave)
+            logger_1.logger.info('ManagerClass started');
+        }
+        if (this._slave) {
             this._slave.startSyncing();
+            logger_1.logger.info('SlaveClass started');
+        }
     }
     async getAllUsers() {
         throw new Error('TODO');

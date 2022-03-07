@@ -150,7 +150,7 @@ export abstract class Adaptor {
 
   protected _onReady(): void {
     this.isReady = true;
-    logger.debug('ready id:' + this.id);
+    logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
     if (this.isMaster) {
       this.reportRequest()
         .then(() => {})

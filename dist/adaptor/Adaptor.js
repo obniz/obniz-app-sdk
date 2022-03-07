@@ -67,7 +67,7 @@ class Adaptor {
     }
     _onReady() {
         this.isReady = true;
-        logger_1.logger.debug('ready id:' + this.id);
+        logger_1.logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
         if (this.isMaster) {
             this.reportRequest()
                 .then(() => { })

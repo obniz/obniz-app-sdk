@@ -78,6 +78,26 @@ local setres = redis.call('HSET', 'workers:'..minWorkerName, KEYS[1], json)
 local result = redis.call('HGET', 'workers:'..minWorkerName, KEYS[1])
 local delres = redis.call('HDEL', 'workers:'..nowWorkerName, KEYS[1])
 return { result }`;
+const UpdateInstallLuaScript = `local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
+local assignedWorkerKeys = redis.call('KEYS', 'workers:*')
+if #runningWorkerKeys == 0 then return {err='NO_RUNNING_WORKER'} end
+local nowWorkerName
+for i = 1 , #assignedWorkerKeys do
+  local exist = redis.call('HEXISTS', assignedWorkerKeys[i], KEYS[1])
+  if exist == 1 then
+    nowWorkerName = string.match(assignedWorkerKeys[i], "workers:(.+)")
+    break
+  end
+end
+if nowWorkerName == nil then return {err='NOT_INSTALLED'} end
+local nowObj = cjson.decode(redis.call('HGET', 'workers:'..nowWorkerName, KEYS[1]))
+local overrideObj = cjson.decode(ARGV[1])
+local newObj = nowObj
+for k,v in pairs(overrideObj) do newObj[k] = v end
+local json = cjson.encode(newObj)
+local setres = redis.call('HSET', 'workers:'..nowWorkerName, KEYS[1], json)
+local result = redis.call('HGET', 'workers:'..nowWorkerName, KEYS[1])
+return { result }`;
 class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
     constructor(adaptor) {
         super();
@@ -220,31 +240,22 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
         }
     }
     async update(id, props) {
-        var _a, _b, _c, _d;
         const redis = this._redisAdaptor.getRedisInstance();
-        const nowInstall = await this.get(id);
-        if (!nowInstall) {
-            throw new Error(`${id} not found`);
+        try {
+            const res = await redis.eval(AutoRelocateLuaScript, 1, id, JSON.stringify(props));
+            return JSON.parse(res);
         }
-        else {
-            const newInstall = {
-                install: (_a = props.install) !== null && _a !== void 0 ? _a : nowInstall.install,
-                instanceName: (_b = props.instanceName) !== null && _b !== void 0 ? _b : nowInstall.instanceName,
-                status: (_c = props.status) !== null && _c !== void 0 ? _c : nowInstall.status,
-                updatedMillisecond: (_d = props.updatedMillisecond) !== null && _d !== void 0 ? _d : nowInstall.updatedMillisecond,
-            };
-            if (props.instanceName !== undefined) {
-                // delete nowInstall
-                await this.remove(id);
+        catch (e) {
+            if (e instanceof Error) {
+                switch (e.message) {
+                    case 'NO_RUNNING_WORKER':
+                    case 'NOT_INSTALLED':
+                        throw new Error(e.message);
+                    default:
+                        throw e;
+                }
             }
-            const res = await redis.hset(`workers:${newInstall.instanceName}`, id, JSON.stringify(newInstall));
-            // Note: HSET should be return number
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            if (res === 0) {
-                return newInstall;
-            }
-            throw new Error(`failed update: ${id} operation returned ${res}`);
+            throw e;
         }
     }
     async remove(id) {

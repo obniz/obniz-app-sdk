@@ -1,7 +1,4 @@
-import {
-  Installed_Device,
-  Installed_Device as InstalledDevice,
-} from 'obniz-cloud-sdk/sdk';
+import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from '../logger';
 
 export interface ReportMessage {
@@ -17,21 +14,38 @@ export interface ReportRequestMessage {
   action: 'reportRequest';
 }
 
-export type SynchronizeRequestType = 'attachList' | 'redisList';
-
-export type SynchronizeRequestMessage = {
+export type SynchronizeByListRequestMessage = {
   toMaster: false;
   instanceName: string;
   action: 'synchronize';
-} & (
-  | {
-      syncType: 'attachList';
-      installs: InstalledDevice[];
-    }
-  | {
-      syncType: 'redisList';
-    }
-);
+  syncType: 'list';
+  installs: InstalledDevice[];
+};
+
+export type SynchronizeByRedisRequestMessage = {
+  toMaster: false;
+  instanceName: string;
+  action: 'synchronize';
+  syncType: 'redis';
+};
+
+type SynchronizeByListParams = Pick<
+  SynchronizeByListRequestMessage,
+  'syncType' | 'installs'
+>;
+type SynchronizeByRedisParams = Pick<
+  SynchronizeByRedisRequestMessage,
+  'syncType'
+>;
+export type SynchronizeMethodOption =
+  | SynchronizeByListParams
+  | SynchronizeByRedisParams;
+
+export type SynchronizeRequestMessage =
+  | SynchronizeByListRequestMessage
+  | SynchronizeByRedisRequestMessage;
+
+export type SynchronizeRequestType = SynchronizeRequestMessage['syncType'];
 
 export interface KeyRequestMessage {
   toMaster: false;
@@ -75,10 +89,7 @@ export abstract class Adaptor {
     instanceName: string,
     results: { [key: string]: string }
   ) => Promise<void>;
-  public onSynchronize?: (
-    syncType: SynchronizeRequestType,
-    installs: InstalledDevice[]
-  ) => Promise<void>;
+  public onSynchronize?: (options: SynchronizeMethodOption) => Promise<void>;
   public onReported?: (
     instanceName: string,
     installIds: string[]
@@ -119,15 +130,24 @@ export abstract class Adaptor {
   protected _onSlaveMessage(message: ToSlaveMessage): void {
     if (message.action === 'synchronize') {
       if (this.onSynchronize) {
-        // FIXME
-        this.onSynchronize(
-          message.syncType,
-          message.syncType === 'attachList' ? message.installs : []
-        )
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
+        if (message.syncType === 'redis') {
+          this.onSynchronize({
+            syncType: message.syncType,
+          })
+            .then(() => {})
+            .catch((e) => {
+              logger.error(e);
+            });
+        } else {
+          this.onSynchronize({
+            syncType: message.syncType,
+            installs: message.installs,
+          })
+            .then(() => {})
+            .catch((e) => {
+              logger.error(e);
+            });
+        }
       }
     } else if (message.action === 'reportRequest') {
       if (this.onReportRequest) {
@@ -222,24 +242,22 @@ export abstract class Adaptor {
 
   async synchronize(
     instanceName: string,
-    syncType: SynchronizeRequestType,
-    installs: Installed_Device[] = []
+    options: SynchronizeMethodOption
   ): Promise<void> {
-    // FIXME
-    if (syncType === 'attachList') {
+    if (options.syncType === 'redis') {
       await this._send({
         action: 'synchronize',
         instanceName,
         toMaster: false,
-        syncType,
-        installs,
+        syncType: options.syncType,
       });
     } else {
       await this._send({
         action: 'synchronize',
         instanceName,
         toMaster: false,
-        syncType,
+        syncType: options.syncType,
+        installs: options.installs,
       });
     }
   }

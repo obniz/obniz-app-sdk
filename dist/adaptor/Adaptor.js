@@ -38,12 +38,25 @@ class Adaptor {
     _onSlaveMessage(message) {
         if (message.action === 'synchronize') {
             if (this.onSynchronize) {
-                // FIXME
-                this.onSynchronize(message.syncType, message.syncType === 'attachList' ? message.installs : [])
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
+                if (message.syncType === 'redis') {
+                    this.onSynchronize({
+                        syncType: message.syncType,
+                    })
+                        .then(() => { })
+                        .catch((e) => {
+                        logger_1.logger.error(e);
+                    });
+                }
+                else {
+                    this.onSynchronize({
+                        syncType: message.syncType,
+                        installs: message.installs,
+                    })
+                        .then(() => { })
+                        .catch((e) => {
+                        logger_1.logger.error(e);
+                    });
+                }
             }
         }
         else if (message.action === 'reportRequest') {
@@ -127,15 +140,13 @@ class Adaptor {
             requestId,
         });
     }
-    async synchronize(instanceName, syncType, installs = []) {
-        // FIXME
-        if (syncType === 'attachList') {
+    async synchronize(instanceName, options) {
+        if (options.syncType === 'redis') {
             await this._send({
                 action: 'synchronize',
                 instanceName,
                 toMaster: false,
-                syncType,
-                installs,
+                syncType: options.syncType,
             });
         }
         else {
@@ -143,7 +154,8 @@ class Adaptor {
                 action: 'synchronize',
                 instanceName,
                 toMaster: false,
-                syncType,
+                syncType: options.syncType,
+                installs: options.installs,
             });
         }
     }

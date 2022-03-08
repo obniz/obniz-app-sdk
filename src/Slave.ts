@@ -1,5 +1,5 @@
 import { IObniz } from './Obniz.interface';
-import { Adaptor, SynchronizeRequestType } from './adaptor/Adaptor';
+import { Adaptor, SynchronizeMethodOption } from './adaptor/Adaptor';
 import { Worker } from './Worker';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from './logger';
@@ -31,11 +31,8 @@ export class Slave<O extends IObniz> {
       return results;
     };
 
-    this._adaptor.onSynchronize = async (
-      syncType: SynchronizeRequestType,
-      installs: InstalledDevice[]
-    ) => {
-      await this._synchronize(syncType, installs);
+    this._adaptor.onSynchronize = async (options: SynchronizeMethodOption) => {
+      await this._synchronize(options);
     };
 
     this._adaptor.onReportRequest = async () => {
@@ -90,20 +87,18 @@ export class Slave<O extends IObniz> {
 
   /**
    * Receive Master Generated List and compare current apps.
-   * @param installs
    */
   protected async _synchronize(
-    syncType: SynchronizeRequestType,
-    installs: InstalledDevice[]
+    options: SynchronizeMethodOption
   ): Promise<void> {
     if (this._syncing) {
       return;
     }
     this._syncing = true;
 
-    const list =
-      syncType === 'attachList'
-        ? installs
+    const installs =
+      options.syncType === 'list'
+        ? options.installs
         : Object.values(await this._getInstallsFromRedis());
 
     try {
@@ -112,7 +107,7 @@ export class Slave<O extends IObniz> {
         exists[install_id] = this._workers[install_id];
       }
 
-      for await (const install of list) {
+      for await (const install of installs) {
         await this._startOrRestartOneWorker(install);
         if (exists[install.id]) {
           delete exists[install.id];

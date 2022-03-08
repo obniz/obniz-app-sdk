@@ -28,8 +28,8 @@ class Slave {
             }
             return results;
         };
-        this._adaptor.onSynchronize = async (syncType, installs) => {
-            await this._synchronize(syncType, installs);
+        this._adaptor.onSynchronize = async (options) => {
+            await this._synchronize(options);
         };
         this._adaptor.onReportRequest = async () => {
             await this._reportToMaster();
@@ -65,16 +65,15 @@ class Slave {
     }
     /**
      * Receive Master Generated List and compare current apps.
-     * @param installs
      */
-    async _synchronize(syncType, installs) {
+    async _synchronize(options) {
         var e_1, _a, e_2, _b;
         if (this._syncing) {
             return;
         }
         this._syncing = true;
-        const list = syncType === 'attachList'
-            ? installs
+        const installs = options.syncType === 'list'
+            ? options.installs
             : Object.values(await this._getInstallsFromRedis());
         try {
             const exists = {};
@@ -82,8 +81,8 @@ class Slave {
                 exists[install_id] = this._workers[install_id];
             }
             try {
-                for (var list_1 = __asyncValues(list), list_1_1; list_1_1 = await list_1.next(), !list_1_1.done;) {
-                    const install = list_1_1.value;
+                for (var installs_1 = __asyncValues(installs), installs_1_1; installs_1_1 = await installs_1.next(), !installs_1_1.done;) {
+                    const install = installs_1_1.value;
                     await this._startOrRestartOneWorker(install);
                     if (exists[install.id]) {
                         delete exists[install.id];
@@ -93,7 +92,7 @@ class Slave {
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (list_1_1 && !list_1_1.done && (_a = list_1.return)) await _a.call(list_1);
+                    if (installs_1_1 && !installs_1_1.done && (_a = installs_1.return)) await _a.call(installs_1);
                 }
                 finally { if (e_1) throw e_1.error; }
             }

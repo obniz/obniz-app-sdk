@@ -446,7 +446,9 @@ class Manager {
                 for (var instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), !instanceKeys_1_1.done;) {
                     const instanceName = instanceKeys_1_1.value;
                     logger_1.logger.debug(`synchronize sent to ${instanceName} via Redis`);
-                    await this.adaptor.synchronize(instanceName, 'redisList');
+                    await this.adaptor.synchronize(instanceName, {
+                        syncType: 'redis',
+                    });
                 }
             }
             catch (e_6_1) { e_6 = { error: e_6_1 }; }
@@ -471,7 +473,10 @@ class Manager {
                 for (var instanceKeys_2 = __asyncValues(instanceKeys), instanceKeys_2_1; instanceKeys_2_1 = await instanceKeys_2.next(), !instanceKeys_2_1.done;) {
                     const instanceName = instanceKeys_2_1.value;
                     logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
-                    await this.adaptor.synchronize(instanceName, 'attachList', installsByInstanceName[instanceName]);
+                    await this.adaptor.synchronize(instanceName, {
+                        syncType: 'list',
+                        installs: installsByInstanceName[instanceName],
+                    });
                 }
             }
             catch (e_7_1) { e_7 = { error: e_7_1 }; }

@@ -517,7 +517,9 @@ export class Manager<T extends Database> {
     if (this.adaptor instanceof RedisAdaptor) {
       for await (const instanceName of instanceKeys) {
         logger.debug(`synchronize sent to ${instanceName} via Redis`);
-        await this.adaptor.synchronize(instanceName, 'redisList');
+        await this.adaptor.synchronize(instanceName, {
+          syncType: 'redis',
+        });
       }
     } else {
       for (const instanceName in instances) {
@@ -533,11 +535,10 @@ export class Manager<T extends Database> {
         logger.debug(
           `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
         );
-        await this.adaptor.synchronize(
-          instanceName,
-          'attachList',
-          installsByInstanceName[instanceName]
-        );
+        await this.adaptor.synchronize(instanceName, {
+          syncType: 'list',
+          installs: installsByInstanceName[instanceName],
+        });
       }
     }
   }

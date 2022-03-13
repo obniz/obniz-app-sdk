@@ -111,7 +111,7 @@ export declare class App<O extends IObniz> {
     request(key: string, timeout?: number): Promise<{
         [key: string]: string;
     }>;
-    protected _startOneWorker(install: InstalledDevice): Promise<void>;
+    protected _startOneWorker(install: InstalledDevice, onInstall: boolean): Promise<void>;
     protected _startOrRestartOneWorker(install: InstalledDevice): Promise<void>;
     protected _stopOneWorker(installId: string): Promise<void>;
     get obnizClass(): IObnizStatic<O>;

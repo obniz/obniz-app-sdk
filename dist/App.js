@@ -243,24 +243,22 @@ class App {
         const worker = this._workers[installId];
         if (worker) {
             delete this._workers[installId];
-            const stop = () => {
-                // background
-                worker
-                    .stop()
-                    .then(() => { })
-                    .catch((e) => {
+            const stop = async () => {
+                try {
+                    await worker.stop();
+                }
+                catch (e) {
                     logger_1.logger.error(e);
-                });
+                }
+                try {
+                    await worker.onUnInstall();
+                }
+                catch (e) {
+                    logger_1.logger.error(e);
+                }
             };
-            worker
-                .onUnInstall()
-                .then(() => {
-                stop();
-            })
-                .catch((e) => {
-                logger_1.logger.error(e);
-                stop();
-            });
+            // background
+            stop().then(() => { });
         }
     }
     get obnizClass() {

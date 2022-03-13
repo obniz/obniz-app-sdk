@@ -388,24 +388,21 @@ export class App<O extends IObniz> {
     if (worker) {
       delete this._workers[installId];
 
-      const stop = () => {
-        // background
-        worker
-          .stop()
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
-      };
-      worker
-        .onUnInstall()
-        .then(() => {
-          stop();
-        })
-        .catch((e) => {
+      const stop = async () => {
+        try {
+          await worker.stop();
+        } catch (e) {
           logger.error(e);
-          stop();
-        });
+        }
+        try {
+          await worker.onUnInstall();
+        } catch (e) {
+          logger.error(e);
+        }
+      };
+
+      // background
+      stop().then(() => {});
     }
   }
 

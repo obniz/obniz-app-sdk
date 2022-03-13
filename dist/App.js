@@ -218,7 +218,7 @@ class App {
         }
         return await this._manager.request(key, timeout);
     }
-    async _startOneWorker(install) {
+    async _startOneWorker(install, onInstall) {
         logger_1.logger.info(`New Worker Start id=${install.id}`);
         let access_token = this._options.appToken;
         // @ts-ignore
@@ -230,7 +230,7 @@ class App {
         const wclass = this._options.workerClassFunction(install);
         const worker = new wclass(install, this, Object.assign(Object.assign({}, this._options.obnizOption), { access_token }));
         this._workers[install.id] = worker;
-        await worker.start();
+        await worker.start(onInstall);
     }
     async _startOrRestartOneWorker(install) {
         const oldWorker = this._workers[install.id];
@@ -238,10 +238,11 @@ class App {
             JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
             logger_1.logger.info(`App config changed id=${install.id}`);
             await this._stopOneWorker(install.id);
-            await this._startOneWorker(install);
+            await this._startOneWorker(install, false);
         }
         else if (!oldWorker) {
-            await this._startOneWorker(install);
+            // TODO: Should detect new install or just starting Application.
+            await this._startOneWorker(install, true);
         }
     }
     async _stopOneWorker(installId) {
@@ -249,13 +250,22 @@ class App {
         const worker = this._workers[installId];
         if (worker) {
             delete this._workers[installId];
+            const stop = async () => {
+                try {
+                    await worker.stop();
+                }
+                catch (e) {
+                    logger_1.logger.error(e);
+                }
+                try {
+                    await worker.onUnInstall();
+                }
+                catch (e) {
+                    logger_1.logger.error(e);
+                }
+            };
             // background
-            worker
-                .stop()
-                .then(() => { })
-                .catch((e) => {
-                logger_1.logger.error(e);
-            });
+            stop().then(() => { });
         }
     }
     get obnizClass() {

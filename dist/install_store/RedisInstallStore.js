@@ -242,7 +242,7 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
     async update(id, props) {
         const redis = this._redisAdaptor.getRedisInstance();
         try {
-            const res = await redis.eval(AutoRelocateLuaScript, 1, id, JSON.stringify(props));
+            const res = await redis.eval(UpdateInstallLuaScript, 1, id, JSON.stringify(props));
             return JSON.parse(res);
         }
         catch (e) {

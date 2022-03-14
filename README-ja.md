@@ -1,38 +1,48 @@
+# obniz-app-sdk
 
 obnizを使用したnodejsのホステッドアプリを作る際のフレームワークです。
-あなたのプログラムをこのSDKを使い常時稼働させることでアプリがインストールされているデバイスをこのプログラムで操作することができます。
-デバイス追加・削除・設定変更のたびにプログラム変更や他の作業を行う必要はありません。obnizCloudとこのSDkがあなたのプログラムを自動で適用します。
-また、このSDKは複数マシンインスタンスに分かれて負荷分散を行うことで大量のデバイスを操作することが可能で、大量デバイスの長期的な稼働を支援します。
 
-機能
+あなたのプログラムをこのSDKを使い常時稼働させることでアプリがインストールされているデバイスをこのプログラムで操作することができます。  
+定期的にobnizCloudと同期され、デバイス追加・削除・設定変更を自動的に適用します。  
+また、このSDKは複数マシンインスタンスに分かれて負荷分散を行うことで大量のデバイスを操作することが可能で、大量デバイスの長期的な稼働を支援します。  
+
+## 機能
 - obnizCloudとの連携によるプログラムの動作
 - 複数インスタンスでの負荷分散モード
-- pm2によるマルチコア負荷分散対応
+- pm2によるマルチコア負荷分散に対応
+- redisによるMaster/Managerの冗長化に対応
 
-
-## System Architecture
+### System Architecture
 
 ![](./doc/images/description.png)
 
 
 ## 導入方法
 
-### Installing SDK
+### Create Hosted App on obnizCloud
 
-nodejsプロジェクトを作成し、sdkをインストールします。
+obnizCloud上でホステッドアプリを作成します。
+
+[ドキュメント](https://obniz.com/ja/doc/reference/cloud/app/hostedapp)
+
+また、作成されたアプリを利用したいデバイスにインストールします。
+
+[インストールについて](https://obniz.com/ja/doc/reference/cloud/app/install)
+
+### Install SDK
+
+npm などのパッケージマネージャーを使ってSDKをインストールします。
 
 ```
 $ npm i obniz-app-sdk
 ```
 
-### Worker
+### Use SDK
 
-デバイス制御のためのnodejsのプログラムを用意し、obniz-app-sdkを取り込みます。
-
+デバイス制御のためのNodejsのプログラムを用意し、obniz-app-sdkを取り込みます。  
 Workerクラスの子クラスを作成することになりますが、これがデバイスごとにインスタンス化され実行されます。Appにはアプリの情報やスケール方法を指定します。
 
 以下ではデバイスでbluetoothのスキャンを行いlogに出力する例を示しています。
-
 
 ```javascript
 const { App, AppInstanceType, Worker } = require('obniz-app-sdk')
@@ -68,34 +78,40 @@ const app = new App({
 app.start();
 ```
 
-Appの引数はこちらのとおりです
+### Options
+
+App には以下のオプションが指定可能です。
 
 |key | mean |
 |:---|:---|
-| workerClass |  各デバイスの処理を記載したMyWorkerクラスを指定します|
-| appToken |  obnizCloud上でホステッドアプリを作成し、そのアプリのトークンを指定します|
-| instanceType |  オートスケール時のために必要です。1台目をMasterまたはManager、2台目以降はSlaveを指定してください。Master, Manager, Slave から選択できます|
-| obnizClass |  Workerで使用するobnizクラスを指定してください。 |
-| obnizOption | `new Obniz()`の第２引数です |
-| database | 複数マシンの連携モードを指定します。`memory`, `redis`, `mqtt`が選択できます |
-| databaseConfig | 複数マシン連携のDB接続方法を指定します |
-| instanceName | このプロセスを識別する文字列を指定します。デフォルトで`os.hostname()`が使用されます |
+| workerClass | 各デバイスの処理を記載したMyWorkerクラスを指定します。<br>`instanceType` に Manager を設定している場合は不要です。 |
+| appToken | [開発者コンソール](https://obniz.com/ja/console/) のアプリ設定ページ内に記載されている App Token を指定します。 |
+| instanceType | オートスケールのために必要です。<br>1台目を`Master`または`Manager`、2台目以降は`Slave`を指定してください。 |
+| obnizClass | Workerで使用するobnizクラスを指定してください。 |
+| obnizOption | `new Obniz()` の第2引数です。 |
+| database | 複数マシンの連携モードを指定します。詳しくは [Multi-Machines](#multi-machines) を参照してください。 |
+| databaseConfig | 複数マシン連携のDB接続方法を指定します。詳しくは [Multi-Machines](#multi-machines) を参照してください。 |
+| instanceName | このプロセスを識別する文字列を指定します。デフォルトで`os.hostname()`が使用されます。 |
 
 その他、オプションのパラメータはプログラム内(App.ts)を参照してください。
 
-### obnizCloud
+#### instanceType について
 
-obnizCloud上でホステッドアプリを作成します
+`instanceType` には3種類あり、それぞれ以下のように動作します。
 
-[ドキュメント](https://obniz.com/ja/doc/reference/cloud/app/hostedapp)
-
-また、作成されたアプリを利用したいデバイスにインストールします。
-
-[インストールについて](https://obniz.com/ja/doc/reference/cloud/app/install)
+- Master ( `AppInstanceType.Master` )
+  - obnizCloud との同期、Worker の振り分け、Worker としての動作の3つを行うタイプです。
+  - **単体で動作可能です**。
+- Manager ( `AppInstanceType.Manager` )
+  - obnizCloud との同期、Worker の振り分け の2つのみを行うタイプです。
+  - **最低1つのSlaveが同時に起動されている必要があります**。
+- Slave ( `AppInstanceType.Slave` )
+  - Worker としての動作の1つのみのタイプです。
+  - **最低1つのMasterもしくはManagerが同時に起動されている必要があります**。
 
 ### Deploy
 
-このnodejsプロジェクトをサーバーで稼働させます。下記は[pm2](https://github.com/Unitech/pm2)の例です。
+このNodejsプロジェクトをサーバーで稼働させます。下記は[pm2](https://github.com/Unitech/pm2)の例です。
 
 ```shell
 $ npm install pm2 -g
@@ -112,31 +128,34 @@ $ pm2 save
 
 ## Multi-Machines
 
-このプログラムを複数マシンで稼働・連携して大量のデバイスを操作することが可能です。
-モードは`database`で指定します。
+このプログラムを複数マシンで稼働・連携して大量のデバイスを操作することが可能です。  
+モードは `database` で指定します。
 
-以下負荷分散の特徴です
+負荷分散の特徴は以下の通りです。
 
 - MasterプロセスもWorkerとして機能します。Workerを立ち上げず管理機能のみを利用する場合はManagerとして指定します。
 - すべての負荷が均一になるように分散します。
 - あとからマシン追加を検知しても動作中のものを停止->移動はしません。
 
-### `database:'memory'`
+### database: `'memory'`
 
 [Example](./examples/single-instance/basic.js)
 
-`memory`はシングルインスタンスモードです。複数コアでの分散複数マシンでの分散は行われません
+`memory`はシングルインスタンスモードです。  
+複数コアでの分散複数マシンでの分散は行われません
 
 ### `database:'redis'`
-
-[Example](./examples/clustered/redis)
-
-[Example](./examples/clustered/redis-manager-style)
+redisサーバーを用いたプロセス間連携と負荷分散を行います。  
+各マシンから共通のredisサーバーにアクセスできる必要があります。
 
 サンプルではMaster(Workerを管理し、自身もWorkerを持つ)の場合とManager(Workerを管理するのみで自信はWorkerを持たない)の場合の2つのExampleが用意されています。
 
-redisサーバーを用いたプロセス間連携と負荷分散を行います。
-各マシンから共通のredisサーバーにアクセスできる必要があります。
+- [Example1](./examples/clustered/redis)
+  - Workerを管理し、自身もWorkerを持つ 1x Master + 1x Slave パターン
+- [Example2](./examples/clustered/redis-manager-style)
+  - Workerを管理するのみで自身はWorkerを持たない 1x Manager + 1x Slave パターン
+- [Example3](./examples/clustered/redis-multi-master)
+  - 2x Manager or 2x Master + 2x Slave パターン (Master と Manager は同時に動作可能です)
 
 ```javascript
 // Example
@@ -159,7 +178,6 @@ Masterプロセス(or Managerプロセス)がMQTTブローカーとなり、他�
   databaseConfig: process.env.MQTT_SEED_URL || "mqtt://127.0.0.1",
 }
 ```
-
 
 ### Multi-Core
 

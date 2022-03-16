@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sharedInstalledDeviceManager = exports.InstalledDeviceManager = void 0;
+exports.obnizCloudClientInstance = exports.ObnizCloudClient = void 0;
 const obniz_cloud_sdk_1 = require("obniz-cloud-sdk");
-class InstalledDeviceManager {
+class ObnizCloudClient {
     async getListFromObnizCloud(token, option) {
         const sdk = obniz_cloud_sdk_1.getSdk(token, option);
         const allInstalls = [];
@@ -73,6 +73,6 @@ class InstalledDeviceManager {
         return ((_a = result.appEvents) === null || _a === void 0 ? void 0 : _a.totalCount) || 0;
     }
 }
-exports.InstalledDeviceManager = InstalledDeviceManager;
-exports.sharedInstalledDeviceManager = new InstalledDeviceManager();
-//# sourceMappingURL=install.js.map
+exports.ObnizCloudClient = ObnizCloudClient;
+exports.obnizCloudClientInstance = new ObnizCloudClient();
+//# sourceMappingURL=ObnizCloudClient.js.map

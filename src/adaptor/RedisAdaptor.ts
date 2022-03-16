@@ -7,6 +7,7 @@ export type RedisAdaptorOptions = IORedis.RedisOptions;
 export class RedisAdaptor extends Adaptor {
   private _redis: IORedis.Redis;
   private _pubRedis: IORedis.Redis;
+  private _subRedis: IORedis.Redis;
   private _isMaster: boolean;
 
   constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions) {
@@ -14,7 +15,8 @@ export class RedisAdaptor extends Adaptor {
     this._isMaster = isMaster;
     this._redis = new IORedis(redisOption);
     this._pubRedis = new IORedis(redisOption);
-    this._bindRedisEvents(this._redis);
+    this._subRedis = new IORedis(redisOption);
+    this._bindRedisEvents(this._subRedis);
   }
 
   private _onRedisReady() {
@@ -34,7 +36,7 @@ export class RedisAdaptor extends Adaptor {
   }
 
   private _bindRedisEvents(redis: IORedis.Redis) {
-    this._redis.subscribe('app', () => {});
+    redis.subscribe('app', () => {});
     redis.on('ready', this._onRedisReady.bind(this));
     redis.on('message', this._onRedisMessage.bind(this));
     redis.on('+node', () => {
@@ -48,5 +50,9 @@ export class RedisAdaptor extends Adaptor {
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   async _send(json: MessageBetweenInstance): Promise<void> {
     await this._pubRedis.publish('app', JSON.stringify(json));
+  }
+
+  getRedisInstance(): IORedis.Redis {
+    return this._redis;
   }
 }

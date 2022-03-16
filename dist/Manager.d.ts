@@ -8,10 +8,11 @@ export declare class Manager<T extends Database> {
     private readonly _appToken;
     private readonly _obnizSdkOption;
     private _startOptions?;
+    private _instanceName;
     private _syncing;
     private _syncTimeout;
-    private _allInstalls;
-    private _allWorkerInstances;
+    private _workerStore;
+    private _installStore;
     private _keyRequestExecutes;
     private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
@@ -19,10 +20,6 @@ export declare class Manager<T extends Database> {
     private _startWeb;
     webhook: (req: express.Request, res: express.Response) => Promise<void>;
     private _webhook;
-    /**
-     * 空き状況から最適なWorkerを推測
-     */
-    private bestWorkerInstance;
     /**
      * instanceId がidのWorkerが新たに参加した
      * @param id
@@ -49,7 +46,7 @@ export declare class Manager<T extends Database> {
     private synchronize;
     private _healthCheck;
     private _onHealthCheckFailedWorkerInstance;
-    hasSubClusteredInstances(): boolean;
+    hasSubClusteredInstances(): Promise<boolean>;
     request(key: string, timeout: number): Promise<{
         [key: string]: string;
     }>;

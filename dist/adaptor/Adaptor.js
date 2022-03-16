@@ -38,11 +38,25 @@ class Adaptor {
     _onSlaveMessage(message) {
         if (message.action === 'synchronize') {
             if (this.onSynchronize) {
-                this.onSynchronize(message.installs)
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
+                if (message.syncType === 'redis') {
+                    this.onSynchronize({
+                        syncType: message.syncType,
+                    })
+                        .then(() => { })
+                        .catch((e) => {
+                        logger_1.logger.error(e);
+                    });
+                }
+                else {
+                    this.onSynchronize({
+                        syncType: message.syncType,
+                        installs: message.installs,
+                    })
+                        .then(() => { })
+                        .catch((e) => {
+                        logger_1.logger.error(e);
+                    });
+                }
             }
         }
         else if (message.action === 'reportRequest') {
@@ -66,7 +80,7 @@ class Adaptor {
     }
     _onReady() {
         this.isReady = true;
-        logger_1.logger.debug('ready id:' + this.id);
+        logger_1.logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
         if (this.isMaster) {
             this.reportRequest()
                 .then(() => { })
@@ -126,13 +140,24 @@ class Adaptor {
             requestId,
         });
     }
-    async synchronize(instanceName, installs) {
-        await this._send({
-            action: 'synchronize',
-            instanceName,
-            toMaster: false,
-            installs,
-        });
+    async synchronize(instanceName, options) {
+        if (options.syncType === 'redis') {
+            await this._send({
+                action: 'synchronize',
+                instanceName,
+                toMaster: false,
+                syncType: options.syncType,
+            });
+        }
+        else {
+            await this._send({
+                action: 'synchronize',
+                instanceName,
+                toMaster: false,
+                syncType: options.syncType,
+                installs: options.installs,
+            });
+        }
     }
 }
 exports.Adaptor = Adaptor;

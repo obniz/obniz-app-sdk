@@ -9,6 +9,7 @@ export interface IObnizOptions {
     obnizid_dialog?: boolean;
 }
 export interface IObniz {
+    id: string;
     onconnect?: (obniz: any) => Promise<void> | void;
     onloop?: (obniz: any) => Promise<void> | void;
     onclose?: (obniz: any) => Promise<void> | void;

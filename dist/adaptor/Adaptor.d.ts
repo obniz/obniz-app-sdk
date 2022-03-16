@@ -1,4 +1,4 @@
-import { Installed_Device, Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 export interface ReportMessage {
     toMaster: true;
     instanceName: string;
@@ -10,12 +10,24 @@ export interface ReportRequestMessage {
     instanceName: string;
     action: 'reportRequest';
 }
-export interface SynchronizeRequestMessage {
+export declare type SynchronizeByListRequestMessage = {
     toMaster: false;
     instanceName: string;
     action: 'synchronize';
+    syncType: 'list';
     installs: InstalledDevice[];
-}
+};
+export declare type SynchronizeByRedisRequestMessage = {
+    toMaster: false;
+    instanceName: string;
+    action: 'synchronize';
+    syncType: 'redis';
+};
+declare type SynchronizeByListParams = Pick<SynchronizeByListRequestMessage, 'syncType' | 'installs'>;
+declare type SynchronizeByRedisParams = Pick<SynchronizeByRedisRequestMessage, 'syncType'>;
+export declare type SynchronizeMethodOption = SynchronizeByListParams | SynchronizeByRedisParams;
+export declare type SynchronizeRequestMessage = SynchronizeByListRequestMessage | SynchronizeByRedisRequestMessage;
+export declare type SynchronizeRequestType = SynchronizeRequestMessage['syncType'];
 export interface KeyRequestMessage {
     toMaster: false;
     instanceName: string;
@@ -50,7 +62,7 @@ export declare abstract class Adaptor {
     onKeyRequestResponse?: (requestId: string, instanceName: string, results: {
         [key: string]: string;
     }) => Promise<void>;
-    onSynchronize?: (installs: InstalledDevice[]) => Promise<void>;
+    onSynchronize?: (options: SynchronizeMethodOption) => Promise<void>;
     onReported?: (instanceName: string, installIds: string[]) => Promise<void>;
     onRequestRequested?: (key: string) => Promise<{
         [key: string]: string;
@@ -66,6 +78,7 @@ export declare abstract class Adaptor {
     keyRequestResponse(requestId: string, instanceName: string, results: {
         [key: string]: string;
     }): Promise<void>;
-    synchronize(instanceName: string, installs: Installed_Device[]): Promise<void>;
+    synchronize(instanceName: string, options: SynchronizeMethodOption): Promise<void>;
     protected abstract _send(json: MessageBetweenInstance): Promise<void>;
 }
+export {};

@@ -13,7 +13,23 @@ export declare class Worker<O extends IObniz> {
     state: 'stopped' | 'starting' | 'started' | 'stopping';
     protected readonly _obnizOption: IObnizOptions;
     user: User;
+    private _cloudSdk;
     constructor(install: Installed_Device, app: App<O>, option?: IObnizOptions);
+    /**
+     * Worker lifecycle
+     */
+    /**
+     * Called When newaly Installed
+     * This will be called before onStart after instantiated.
+     * Introduces from v1.4.0
+     */
+    onInstall(): Promise<void>;
+    /**
+     * Called When Uninstalled
+     * This will be called before onEnd()
+     * Introduces from v1.4.0
+     */
+    onUnInstall(): Promise<void>;
     /**
      * Worker lifecycle
      */
@@ -35,8 +51,18 @@ export declare class Worker<O extends IObniz> {
     onObnizConnect(obniz: O): Promise<void>;
     onObnizLoop(obniz: O): Promise<void>;
     onObnizClose(obniz: O): Promise<void>;
-    start(): Promise<void>;
+    /**
+     * Start Application by recofnizing Install/Update
+     * @param onInstall if start reason is new install then true;
+     */
+    start(onInstall?: boolean): Promise<void>;
     private _loop;
     stop(): Promise<void>;
+    protected statusUpdateWait(status: 'success' | 'error', text: string): Promise<void>;
+    protected addLogQueue(level: 'info' | 'error', message: string): void;
+    cloudLog: {
+        info: (message: string) => void;
+        error: (message: string) => void;
+    };
 }
 export declare type WorkerStatic<O extends IObniz> = new (install: Installed_Device, app: App<O>, option: IObnizOptions) => Worker<O>;

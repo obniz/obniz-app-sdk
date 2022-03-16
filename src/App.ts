@@ -6,6 +6,7 @@ import semver from 'semver';
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Manager as ManagerClass } from './Manager';
+import { Adaptor } from './adaptor/Adaptor';
 import {
   Installed_Device,
   Installed_Device as InstalledDevice,

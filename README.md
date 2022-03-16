@@ -205,6 +205,8 @@ class MyWorker extends Worker {
 
   async onStart(){
     console.log("onStart");
+    //You can use cloudLog.info to record logs that can be viewed on the device details page of obniz.com.
+    this.cloudLog.info("obniz Connect");
   }
 
   async onLoop(){

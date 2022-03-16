@@ -266,7 +266,8 @@ class Manager {
         }
         catch (e) {
             console.error(e);
-            process.exit(-1);
+            return;
+            // process.exit(-1);
         }
         logger_1.logger.debug(`API Sync Finished Count=${installsApi.length} duration=${Date.now() - startedTime}msec`);
         /**
@@ -357,7 +358,8 @@ class Manager {
         }
         catch (e) {
             console.error(e);
-            process.exit(-1);
+            return;
+            // process.exit(-1);
         }
         logger_1.logger.debug(`API Diff Sync Finished DiffCount=${events.length} duration=${Date.now() - startedTime}msec`);
         if (events.length > 0) {

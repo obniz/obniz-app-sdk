@@ -10,6 +10,7 @@ export interface IObnizOptions {
 }
 
 export interface IObniz {
+  id: string;
   onconnect?: (obniz: any) => Promise<void> | void;
   onloop?: (obniz: any) => Promise<void> | void;
   onclose?: (obniz: any) => Promise<void> | void;

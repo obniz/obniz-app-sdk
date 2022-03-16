@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Worker = void 0;
 const logger_1 = require("./logger");
+const obniz_cloud_sdk_1 = require("obniz-cloud-sdk");
 /**
  * This class is exported from this library
  * "Abstract" must be drop
@@ -10,6 +11,14 @@ const logger_1 = require("./logger");
 class Worker {
     constructor(install, app, option = {}) {
         this.state = 'stopped';
+        this.cloudLog = {
+            info: (message) => {
+                this.addLogQueue('info', message);
+            },
+            error: (message) => {
+                this.addLogQueue('error', message);
+            },
+        };
         this.install = install;
         this.app = app;
         this._obnizOption = option;
@@ -22,7 +31,25 @@ class Worker {
         this.obniz.onclose = this.onObnizClose.bind(this);
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         this.user = this.install.user;
+        this._cloudSdk = this._obnizOption.access_token
+            ? obniz_cloud_sdk_1.getSdk(this._obnizOption.access_token, app._options.obnizCloudSdkOption)
+            : null;
     }
+    /**
+     * Worker lifecycle
+     */
+    /**
+     * Called When newaly Installed
+     * This will be called before onStart after instantiated.
+     * Introduces from v1.4.0
+     */
+    async onInstall() { }
+    /**
+     * Called When Uninstalled
+     * This will be called before onEnd()
+     * Introduces from v1.4.0
+     */
+    async onUnInstall() { }
     /**
      * Worker lifecycle
      */
@@ -46,11 +73,18 @@ class Worker {
     async onObnizConnect(obniz) { }
     async onObnizLoop(obniz) { }
     async onObnizClose(obniz) { }
-    async start() {
+    /**
+     * Start Application by recofnizing Install/Update
+     * @param onInstall if start reason is new install then true;
+     */
+    async start(onInstall = false) {
         if (this.state !== 'stopped') {
             throw new Error(`invalid state`);
         }
         this.state = 'starting';
+        if (onInstall) {
+            await this.onInstall();
+        }
         await this.onStart();
         this.state = 'started';
         this.obniz.autoConnect = true;
@@ -86,6 +120,43 @@ class Worker {
             await this.onEnd();
             this.state = 'stopped';
         }
+    }
+    async statusUpdateWait(status, text) {
+        if (!this._cloudSdk) {
+            return;
+        }
+        await this._cloudSdk.createAppStatus({
+            createAppStatusInput: {
+                obniz: {
+                    id: this.obniz.id,
+                },
+                result: {
+                    status,
+                    text,
+                },
+            },
+        });
+    }
+    addLogQueue(level, message) {
+        if (!this._cloudSdk) {
+            return;
+        }
+        message = '' + message;
+        this._cloudSdk
+            .createAppLog({
+            createAppLogInput: {
+                obniz: {
+                    id: this.obniz.id,
+                },
+                app: {
+                    logJson: JSON.stringify({ message }),
+                    level,
+                },
+            },
+        })
+            .catch((e) => {
+            console.warn(`failed to send log ${message}`);
+        });
     }
 }
 exports.Worker = Worker;

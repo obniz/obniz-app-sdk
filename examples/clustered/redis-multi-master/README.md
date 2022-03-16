@@ -18,7 +18,7 @@ REDIS_URL='redis://localhost:6379' APPTOKEN=**** node master2.js
 ### Manager
 Start managers. It will start manager instance to manage workers.
 ```
-REDIS_URL='redis://localhost:6379' APPTOKEN=**** node manager1.js
+REDIS_URL='redis://localhost:6379' APPTOKEN=apptoken_daef3nDzxvShd8ArRkuzV82kqOm5RsxlnAShGahE3oxvZC8StwC6UOcvhB7wwNFL node manager1.js
 REDIS_URL='redis://localhost:6379' APPTOKEN=**** node manager2.js
 ```
 

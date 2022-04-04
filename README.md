@@ -98,7 +98,7 @@ The following options are available for App.
 
 For other optional parameters, please refer to the program (App.ts).
 
-#### instanceType について
+#### instanceType
 
 There are three types of `instanceType`, each of which works as follows
 

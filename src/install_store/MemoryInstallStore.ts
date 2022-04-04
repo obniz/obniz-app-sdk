@@ -1,10 +1,6 @@
 import { MemoryWorkerStore } from '../worker_store/MemoryWorkerStore';
 import { WorkerInstance } from '../worker_store/WorkerStoreBase';
-import {
-  InstallStatus,
-  InstallStoreBase,
-  ManagedInstall,
-} from './InstallStoreBase';
+import { InstallStoreBase, ManagedInstall } from './InstallStoreBase';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 
 export class MemoryInstallStore extends InstallStoreBase {
@@ -76,7 +72,6 @@ export class MemoryInstallStore extends InstallStoreBase {
     return this.manualCreate(id, {
       instanceName: worker.name,
       install: device,
-      status: InstallStatus.Starting,
       updatedMillisecond: Date.now(),
     });
   }
@@ -99,7 +94,6 @@ export class MemoryInstallStore extends InstallStoreBase {
     if (!worker) throw new Error('NO_ACCEPTABLE_WORKER');
     return this.update(id, {
       instanceName: worker.name,
-      status: InstallStatus.Starting,
     });
   }
 
@@ -110,7 +104,6 @@ export class MemoryInstallStore extends InstallStoreBase {
     this._installs[id] = {
       install: props.install ?? this._installs[id].install,
       instanceName: props.instanceName ?? this._installs[id].instanceName,
-      status: props.status ?? this._installs[id].status,
       updatedMillisecond:
         props.updatedMillisecond ?? this._installs[id].updatedMillisecond,
     };

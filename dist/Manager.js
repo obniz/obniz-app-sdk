@@ -23,13 +23,6 @@ const RedisWorkerStore_1 = require("./worker_store/RedisWorkerStore");
 const RedisInstallStore_1 = require("./install_store/RedisInstallStore");
 const MemoryInstallStore_1 = require("./install_store/MemoryInstallStore");
 const fast_equals_1 = require("fast-equals");
-var InstallStatus;
-(function (InstallStatus) {
-    InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
-    InstallStatus[InstallStatus["Started"] = 1] = "Started";
-    InstallStatus[InstallStatus["Stopping"] = 2] = "Stopping";
-    InstallStatus[InstallStatus["Stopped"] = 3] = "Stopped";
-})(InstallStatus || (InstallStatus = {}));
 class Manager {
     constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
         this._syncing = false;
@@ -194,7 +187,6 @@ class Manager {
             for (const existId of worker.installIds) {
                 const managedInstall = await this._installStore.get(existId);
                 if (managedInstall) {
-                    managedInstall.status = InstallStatus.Started;
                     managedInstall.updatedMillisecond = Date.now();
                 }
                 else {

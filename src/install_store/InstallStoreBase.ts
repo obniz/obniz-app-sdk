@@ -1,16 +1,8 @@
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 
-export enum InstallStatus {
-  Starting,
-  Started,
-  Stopping,
-  Stopped,
-}
-
 export interface ManagedInstall {
   instanceName: string; // Which Instance handling this
   install: InstalledDevice;
-  status: InstallStatus;
   updatedMillisecond: number;
 }
 

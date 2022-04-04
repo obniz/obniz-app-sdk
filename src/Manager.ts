@@ -30,13 +30,6 @@ import { RedisInstallStore } from './install_store/RedisInstallStore';
 import { MemoryInstallStore } from './install_store/MemoryInstallStore';
 import { deepEqual } from 'fast-equals';
 
-enum InstallStatus {
-  Starting,
-  Started,
-  Stopping,
-  Stopped,
-}
-
 interface AppStartOptionInternal extends AppStartOption {
   express: express.Express;
   webhookUrl: string;
@@ -265,7 +258,6 @@ export class Manager<T extends Database> {
       for (const existId of worker.installIds) {
         const managedInstall = await this._installStore.get(existId);
         if (managedInstall) {
-          managedInstall.status = InstallStatus.Started;
           managedInstall.updatedMillisecond = Date.now();
         } else {
           // ghost

@@ -19,7 +19,7 @@ App 初期化時の config として `database: "redis"` を指定すると、�
 
 ### Worker の同期
 
-初回起動時と一定時間ごとに obnizCloud からインストールされているデバイスの一覧を全て取得し、Redis 上に SlaveClass への振り分けリストを保管します。振り分けについては[Worker の振り分け](#worker-の振り分け)を参照してください。  
+初回起動時と一定時間ごとに obnizCloud からインストールされているデバイスの一覧を全て取得し、Redis 上に SlaveClass への振り分けリスト( `workers:[workerName]` )を保管します。振り分けについては[Worker の振り分け](#worker-の振り分け)を参照してください。  
 同期が完了した後、SlaveClass に対して Redis の Pub/Sub で同期リクエストが送信され、SlaveClass が自分自身で Redis から情報を取得して動作している Worker の起動/変更/削除を行います。
 
 ```mermaid
@@ -64,7 +64,7 @@ Slave の heartbeat は一定時間ごとに Master が参照し、heartbeat が
    - 既に割り当てられている場合は `ALREADY_INSTALLED` エラー
      - info レベルのログとして記録されます
 3. 割り当てが少ない Slave を取得
-4. 一覧に追加
+4. 振り分けリスト( `workers:[workerName]` )に追加
 
 ### Worker の再振り分け
 
@@ -82,8 +82,9 @@ Slave の heartbeat は一定時間ごとに Master が参照し、heartbeat が
 4. 割り当てが少ない Slave を取得
    - 他に割り当てられる Slave が無い場合は `NO_OTHER_ACCEPTABLE_WORKER` エラー
      - error レベルのログとして記録されます
-5. 割り当て一覧を更新
+5. 振り分けリスト( `workers:[workerName]` )を更新
    - 旧割り当て一覧から削除
    - 割り当て先インスタンス名と最終更新日時を更新
    - 新割り当て一覧に追加
 
+> 手順3の強制再振り分けについて、Master/Slave の死活管理 に記載のものと基準が異なります。現状SDK側でTTLを設定しているため問題ありませんが、将来的に統一する予定です。

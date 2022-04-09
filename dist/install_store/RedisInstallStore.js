@@ -30,7 +30,6 @@ end
 local obj = cjson.decode(ARGV[1])
 local timeres = redis.call('TIME')
 local timestamp = timeres[1]
-obj['status'] = 0
 obj['instanceName'] = minWorkerName
 obj['updatedMillisecond'] = timestamp
 local json = cjson.encode(obj)
@@ -70,7 +69,6 @@ local nowObj = cjson.decode(redis.call('HGET', 'workers:'..nowWorkerName, KEYS[1
 local newObj = nowObj
 local timeres = redis.call('TIME')
 local timestamp = timeres[1]
-newObj['status'] = 0
 newObj['instanceName'] = minWorkerName
 newObj['updatedMillisecond'] = timestamp
 local json = cjson.encode(newObj)

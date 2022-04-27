@@ -19,6 +19,7 @@ export declare class Manager<T extends Database> {
     private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
     start(option?: AppStartOption): void;
+    startWait(option?: AppStartOption): Promise<void>;
     private _startWeb;
     webhook: (req: express.Request, res: express.Response) => Promise<void>;
     private _webhook;
@@ -46,11 +47,12 @@ export declare class Manager<T extends Database> {
     private _updateDevice;
     private _deleteDevice;
     private synchronize;
+    private _writeSelfHeartbeat;
     private _healthCheck;
     private _onHealthCheckFailedWorkerInstance;
     hasSubClusteredInstances(): Promise<boolean>;
     request(key: string, timeout: number): Promise<{
         [key: string]: string;
     }>;
-    isFirstMaster(): boolean | null;
+    isFirstMaster(): boolean;
 }

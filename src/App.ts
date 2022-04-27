@@ -201,8 +201,20 @@ export class App<O extends IObniz> {
   }
 
   start(option?: AppStartOption): void {
+    this.startWait(option)
+      .then(() => {})
+      .catch((e) => {
+        if (e instanceof Error) {
+          throw e;
+        } else {
+          logger.error('ErrorOnStarting', e);
+        }
+      });
+  }
+
+  async startWait(option?: AppStartOption): Promise<void> {
     if (this._manager) {
-      this._manager.start(option);
+      await this._manager.startWait(option);
       logger.info('ManagerClass started');
     }
     if (this._slave) {
@@ -248,7 +260,7 @@ export class App<O extends IObniz> {
     return await this._manager.request(key, timeout);
   }
 
-  public isFirstManager(): boolean | null {
+  public isFirstManager(): boolean {
     if (!this._manager) {
       throw new Error(`This function is only available on master`);
     }

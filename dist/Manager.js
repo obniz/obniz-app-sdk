@@ -87,6 +87,15 @@ class Manager {
         this._startWeb(option);
         this._startSyncing();
         this._startHealthCheck();
+        setTimeout(async () => {
+            await this._writeSelfHeartbeat();
+        }, 0);
+    }
+    async startWait(option) {
+        this._startWeb(option);
+        this._startSyncing();
+        this._startHealthCheck();
+        await this._writeSelfHeartbeat();
     }
     _startWeb(option) {
         option = option || {};
@@ -217,18 +226,9 @@ class Manager {
         }
     }
     _startHealthCheck() {
-        // First
-        setTimeout(async () => {
-            try {
-                await this._healthCheck();
-            }
-            catch (e) {
-                logger_1.logger.error(e);
-            }
-        }, 0);
-        // every 10s
         setInterval(async () => {
             try {
+                await this._writeSelfHeartbeat();
                 await this._healthCheck();
             }
             catch (e) {
@@ -494,25 +494,25 @@ class Manager {
             }
         }
     }
-    async _healthCheck() {
-        const current = Date.now();
-        // Me
-        if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
-            // If adaptor is Redis
-            const redis = this.adaptor.getRedisInstance();
-            if (this._isHeartbeatInit) {
-                await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
-            }
-            else {
-                const res = (await redis.eval(`local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
+    async _writeSelfHeartbeat() {
+        if (!(this.adaptor instanceof RedisAdaptor_1.RedisAdaptor))
+            return;
+        const redis = this.adaptor.getRedisInstance();
+        if (this._isHeartbeatInit) {
+            await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
+        }
+        else {
+            const res = (await redis.eval(`local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
 local result = redis.call('SET', 'master:'..KEYS[1]..':heartbeat', redis.call('TIME')[1], 'EX', 20)
 if not result == 'OK' then return {err='FAILED_ADD_MANAGER_HEARTBEAT'} end
 return {#runningManagerKeys == 0 and 'true' or 'false'}`, 1, this._instanceName));
-                this._isFirstManager = res[0] === 'true';
-            }
+            this._isFirstManager = res[0] === 'true';
         }
         if (!this._isHeartbeatInit)
             this._isHeartbeatInit = true;
+    }
+    async _healthCheck() {
+        const current = Date.now();
         // Each room
         const instances = await this._workerStore.getAllWorkerInstances();
         for (const [id, instance] of Object.entries(instances)) {
@@ -564,7 +564,9 @@ return {#runningManagerKeys == 0 and 'true' or 'false'}`, 1, this._instanceName)
         });
     }
     isFirstMaster() {
-        return !this._isHeartbeatInit ? null : this._isFirstManager;
+        if (!this._isHeartbeatInit)
+            throw new Error('init process has not been completed. Please delay a little longer before checking or start app using startWait().');
+        return this._isFirstManager;
     }
 }
 exports.Manager = Manager;

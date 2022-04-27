@@ -13,6 +13,8 @@ export declare class Manager<T extends Database> {
     private _syncTimeout;
     private _workerStore;
     private _installStore;
+    private _isHeartbeatInit;
+    private _isFirstManager;
     private _keyRequestExecutes;
     private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
@@ -50,4 +52,5 @@ export declare class Manager<T extends Database> {
     request(key: string, timeout: number): Promise<{
         [key: string]: string;
     }>;
+    isFirstMaster(): boolean | null;
 }

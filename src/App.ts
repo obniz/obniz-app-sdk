@@ -248,6 +248,13 @@ export class App<O extends IObniz> {
     return await this._manager.request(key, timeout);
   }
 
+  public isFirstManager(): boolean | null {
+    if (!this._manager) {
+      throw new Error(`This function is only available on master`);
+    }
+    return this._manager.isFirstMaster();
+  }
+
   public get obnizClass(): IObnizStatic<O> {
     return this._options.obnizClass;
   }

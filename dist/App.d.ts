@@ -95,5 +95,6 @@ export declare class App<O extends IObniz> {
     request(key: string, timeout?: number): Promise<{
         [key: string]: string;
     }>;
+    isFirstManager(): boolean | null;
     get obnizClass(): IObnizStatic<O>;
 }

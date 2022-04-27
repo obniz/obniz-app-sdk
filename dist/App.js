@@ -132,6 +132,12 @@ class App {
         }
         return await this._manager.request(key, timeout);
     }
+    isFirstManager() {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
+        }
+        return this._manager.isFirstMaster();
+    }
     get obnizClass() {
         return this._options.obnizClass;
     }

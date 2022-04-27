@@ -26,6 +26,8 @@ const fast_equals_1 = require("fast-equals");
 class Manager {
     constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
         this._syncing = false;
+        this._isHeartbeatInit = false;
+        this._isFirstManager = false;
         // Note: moved to _installStore
         // private _allInstalls: { [key: string]: ManagedInstall } = {};
         // Note: moved to _workerStore
@@ -215,6 +217,16 @@ class Manager {
         }
     }
     _startHealthCheck() {
+        // First
+        setTimeout(async () => {
+            try {
+                await this._healthCheck();
+            }
+            catch (e) {
+                logger_1.logger.error(e);
+            }
+        }, 0);
+        // every 10s
         setInterval(async () => {
             try {
                 await this._healthCheck();
@@ -488,8 +500,19 @@ class Manager {
         if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             // If adaptor is Redis
             const redis = this.adaptor.getRedisInstance();
-            await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
+            if (this._isHeartbeatInit) {
+                await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
+            }
+            else {
+                const res = (await redis.eval(`local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
+local result = redis.call('SET', 'master:'..KEYS[1]..':heartbeat', redis.call('TIME')[1], 'EX', 20)
+if not result == 'OK' then return {err='FAILED_ADD_MANAGER_HEARTBEAT'} end
+return {#runningManagerKeys == 0 and 'true' or 'false'}`, 1, this._instanceName));
+                this._isFirstManager = res[0] === 'true';
+            }
         }
+        if (!this._isHeartbeatInit)
+            this._isHeartbeatInit = true;
         // Each room
         const instances = await this._workerStore.getAllWorkerInstances();
         for (const [id, instance] of Object.entries(instances)) {
@@ -539,6 +562,9 @@ class Manager {
                 reject(e);
             }
         });
+    }
+    isFirstMaster() {
+        return !this._isHeartbeatInit ? null : this._isFirstManager;
     }
 }
 exports.Manager = Manager;

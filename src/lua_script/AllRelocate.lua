@@ -37,7 +37,7 @@ local minCountCond = math.floor(totalCount / #assignedCounts)
 -- redis.log(redis.LOG_WARNING, 'minCountCond is '..minCountCond)
 -- redis.log(redis.LOG_WARNING, 'max try count is '..math.ceil(#assignedCounts / 2))
 
-for j = 1, math.ceil(#assignedCounts / 2) do
+for j = 1, #assignedCounts do
 
   table.sort(assignedCounts, function (a, b)
     return a.count > b.count
@@ -53,7 +53,7 @@ for j = 1, math.ceil(#assignedCounts / 2) do
   local movCount = math.min(math.floor((max.count - min.count) / 2), minCountCond)
   -- redis.log(redis.LOG_WARNING, 'move: '..max.key..' => '..min.key..' x '..movCount)
 
-  local movWorkers = redis.call('HSCAN', 'workers:'..max.key, 0, 'MATCH', '*', 'COUNT', movCount)[2]
+  local movWorkers = redis.call('HGETALL', 'workers:'..max.key)
   for i = 1, movCount * 2, 2 do
     -- redis.log(redis.LOG_WARNING, 'moving: '..max.key..' => '..min.key..' '..((i+1)/2)..'/'..movCount)
     local nowObj = cjson.decode(movWorkers[i + 1])
@@ -64,7 +64,6 @@ for j = 1, math.ceil(#assignedCounts / 2) do
     local json = cjson.encode(newObj)
     local setres = redis.call('HSET', 'workers:'..min.key, movWorkers[i], json)
     local delres = redis.call('HDEL', 'workers:'..max.key, movWorkers[i])
-    -- redis.log(redis.LOG_WARNING, 'done!')
   end
   assignedCounts[1] = {key=assignedCounts[1].key, count=assignedCounts[1].count - movCount}
   assignedCounts[#assignedCounts] = {key=assignedCounts[#assignedCounts].key, count=assignedCounts[#assignedCounts].count + movCount}

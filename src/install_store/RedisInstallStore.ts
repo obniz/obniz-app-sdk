@@ -115,7 +115,7 @@ for i = 1, #runningWorkerKeys do
   end
 end
 local minCountCond = math.floor(totalCount / #assignedCounts)
-for j = 1, math.ceil(#assignedCounts / 2) do
+for j = 1, #assignedCounts do
   table.sort(assignedCounts, function (a, b)
     return a.count > b.count
   end)
@@ -123,7 +123,7 @@ for j = 1, math.ceil(#assignedCounts / 2) do
   local min = assignedCounts[#assignedCounts]
   if min.count == minCountCond then break end
   local movCount = math.min(math.floor((max.count - min.count) / 2), minCountCond)
-  local movWorkers = redis.call('HSCAN', 'workers:'..max.key, 0, 'MATCH', '*', 'COUNT', movCount)[2]
+  local movWorkers = redis.call('HGETALL', 'workers:'..max.key)
   for i = 1, movCount * 2, 2 do
     local nowObj = cjson.decode(movWorkers[i + 1])
     local newObj = nowObj

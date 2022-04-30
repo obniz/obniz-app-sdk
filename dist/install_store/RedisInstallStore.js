@@ -322,7 +322,12 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
         }
         catch (e) {
             if (e instanceof Error) {
-                throw e;
+                switch (e.message) {
+                    case 'NO_WORKER':
+                        throw new Error(e.message);
+                    default:
+                        throw e;
+                }
             }
             throw e;
         }

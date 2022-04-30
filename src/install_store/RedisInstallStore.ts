@@ -328,7 +328,12 @@ export class RedisInstallStore extends InstallStoreBase {
       const res = await redis.eval(AllRelocateLuaScript, 0);
     } catch (e) {
       if (e instanceof Error) {
-        throw e;
+        switch (e.message) {
+          case 'NO_WORKER':
+            throw new Error(e.message);
+          default:
+            throw e;
+        }
       }
       throw e;
     }

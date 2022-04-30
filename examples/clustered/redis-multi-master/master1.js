@@ -28,7 +28,11 @@ const main = async () => {
   await app.startWait({
     port: 3335
   });
-  // app.isFirstManager() is available;
+  // app.isFirstManager() is available
+  /*if (app.isFirstManager()) {
+    console.log('doAllRelocate');
+    await app.doAllRelocate();
+  };*/
 };
 
 main();

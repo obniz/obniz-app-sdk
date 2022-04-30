@@ -267,6 +267,13 @@ export class App<O extends IObniz> {
     return this._manager.isFirstMaster();
   }
 
+  public async doAllRelocate(): Promise<void> {
+    if (!this._manager) {
+      throw new Error(`This function is only available on master`);
+    }
+    await this._manager.doAllRelocate();
+  }
+
   public get obnizClass(): IObnizStatic<O> {
     return this._options.obnizClass;
   }

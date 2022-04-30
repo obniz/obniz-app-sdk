@@ -647,4 +647,12 @@ return {#runningManagerKeys == 0 and 'true' or 'false'}`,
       );
     return this._isFirstManager;
   }
+
+  public async doAllRelocate(): Promise<void> {
+    if (!(this._installStore instanceof RedisInstallStore))
+      throw new Error(
+        'This function is currently only available when using redis.'
+      );
+    await this._installStore.doAllRelocate();
+  }
 }

@@ -55,4 +55,5 @@ export declare class Manager<T extends Database> {
         [key: string]: string;
     }>;
     isFirstMaster(): boolean;
+    doAllRelocate(): Promise<void>;
 }

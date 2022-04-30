@@ -97,5 +97,6 @@ export declare class App<O extends IObniz> {
         [key: string]: string;
     }>;
     isFirstManager(): boolean;
+    doAllRelocate(): Promise<void>;
     get obnizClass(): IObnizStatic<O>;
 }

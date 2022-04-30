@@ -568,6 +568,11 @@ return {#runningManagerKeys == 0 and 'true' or 'false'}`, 1, this._instanceName)
             throw new Error('init process has not been completed. Please delay a little longer before checking or start app using startWait().');
         return this._isFirstManager;
     }
+    async doAllRelocate() {
+        if (!(this._installStore instanceof RedisInstallStore_1.RedisInstallStore))
+            throw new Error('This function is currently only available when using redis.');
+        await this._installStore.doAllRelocate();
+    }
 }
 exports.Manager = Manager;
 //# sourceMappingURL=Manager.js.map

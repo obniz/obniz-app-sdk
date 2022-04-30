@@ -150,6 +150,12 @@ class App {
         }
         return this._manager.isFirstMaster();
     }
+    async doAllRelocate() {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
+        }
+        await this._manager.doAllRelocate();
+    }
     get obnizClass() {
         return this._options.obnizClass;
     }

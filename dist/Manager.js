@@ -23,16 +23,11 @@ const RedisWorkerStore_1 = require("./worker_store/RedisWorkerStore");
 const RedisInstallStore_1 = require("./install_store/RedisInstallStore");
 const MemoryInstallStore_1 = require("./install_store/MemoryInstallStore");
 const fast_equals_1 = require("fast-equals");
-var InstallStatus;
-(function (InstallStatus) {
-    InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
-    InstallStatus[InstallStatus["Started"] = 1] = "Started";
-    InstallStatus[InstallStatus["Stopping"] = 2] = "Stopping";
-    InstallStatus[InstallStatus["Stopped"] = 3] = "Stopped";
-})(InstallStatus || (InstallStatus = {}));
 class Manager {
     constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
         this._syncing = false;
+        this._isHeartbeatInit = false;
+        this._isFirstManager = false;
         // Note: moved to _installStore
         // private _allInstalls: { [key: string]: ManagedInstall } = {};
         // Note: moved to _workerStore
@@ -92,6 +87,15 @@ class Manager {
         this._startWeb(option);
         this._startSyncing();
         this._startHealthCheck();
+        setTimeout(async () => {
+            await this._writeSelfHeartbeat();
+        }, 0);
+    }
+    async startWait(option) {
+        this._startWeb(option);
+        this._startSyncing();
+        this._startHealthCheck();
+        await this._writeSelfHeartbeat();
     }
     _startWeb(option) {
         option = option || {};
@@ -194,7 +198,6 @@ class Manager {
             for (const existId of worker.installIds) {
                 const managedInstall = await this._installStore.get(existId);
                 if (managedInstall) {
-                    managedInstall.status = InstallStatus.Started;
                     managedInstall.updatedMillisecond = Date.now();
                 }
                 else {
@@ -225,6 +228,7 @@ class Manager {
     _startHealthCheck() {
         setInterval(async () => {
             try {
+                await this._writeSelfHeartbeat();
                 await this._healthCheck();
             }
             catch (e) {
@@ -490,14 +494,25 @@ class Manager {
             }
         }
     }
-    async _healthCheck() {
-        const current = Date.now();
-        // Me
-        if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
-            // If adaptor is Redis
-            const redis = this.adaptor.getRedisInstance();
+    async _writeSelfHeartbeat() {
+        if (!(this.adaptor instanceof RedisAdaptor_1.RedisAdaptor))
+            return;
+        const redis = this.adaptor.getRedisInstance();
+        if (this._isHeartbeatInit) {
             await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
         }
+        else {
+            const res = (await redis.eval(`local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
+local result = redis.call('SET', 'master:'..KEYS[1]..':heartbeat', redis.call('TIME')[1], 'EX', 20)
+if not result == 'OK' then return {err='FAILED_ADD_MANAGER_HEARTBEAT'} end
+return {#runningManagerKeys == 0 and 'true' or 'false'}`, 1, this._instanceName));
+            this._isFirstManager = res[0] === 'true';
+        }
+        if (!this._isHeartbeatInit)
+            this._isHeartbeatInit = true;
+    }
+    async _healthCheck() {
+        const current = Date.now();
         // Each room
         const instances = await this._workerStore.getAllWorkerInstances();
         for (const [id, instance] of Object.entries(instances)) {
@@ -547,6 +562,16 @@ class Manager {
                 reject(e);
             }
         });
+    }
+    isFirstMaster() {
+        if (!this._isHeartbeatInit)
+            throw new Error('init process has not been completed. Please delay a little longer before checking or start app using startWait().');
+        return this._isFirstManager;
+    }
+    async doAllRelocate() {
+        if (!(this._installStore instanceof RedisInstallStore_1.RedisInstallStore))
+            throw new Error('This function is currently only available when using redis.');
+        await this._installStore.doAllRelocate();
     }
 }
 exports.Manager = Manager;

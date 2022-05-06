@@ -60,7 +60,6 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
         return this.manualCreate(id, {
             instanceName: worker.name,
             install: device,
-            status: InstallStoreBase_1.InstallStatus.Starting,
             updatedMillisecond: Date.now(),
         });
     }
@@ -77,16 +76,14 @@ class MemoryInstallStore extends InstallStoreBase_1.InstallStoreBase {
             throw new Error('NO_ACCEPTABLE_WORKER');
         return this.update(id, {
             instanceName: worker.name,
-            status: InstallStoreBase_1.InstallStatus.Starting,
         });
     }
     update(id, props) {
-        var _a, _b, _c, _d;
+        var _a, _b, _c;
         this._installs[id] = {
             install: (_a = props.install) !== null && _a !== void 0 ? _a : this._installs[id].install,
             instanceName: (_b = props.instanceName) !== null && _b !== void 0 ? _b : this._installs[id].instanceName,
-            status: (_c = props.status) !== null && _c !== void 0 ? _c : this._installs[id].status,
-            updatedMillisecond: (_d = props.updatedMillisecond) !== null && _d !== void 0 ? _d : this._installs[id].updatedMillisecond,
+            updatedMillisecond: (_c = props.updatedMillisecond) !== null && _c !== void 0 ? _c : this._installs[id].updatedMillisecond,
         };
         return new Promise((r) => r(this._installs[id]));
     }

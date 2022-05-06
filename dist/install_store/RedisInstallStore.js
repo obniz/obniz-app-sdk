@@ -30,7 +30,6 @@ end
 local obj = cjson.decode(ARGV[1])
 local timeres = redis.call('TIME')
 local timestamp = timeres[1]
-obj['status'] = 0
 obj['instanceName'] = minWorkerName
 obj['updatedMillisecond'] = timestamp
 local json = cjson.encode(obj)
@@ -70,7 +69,6 @@ local nowObj = cjson.decode(redis.call('HGET', 'workers:'..nowWorkerName, KEYS[1
 local newObj = nowObj
 local timeres = redis.call('TIME')
 local timestamp = timeres[1]
-newObj['status'] = 0
 newObj['instanceName'] = minWorkerName
 newObj['updatedMillisecond'] = timestamp
 local json = cjson.encode(newObj)
@@ -98,6 +96,52 @@ local json = cjson.encode(newObj)
 local setres = redis.call('HSET', 'workers:'..nowWorkerName, KEYS[1], json)
 local result = redis.call('HGET', 'workers:'..nowWorkerName, KEYS[1])
 return { result }`;
+const AllRelocateLuaScript = `
+local function hasKey(keys, key)
+  for i = 1, #keys do
+    if (keys[i] == key) then return true end
+  end
+  return false
+end
+local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
+local assignedWorkerKeys = redis.call('KEYS', 'workers:*');
+if #runningWorkerKeys == 0 then return {err='NO_WORKER'} end
+local assignedCounts = {}
+local totalCount = 0
+for i = 1, #runningWorkerKeys do
+  local key = string.match(runningWorkerKeys[i], "slave:(.+):heartbeat")
+  if hasKey(assignedWorkerKeys, 'workers:'..key) then
+    local count = redis.call('HLEN', 'workers:'..key)
+    table.insert(assignedCounts, {key=key,count=count})
+    totalCount = totalCount + count
+  else
+    table.insert(assignedCounts, {key=key,count=0})
+  end
+end
+local minCountCond = math.floor(totalCount / #assignedCounts)
+for j = 1, #assignedCounts do
+  table.sort(assignedCounts, function (a, b)
+    return a.count > b.count
+  end)
+  local max = assignedCounts[1]
+  local min = assignedCounts[#assignedCounts]
+  if min.count == minCountCond then break end
+  local movCount = math.min(math.floor((max.count - min.count) / 2), minCountCond)
+  local movWorkers = redis.call('HGETALL', 'workers:'..max.key)
+  for i = 1, movCount * 2, 2 do
+    local nowObj = cjson.decode(movWorkers[i + 1])
+    local newObj = nowObj
+    local timestamp = redis.call('TIME')[1]
+    newObj['instanceName'] = min.key
+    newObj['updatedMillisecond'] = timestamp
+    local json = cjson.encode(newObj)
+    local setres = redis.call('HSET', 'workers:'..min.key, movWorkers[i], json)
+    local delres = redis.call('HDEL', 'workers:'..max.key, movWorkers[i])
+  end
+  assignedCounts[1] = {key=assignedCounts[1].key, count=assignedCounts[1].count - movCount}
+  assignedCounts[#assignedCounts] = {key=assignedCounts[#assignedCounts].key, count=assignedCounts[#assignedCounts].count + movCount}
+end
+`;
 class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
     constructor(adaptor) {
         super();
@@ -269,6 +313,23 @@ class RedisInstallStore extends InstallStoreBase_1.InstallStoreBase {
         }
         else {
             logger_1.logger.warn(`failed remove: ${id} not found`);
+        }
+    }
+    async doAllRelocate() {
+        const redis = this._redisAdaptor.getRedisInstance();
+        try {
+            const res = await redis.eval(AllRelocateLuaScript, 0);
+        }
+        catch (e) {
+            if (e instanceof Error) {
+                switch (e.message) {
+                    case 'NO_WORKER':
+                        throw new Error(e.message);
+                    default:
+                        throw e;
+                }
+            }
+            throw e;
         }
     }
 }

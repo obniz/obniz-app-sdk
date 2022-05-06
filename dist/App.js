@@ -95,8 +95,20 @@ class App {
         (_a = this._manager) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
     }
     start(option) {
+        this.startWait(option)
+            .then(() => { })
+            .catch((e) => {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                logger_1.logger.error('ErrorOnStarting', e);
+            }
+        });
+    }
+    async startWait(option) {
         if (this._manager) {
-            this._manager.start(option);
+            await this._manager.startWait(option);
             logger_1.logger.info('ManagerClass started');
         }
         if (this._slave) {
@@ -131,6 +143,18 @@ class App {
             throw new Error(`This function is only available on master`);
         }
         return await this._manager.request(key, timeout);
+    }
+    isFirstManager() {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
+        }
+        return this._manager.isFirstMaster();
+    }
+    async doAllRelocate() {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
+        }
+        await this._manager.doAllRelocate();
     }
     get obnizClass() {
         return this._options.obnizClass;

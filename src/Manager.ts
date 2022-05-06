@@ -30,13 +30,6 @@ import { RedisInstallStore } from './install_store/RedisInstallStore';
 import { MemoryInstallStore } from './install_store/MemoryInstallStore';
 import { deepEqual } from 'fast-equals';
 
-enum InstallStatus {
-  Starting,
-  Started,
-  Stopping,
-  Stopped,
-}
-
 interface AppStartOptionInternal extends AppStartOption {
   express: express.Express;
   webhookUrl: string;
@@ -65,6 +58,8 @@ export class Manager<T extends Database> {
   private _syncTimeout: any;
   private _workerStore: WorkerStoreBase;
   private _installStore: InstallStoreBase;
+  private _isHeartbeatInit = false;
+  private _isFirstManager = false;
 
   // Note: moved to _installStore
   // private _allInstalls: { [key: string]: ManagedInstall } = {};
@@ -158,6 +153,16 @@ export class Manager<T extends Database> {
     this._startWeb(option);
     this._startSyncing();
     this._startHealthCheck();
+    setTimeout(async () => {
+      await this._writeSelfHeartbeat();
+    }, 0);
+  }
+
+  public async startWait(option?: AppStartOption): Promise<void> {
+    this._startWeb(option);
+    this._startSyncing();
+    this._startHealthCheck();
+    await this._writeSelfHeartbeat();
   }
 
   private _startWeb(option?: AppStartOption): void {
@@ -265,7 +270,6 @@ export class Manager<T extends Database> {
       for (const existId of worker.installIds) {
         const managedInstall = await this._installStore.get(existId);
         if (managedInstall) {
-          managedInstall.status = InstallStatus.Started;
           managedInstall.updatedMillisecond = Date.now();
         } else {
           // ghost
@@ -295,6 +299,7 @@ export class Manager<T extends Database> {
   private _startHealthCheck() {
     setInterval(async () => {
       try {
+        await this._writeSelfHeartbeat();
         await this._healthCheck();
       } catch (e) {
         logger.error(e);
@@ -545,19 +550,32 @@ export class Manager<T extends Database> {
     }
   }
 
-  private async _healthCheck() {
-    const current = Date.now();
-    // Me
-    if (this.adaptor instanceof RedisAdaptor) {
-      // If adaptor is Redis
-      const redis = this.adaptor.getRedisInstance();
+  private async _writeSelfHeartbeat() {
+    if (!(this.adaptor instanceof RedisAdaptor)) return;
+    const redis = this.adaptor.getRedisInstance();
+    if (this._isHeartbeatInit) {
       await redis.set(
         `master:${this._instanceName}:heartbeat`,
         Date.now(),
         'EX',
         20
       );
+    } else {
+      const res = (await redis.eval(
+        `local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
+local result = redis.call('SET', 'master:'..KEYS[1]..':heartbeat', redis.call('TIME')[1], 'EX', 20)
+if not result == 'OK' then return {err='FAILED_ADD_MANAGER_HEARTBEAT'} end
+return {#runningManagerKeys == 0 and 'true' or 'false'}`,
+        1,
+        this._instanceName
+      )) as [string];
+      this._isFirstManager = res[0] === 'true';
     }
+    if (!this._isHeartbeatInit) this._isHeartbeatInit = true;
+  }
+
+  private async _healthCheck() {
+    const current = Date.now();
     // Each room
     const instances = await this._workerStore.getAllWorkerInstances();
     for (const [id, instance] of Object.entries(instances)) {
@@ -620,5 +638,21 @@ export class Manager<T extends Database> {
         reject(e);
       }
     });
+  }
+
+  public isFirstMaster(): boolean {
+    if (!this._isHeartbeatInit)
+      throw new Error(
+        'init process has not been completed. Please delay a little longer before checking or start app using startWait().'
+      );
+    return this._isFirstManager;
+  }
+
+  public async doAllRelocate(): Promise<void> {
+    if (!(this._installStore instanceof RedisInstallStore))
+      throw new Error(
+        'This function is currently only available when using redis.'
+      );
+    await this._installStore.doAllRelocate();
   }
 }

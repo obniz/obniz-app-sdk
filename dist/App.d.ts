@@ -80,6 +80,7 @@ export declare class App<O extends IObniz> {
     expressWebhook: (req: express.Request, res: express.Response) => void;
     private _expressWebhook;
     start(option?: AppStartOption): void;
+    startWait(option?: AppStartOption): Promise<void>;
     getAllUsers(): Promise<User[]>;
     getAllObnizes(): Promise<O[]>;
     getOnlineObnizes(): Promise<O[]>;
@@ -95,5 +96,7 @@ export declare class App<O extends IObniz> {
     request(key: string, timeout?: number): Promise<{
         [key: string]: string;
     }>;
+    isFirstManager(): boolean;
+    doAllRelocate(): Promise<void>;
     get obnizClass(): IObnizStatic<O>;
 }

@@ -19,4 +19,5 @@ export declare class RedisInstallStore extends InstallStoreBase {
     autoRelocate(id: string, force?: boolean): Promise<ManagedInstall>;
     update(id: string, props: Partial<ManagedInstall>): Promise<ManagedInstall>;
     remove(id: string): Promise<void>;
+    doAllRelocate(): Promise<void>;
 }

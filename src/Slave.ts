@@ -6,6 +6,7 @@ import { logger } from './logger';
 import { App } from './App';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { ManagedInstall } from './install_store/InstallStoreBase';
+import { deepEqual } from 'fast-equals';
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
@@ -142,10 +143,7 @@ export class Slave<O extends IObniz> {
     install: InstalledDevice
   ): Promise<void> {
     const oldWorker = this._workers[install.id];
-    if (
-      oldWorker &&
-      JSON.stringify(oldWorker.install) !== JSON.stringify(install)
-    ) {
+    if (oldWorker && !deepEqual(oldWorker.install, install)) {
       logger.info(`App config changed id=${install.id}`);
       await this._stopOneWorker(install.id);
       await this._startOneWorker(install);

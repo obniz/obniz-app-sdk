@@ -1,3 +1,6 @@
+-- enable commands replication redis < 5.0
+redis.replicate_commands()
+
 -- get slaves
 local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
 local assignedWorkerKeys = redis.call('KEYS', 'workers:*')

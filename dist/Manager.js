@@ -502,10 +502,7 @@ class Manager {
             await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
         }
         else {
-            const res = (await redis.eval(`local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
-local result = redis.call('SET', 'master:'..KEYS[1]..':heartbeat', redis.call('TIME')[1], 'EX', 20)
-if not result == 'OK' then return {err='FAILED_ADD_MANAGER_HEARTBEAT'} end
-return {#runningManagerKeys == 0 and 'true' or 'false'}`, 1, this._instanceName));
+            const res = (await redis.eval(`redis.replicate_commands()local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`, 1, this._instanceName));
             this._isFirstManager = res[0] === 'true';
         }
         if (!this._isHeartbeatInit)

@@ -121,11 +121,30 @@ Redis を使用している場合にのみ、全てのワーカー数を強制�
 1. 動作中の Slave と Worker 一覧の取得
 2. Slave ごとに Worker をカウント
 3. `合計 Worker 数 ÷ Slave 数` を四捨五入した結果を最小割り当て数、最大移動数とする
-4. `Slave の数 ÷ 2` を切り上げた結果を最大実行回数とする
-5. 最大実行回数に達するまで以下をループ
+4. Slave の数に達するまで以下をループ
    1. Slave ごとの Worker カウントを降順で並べ替え
    2. Worker カウントが最大の Slave と 最小の Slave を決定 (重複は無視されます)
    3. 最小の Slave への割り当て数が最小割り当て数と同じ場合はループ終了
    4. `(最大の Slave への割り当て数 - 最小の Slave への割り当て数) ÷ 2` もしくは 最大移動数 の小さい方を Worker の移動数とする
    5. Worker の移動数だけ Redis 上の割り当てリストを変更
    6. Slave ごとの Worker カウントを更新
+
+## LuaScripts
+
+`src/lua_script` 内の LuaScript は `src/install_store/RedisInstallStore.ts` で使用されています。  
+ファイルロードを不要にするため、`luamin` を使用して minify したものを当該ファイル内で文字列として定義しています。
+
+### AutoCreate
+指定した obnizId - データ のペアを、稼働している中で最も動作しているWorker数が少ないWorkerのリストに追加します。  
+Worker一覧の取得、振り分け先の決定、リストへの登録をアトミックに実行します。
+
+### AutoRelocate
+指定した obnizId のデータを、稼働している中で最も動作しているWorker数が少ないWorkerのリストに移動します。指定した obnizId が既にリストに追加されている必要があります。  
+Worker一覧の取得、Workerのデータ取得、振り分け先の決定、新しいリストへの登録、古いリストからの削除をアトミックに実行します。
+
+### UpdateInstall
+指定した obnizId - 新しいデータ のペアを、既に稼働中のWorkerのデータに上書きします。
+Workerのデータ取得、データの上書きをアトミックに実行します。
+
+### InitManagerHeartbeat
+`master:*:heartbeat` を登録し、登録処理時点で他に登録されているマネージャーがあるかどうかを `'true'` もしくは `'false'` で返却します。

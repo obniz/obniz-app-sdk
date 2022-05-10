@@ -6,12 +6,8 @@ local function hasKey(keys, key)
   return false
 end
 
--- for debug
-local function tabledbg (keys)
-  for k, v in ipairs(keys) do
-    redis.log(redis.LOG_WARNING, cjson.encode(v))
-  end
-end
+-- enable commands replication redis < 5.0
+redis.replicate_commands()
 
 -- get workers
 local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
@@ -43,8 +39,6 @@ for j = 1, #assignedCounts do
     return a.count > b.count
   end)
 
-  -- tabledbg(assignedCounts)
-
   local max = assignedCounts[1]
   local min = assignedCounts[#assignedCounts]
 
@@ -70,4 +64,3 @@ for j = 1, #assignedCounts do
 end
 
 -- redis.log(redis.LOG_WARNING, 'all done!')
--- tabledbg(assignedCounts)

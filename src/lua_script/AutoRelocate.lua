@@ -1,4 +1,5 @@
--- note: this will not work on redis cluster
+-- enable commands replication redis < 5.0
+redis.replicate_commands()
 
 -- get slaves
 local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')

@@ -51,6 +51,7 @@
     "eslint-config-prettier": "^7.1.0",
     "eslint-plugin-prettier": "^3.4.0",
     "lint-staged": "^12.3.5",
+    "luamin": "^1.0.4",
     "mocha": "^9.0.1",
     "obniz": "^3.16.0",
     "prettier": "^2.2.1",

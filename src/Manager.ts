@@ -650,6 +650,9 @@ export class Manager<T extends Database> {
       throw new Error(
         'This function is currently only available when using redis.'
       );
+    logger.debug('doAllRelocate Start');
     await this._installStore.doAllRelocate();
+    logger.debug('doAllRelocate Finish');
+    await this.synchronize();
   }
 }

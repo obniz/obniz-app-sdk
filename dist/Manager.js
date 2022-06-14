@@ -568,7 +568,10 @@ class Manager {
     async doAllRelocate() {
         if (!(this._installStore instanceof RedisInstallStore_1.RedisInstallStore))
             throw new Error('This function is currently only available when using redis.');
+        logger_1.logger.debug('doAllRelocate Start');
         await this._installStore.doAllRelocate();
+        logger_1.logger.debug('doAllRelocate Finish');
+        await this.synchronize();
     }
 }
 exports.Manager = Manager;

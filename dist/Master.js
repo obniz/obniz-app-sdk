@@ -416,8 +416,8 @@ class Master {
                     resolve,
                     reject,
                 };
-                await this.adaptor.keyRequest(key, requestId);
                 this._keyRequestExecutes[requestId] = execute;
+                await this.adaptor.keyRequest(key, requestId);
                 await tools_1.wait(timeout);
                 if (this._keyRequestExecutes[requestId]) {
                     delete this._keyRequestExecutes[requestId];

@@ -559,8 +559,8 @@ export class Master<T extends Database> {
           resolve,
           reject,
         };
-        await this.adaptor.keyRequest(key, requestId);
         this._keyRequestExecutes[requestId] = execute;
+        await this.adaptor.keyRequest(key, requestId);
         await wait(timeout);
         if (this._keyRequestExecutes[requestId]) {
           delete this._keyRequestExecutes[requestId];

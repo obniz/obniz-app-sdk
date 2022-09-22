@@ -310,6 +310,39 @@ describe('single', () => {
     expect(obnizA.options.auto_connect).to.be.equal(false);
     expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
   });
+
+  it('request', async () => {
+    const app = new App<DummyObniz>({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+    });
+
+    expect(LogWorker.workers.length).to.be.equal(0);
+
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    app.start({ express: false });
+    await wait(1000);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    const response = await app.request('KEY');
+
+    expect(response).to.be.deep.equal({
+      '7877-4454': 'response from 7877-4454',
+      '0883-8329': 'response from 0883-8329',
+    });
+  }).timeout(80 * 1000);
 });
 
 function obnizApiStub() {

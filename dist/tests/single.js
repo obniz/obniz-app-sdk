@@ -228,6 +228,28 @@ mocha_1.describe('single', () => {
         chai_1.expect(obnizA.options.auto_connect).to.be.equal(false);
         chai_1.expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
     });
+    mocha_1.it('request', async () => {
+        const app = new index_1.App({
+            appToken: process.env.AppToken || '',
+            workerClass: LogWorker_1.LogWorker,
+            instanceType: index_1.AppInstanceType.Master,
+            obnizClass: DummyObniz_1.DummyObniz,
+        });
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
+        const { getCurrentEventNoStub, getDiffListFromObnizCloudStub, getListFromObnizCloudStub, } = obnizApiStub();
+        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+        chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+        app.start({ express: false });
+        await tools_1.wait(1000);
+        chai_1.expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+        chai_1.expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+        chai_1.expect(LogWorker_1.LogWorker.workers.length).to.be.equal(2);
+        const response = await app.request('KEY');
+        chai_1.expect(response).to.be.deep.equal({
+            '7877-4454': 'response from 7877-4454',
+            '0883-8329': 'response from 0883-8329',
+        });
+    }).timeout(80 * 1000);
 });
 function obnizApiStub() {
     const getListFromObnizCloudStub = sinon_1.default.stub();

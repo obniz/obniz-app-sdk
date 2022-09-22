@@ -250,17 +250,20 @@ class App {
         const worker = this._workers[installId];
         if (worker) {
             delete this._workers[installId];
+            const trace = new Error('worker stop error');
             const stop = async () => {
                 try {
                     await worker.stop();
                 }
                 catch (e) {
+                    e.cause = trace;
                     logger_1.logger.error(e);
                 }
                 try {
                     await worker.onUnInstall();
                 }
                 catch (e) {
+                    e.cause = trace;
                     logger_1.logger.error(e);
                 }
             };

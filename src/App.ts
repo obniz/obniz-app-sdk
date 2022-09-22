@@ -397,15 +397,18 @@ export class App<O extends IObniz> {
     if (worker) {
       delete this._workers[installId];
 
+      const trace = new Error('worker stop error');
       const stop = async () => {
         try {
           await worker.stop();
-        } catch (e) {
+        } catch (e: any) {
+          e.cause = trace;
           logger.error(e);
         }
         try {
           await worker.onUnInstall();
-        } catch (e) {
+        } catch (e: any) {
+          e.cause = trace;
           logger.error(e);
         }
       };

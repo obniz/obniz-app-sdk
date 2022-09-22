@@ -62,7 +62,7 @@ export class LogWorker extends Worker<DummyObniz> {
 
   async onRequest(key: string): Promise<string> {
     this.__addLog('onObnizClose');
-    return `response from ${this.obniz}`;
+    return `response from ${this.obniz.id}`;
   }
 
   async onObnizConnect(obniz: DummyObniz): Promise<void> {

@@ -32,7 +32,7 @@ class LogWorker extends Worker_1.Worker {
     }
     async onRequest(key) {
         this.__addLog('onObnizClose');
-        return `response from ${this.obniz}`;
+        return `response from ${this.obniz.id}`;
     }
     async onObnizConnect(obniz) {
         this.__addedObnizLoopEvent = false;

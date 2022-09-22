@@ -25,6 +25,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.App = exports.AppInstanceType = void 0;
 const os = __importStar(require("os"));
 const semver_1 = __importDefault(require("semver"));
+const isEqual = require('json-is-equal');
 const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Manager_1 = require("./Manager");
@@ -235,7 +236,8 @@ class App {
     async _startOrRestartOneWorker(install) {
         const oldWorker = this._workers[install.id];
         if (oldWorker &&
-            JSON.stringify(oldWorker.install) !== JSON.stringify(install)) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+            !isEqual(oldWorker.install, install)) {
             logger_1.logger.info(`App config changed id=${install.id}`);
             await this._stopOneWorker(install.id);
             await this._startOneWorker(install, false);

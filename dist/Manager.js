@@ -10,6 +10,7 @@ const express_1 = __importDefault(require("express"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 const tools_1 = require("./tools");
 const Errors_1 = require("./Errors");
+const isEqual = require('json-is-equal');
 var InstallStatus;
 (function (InstallStatus) {
     InstallStatus[InstallStatus["Starting"] = 0] = "Starting";
@@ -249,7 +250,8 @@ class Manager {
             for (const id in this._allInstalls) {
                 const oldInstall = this._allInstalls[id].install;
                 if (install.id === id) {
-                    if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+                    if (!isEqual(install, oldInstall)) {
                         // updated
                         updated.push(install);
                     }

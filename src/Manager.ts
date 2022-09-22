@@ -16,6 +16,7 @@ import {
   ObnizAppTimeoutError,
 } from './Errors';
 
+const isEqual = require('json-is-equal');
 enum InstallStatus {
   Starting,
   Started,
@@ -352,7 +353,8 @@ export class Manager<T extends Database> {
       for (const id in this._allInstalls) {
         const oldInstall = this._allInstalls[id].install;
         if (install.id === id) {
-          if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+          if (!isEqual(install, oldInstall)) {
             // updated
             updated.push(install);
           }

@@ -2,6 +2,7 @@ import express from 'express';
 import * as os from 'os';
 
 import semver from 'semver';
+
 const isEqual = require('json-is-equal');
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
@@ -383,7 +384,11 @@ export class App<O extends IObniz> {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       !isEqual(oldWorker.install, install)
     ) {
-      logger.info(`App config changed id=${install.id}`);
+      logger.info(
+        `App config changed id=${install.id} before:${JSON.stringify(
+          oldWorker.install
+        )} after:${JSON.stringify(install)}`
+      );
       await this._stopOneWorker(install.id);
       await this._startOneWorker(install, false);
     } else if (!oldWorker) {

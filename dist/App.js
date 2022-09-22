@@ -238,7 +238,7 @@ class App {
         if (oldWorker &&
             // eslint-disable-next-line @typescript-eslint/no-unsafe-call
             !isEqual(oldWorker.install, install)) {
-            logger_1.logger.info(`App config changed id=${install.id}`);
+            logger_1.logger.info(`App config changed id=${install.id} before:${JSON.stringify(oldWorker.install)} after:${JSON.stringify(install)}`);
             await this._stopOneWorker(install.id);
             await this._startOneWorker(install, false);
         }

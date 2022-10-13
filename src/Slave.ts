@@ -75,9 +75,9 @@ export class Slave<O extends IObniz> {
       );
       const installs: { [id: string]: InstalledDevice } = {};
       for (const obnizId in rawInstalls) {
-        installs[obnizId] = (JSON.parse(
-          rawInstalls[obnizId]
-        ) as ManagedInstall).install;
+        installs[obnizId] = (
+          JSON.parse(rawInstalls[obnizId]) as ManagedInstall
+        ).install;
       }
       return installs;
     } catch (e) {

@@ -4,7 +4,7 @@ exports.obnizCloudClientInstance = exports.ObnizCloudClient = void 0;
 const obniz_cloud_sdk_1 = require("obniz-cloud-sdk");
 class ObnizCloudClient {
     async getListFromObnizCloud(token, option) {
-        const sdk = obniz_cloud_sdk_1.getSdk(token, option);
+        const sdk = (0, obniz_cloud_sdk_1.getSdk)(token, option);
         const allInstalls = [];
         let skip = 0;
         let failCount = 0;
@@ -35,7 +35,7 @@ class ObnizCloudClient {
         return allInstalls;
     }
     async getDiffListFromObnizCloud(token, option, skip) {
-        const sdk = obniz_cloud_sdk_1.getSdk(token, option);
+        const sdk = (0, obniz_cloud_sdk_1.getSdk)(token, option);
         const appEvents = [];
         let failCount = 0;
         let maxId = 0;
@@ -68,7 +68,7 @@ class ObnizCloudClient {
     }
     async getCurrentEventNo(token, option) {
         var _a;
-        const sdk = obniz_cloud_sdk_1.getSdk(token, option);
+        const sdk = (0, obniz_cloud_sdk_1.getSdk)(token, option);
         const result = await sdk.appEvents({ first: 1 });
         return ((_a = result.appEvents) === null || _a === void 0 ? void 0 : _a.totalCount) || 0;
     }

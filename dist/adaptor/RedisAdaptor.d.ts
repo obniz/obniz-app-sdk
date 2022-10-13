@@ -1,6 +1,6 @@
 import { Adaptor, MessageBetweenInstance } from './Adaptor';
-import IORedis from 'ioredis';
-export declare type RedisAdaptorOptions = IORedis.RedisOptions;
+import { Redis, RedisOptions } from 'ioredis';
+export declare type RedisAdaptorOptions = RedisOptions;
 export declare class RedisAdaptor extends Adaptor {
     private _redis;
     private _pubRedis;
@@ -11,5 +11,5 @@ export declare class RedisAdaptor extends Adaptor {
     private _onRedisMessage;
     private _bindRedisEvents;
     _send(json: MessageBetweenInstance): Promise<void>;
-    getRedisInstance(): IORedis.Redis;
+    getRedisInstance(): Redis;
 }

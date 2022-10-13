@@ -10,7 +10,7 @@ function authMiddleware(option = {}) {
     };
     return async function (req, res, next) {
         const token = req.cookies[_option.tokenKeyName];
-        const obnizAPI = index_1.getSdk(token);
+        const obnizAPI = (0, index_1.getSdk)(token);
         const ret = await obnizAPI.user();
         if (!ret || !ret.user) {
             next(new Error('user not found'));

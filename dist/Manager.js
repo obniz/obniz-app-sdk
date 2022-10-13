@@ -104,7 +104,7 @@ class Manager {
             return;
         }
         this._startOptions = {
-            express: option.express || express_1.default(),
+            express: option.express || (0, express_1.default)(),
             webhookUrl: option.webhookUrl || '/webhook',
             port: option.port || 3333,
         };
@@ -265,7 +265,8 @@ class Manager {
         const installsApi = [];
         try {
             // set current id before getting data
-            this._currentAppEventsSequenceNo = await ObnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo(this._appToken, this._obnizSdkOption);
+            this._currentAppEventsSequenceNo =
+                await ObnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo(this._appToken, this._obnizSdkOption);
             installsApi.push(...(await ObnizCloudClient_1.obnizCloudClientInstance.getListFromObnizCloud(this._appToken, this._obnizSdkOption)));
         }
         catch (e) {
@@ -288,7 +289,7 @@ class Manager {
                 mustAdds.push(device);
             }
             else {
-                if (!fast_equals_1.deepEqual(device, install.install))
+                if (!(0, fast_equals_1.deepEqual)(device, install.install))
                     updated.push(device);
             }
         }
@@ -356,7 +357,7 @@ class Manager {
         logger_1.logger.debug('API Diff Sync Start');
         const events = [];
         try {
-            const { maxId, appEvents, } = await ObnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud(this._appToken, this._obnizSdkOption, this._currentAppEventsSequenceNo);
+            const { maxId, appEvents } = await ObnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud(this._appToken, this._obnizSdkOption, this._currentAppEventsSequenceNo);
             events.push(...appEvents);
             this._currentAppEventsSequenceNo = maxId;
         }
@@ -368,10 +369,8 @@ class Manager {
         logger_1.logger.debug(`API Diff Sync Finished DiffCount=${events.length} duration=${Date.now() - startedTime}msec`);
         if (events.length > 0) {
             const addNum = events.filter((e) => e.type === 'install.create').length;
-            const updateNum = events.filter((e) => e.type === 'install.update')
-                .length;
-            const deleteNum = events.filter((e) => e.type === 'install.delete')
-                .length;
+            const updateNum = events.filter((e) => e.type === 'install.update').length;
+            const deleteNum = events.filter((e) => e.type === 'install.delete').length;
             const allNum = Object.keys(await this._installStore.getAll()).length +
                 addNum -
                 deleteNum;
@@ -546,7 +545,7 @@ class Manager {
                 };
                 this._keyRequestExecutes[requestId] = execute;
                 await this.adaptor.keyRequest(key, requestId);
-                await tools_1.wait(timeout);
+                await (0, tools_1.wait)(timeout);
                 if (this._keyRequestExecutes[requestId]) {
                     delete this._keyRequestExecutes[requestId];
                     reject(new Errors_1.ObnizAppTimeoutError('Request timed out.'));

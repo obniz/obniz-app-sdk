@@ -126,7 +126,7 @@ class Slave {
     }
     async _startOrRestartOneWorker(install) {
         const oldWorker = this._workers[install.id];
-        if (oldWorker && !fast_equals_1.deepEqual(oldWorker.install, install)) {
+        if (oldWorker && !(0, fast_equals_1.deepEqual)(oldWorker.install, install)) {
             logger_1.logger.info(`App config changed id=${install.id}`);
             await this._stopOneWorker(install.id);
             await this._startOneWorker(install);

@@ -1,7 +1,11 @@
 "use strict";
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
-    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
 }) : (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
@@ -29,12 +33,12 @@ class MqttAdaptor extends Adaptor_1.Adaptor {
     constructor(id, isMaster, mqttOption) {
         super(id, isMaster);
         if (isMaster) {
-            const broker = aedes_1.Server({
+            const broker = (0, aedes_1.Server)({
                 concurrency: 100,
                 heartbeatInterval: 60 * 1000,
                 connectTimeout: 30 * 1000,
             });
-            const server = net_1.createServer(broker.handle);
+            const server = (0, net_1.createServer)(broker.handle);
             server.listen(1883, () => {
                 logger_1.logger.debug(`mqtt listening on 1883`);
             });

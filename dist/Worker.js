@@ -32,7 +32,7 @@ class Worker {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         this.user = this.install.user;
         this._cloudSdk = this._obnizOption.access_token
-            ? obniz_cloud_sdk_1.getSdk(this._obnizOption.access_token, app._options.obnizCloudSdkOption)
+            ? (0, obniz_cloud_sdk_1.getSdk)(this._obnizOption.access_token, app._options.obnizCloudSdkOption)
             : null;
     }
     /**

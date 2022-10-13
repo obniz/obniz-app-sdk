@@ -355,7 +355,8 @@ function obnizApiStub() {
     appEvents: appEvnetSamples,
     maxId: 4,
   });
-  obnizCloudClientInstance.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
+  obnizCloudClientInstance.getDiffListFromObnizCloud =
+    getDiffListFromObnizCloudStub;
 
   const getCurrentEventNoStub = sinon.stub();
   getCurrentEventNoStub.returns(0);

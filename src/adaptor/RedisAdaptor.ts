@@ -1,13 +1,13 @@
 import { Adaptor, MessageBetweenInstance } from './Adaptor';
-import IORedis from 'ioredis';
+import IORedis, { Redis, RedisOptions } from 'ioredis';
 import { logger } from '../logger';
 
-export type RedisAdaptorOptions = IORedis.RedisOptions;
+export type RedisAdaptorOptions = RedisOptions;
 
 export class RedisAdaptor extends Adaptor {
-  private _redis: IORedis.Redis;
-  private _pubRedis: IORedis.Redis;
-  private _subRedis: IORedis.Redis;
+  private _redis: Redis;
+  private _pubRedis: Redis;
+  private _subRedis: Redis;
   private _isMaster: boolean;
 
   constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions) {
@@ -35,7 +35,7 @@ export class RedisAdaptor extends Adaptor {
     this.onMessage(parsed);
   }
 
-  private _bindRedisEvents(redis: IORedis.Redis) {
+  private _bindRedisEvents(redis: Redis) {
     redis.subscribe('app', () => {});
     redis.on('ready', this._onRedisReady.bind(this));
     redis.on('message', this._onRedisMessage.bind(this));
@@ -52,7 +52,7 @@ export class RedisAdaptor extends Adaptor {
     await this._pubRedis.publish('app', JSON.stringify(json));
   }
 
-  getRedisInstance(): IORedis.Redis {
+  getRedisInstance(): Redis {
     return this._redis;
   }
 }

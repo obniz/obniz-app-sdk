@@ -336,10 +336,11 @@ export class Manager<T extends Database> {
     const installsApi: InstalledDevice[] = [];
     try {
       // set current id before getting data
-      this._currentAppEventsSequenceNo = await obnizCloudClientInstance.getCurrentEventNo(
-        this._appToken,
-        this._obnizSdkOption
-      );
+      this._currentAppEventsSequenceNo =
+        await obnizCloudClientInstance.getCurrentEventNo(
+          this._appToken,
+          this._obnizSdkOption
+        );
 
       installsApi.push(
         ...(await obnizCloudClientInstance.getListFromObnizCloud(
@@ -416,14 +417,12 @@ export class Manager<T extends Database> {
     logger.debug('API Diff Sync Start');
     const events: AppEvent[] = [];
     try {
-      const {
-        maxId,
-        appEvents,
-      } = await obnizCloudClientInstance.getDiffListFromObnizCloud(
-        this._appToken,
-        this._obnizSdkOption,
-        this._currentAppEventsSequenceNo
-      );
+      const { maxId, appEvents } =
+        await obnizCloudClientInstance.getDiffListFromObnizCloud(
+          this._appToken,
+          this._obnizSdkOption,
+          this._currentAppEventsSequenceNo
+        );
       events.push(...appEvents);
       this._currentAppEventsSequenceNo = maxId;
     } catch (e) {
@@ -440,10 +439,12 @@ export class Manager<T extends Database> {
 
     if (events.length > 0) {
       const addNum = events.filter((e) => e.type === 'install.create').length;
-      const updateNum = events.filter((e) => e.type === 'install.update')
-        .length;
-      const deleteNum = events.filter((e) => e.type === 'install.delete')
-        .length;
+      const updateNum = events.filter(
+        (e) => e.type === 'install.update'
+      ).length;
+      const deleteNum = events.filter(
+        (e) => e.type === 'install.delete'
+      ).length;
       const allNum =
         Object.keys(await this._installStore.getAll()).length +
         addNum -

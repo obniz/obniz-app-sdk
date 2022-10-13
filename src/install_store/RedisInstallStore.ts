@@ -88,7 +88,7 @@ export class RedisInstallStore extends InstallStoreBase {
         id,
         JSON.stringify({ install: device })
       );
-      return JSON.parse(res) as ManagedInstall;
+      return JSON.parse(res as string) as ManagedInstall;
     } catch (e) {
       if (e instanceof Error) {
         switch (e.message) {
@@ -135,7 +135,7 @@ export class RedisInstallStore extends InstallStoreBase {
         id,
         force ? 'true' : 'false'
       );
-      return JSON.parse(res) as ManagedInstall;
+      return JSON.parse(res as string) as ManagedInstall;
     } catch (e) {
       if (e instanceof Error) {
         switch (e.message) {
@@ -164,7 +164,7 @@ export class RedisInstallStore extends InstallStoreBase {
         id,
         JSON.stringify(props)
       );
-      return JSON.parse(res) as ManagedInstall;
+      return JSON.parse(res as string) as ManagedInstall;
     } catch (e) {
       if (e instanceof Error) {
         switch (e.message) {

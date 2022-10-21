@@ -260,6 +260,17 @@ export class App<O extends IObniz> {
     return await this._manager.request(key, timeout);
   }
 
+  public async directRequest(
+    obnizId: string,
+    key: string,
+    timeout = 30 * 1000
+  ): Promise<{ [key: string]: string }> {
+    if (!this._manager) {
+      throw new Error(`This function is only available on master`);
+    }
+    return await this._manager.directRequest(obnizId, key, timeout);
+  }
+
   public isFirstManager(): boolean {
     if (!this._manager) {
       throw new Error(`This function is only available on master`);

@@ -8,9 +8,9 @@ class MemoryAdaptor extends Adaptor_1.Adaptor {
         MemoryAdaptor.memoryAdaptorList.push(this);
         this._onReady();
     }
-    async _send(json) {
+    async _sendMessage(data) {
         for (const one of MemoryAdaptor.memoryAdaptorList) {
-            one.onMessage(json);
+            one.onMessage(data);
         }
     }
 }

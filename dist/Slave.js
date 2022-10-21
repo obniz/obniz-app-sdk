@@ -22,26 +22,26 @@ class Slave {
         this.bindAdaptorCallbacks(_adaptor);
     }
     bindAdaptorCallbacks(adaptor) {
-        adaptor.onRequestRequested = async (key) => {
-            const results = {};
-            for (const install_id in this._workers) {
-                results[install_id] = await this._workers[install_id].onRequest(key);
-            }
-            return results;
-        };
         this._adaptor.onSynchronize = async (options) => {
             await this._synchronize(options);
         };
         this._adaptor.onReportRequest = async () => {
             await this._reportToMaster();
         };
-        this._adaptor.onKeyRequest = async (requestId, key) => {
-            await this._keyRequestProcess(requestId, key);
+        this._adaptor.onKeyRequest = async (requestId, key, obnizId) => {
+            await this._keyRequestProcess(requestId, key, obnizId);
         };
     }
-    async _keyRequestProcess(requestId, key) {
+    async _keyRequestProcess(requestId, key, obnizId) {
+        if (obnizId !== undefined && this._workers[obnizId] === undefined) {
+            await this._adaptor.keyRequestResponse(requestId, this._instanceName, {});
+            return;
+        }
+        const targetWorkers = obnizId === undefined
+            ? this._workers
+            : { obnizId: this._workers[obnizId] };
         const results = {};
-        for (const install_id in this._workers) {
+        for (const install_id in targetWorkers) {
             results[install_id] = await this._workers[install_id].onRequest(key);
         }
         await this._adaptor.keyRequestResponse(requestId, this._instanceName, results);

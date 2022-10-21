@@ -1,4 +1,5 @@
-import { Adaptor, MessageBetweenInstance } from './Adaptor';
+import { MessagesUnion } from '../utils/message';
+import { Adaptor } from './Adaptor';
 
 export interface MemoryAdaptorOptions {
   limit: number;
@@ -17,9 +18,9 @@ export class MemoryAdaptor extends Adaptor {
     this._onReady();
   }
 
-  async _send(json: MessageBetweenInstance): Promise<void> {
+  protected async _sendMessage(data: MessagesUnion): Promise<void> {
     for (const one of MemoryAdaptor.memoryAdaptorList) {
-      one.onMessage(json);
+      one.onMessage(data);
     }
   }
 }

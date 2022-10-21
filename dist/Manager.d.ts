@@ -54,6 +54,9 @@ export declare class Manager<T extends Database> {
     request(key: string, timeout: number): Promise<{
         [key: string]: string;
     }>;
+    directRequest(obnizId: string, key: string, timeout: number): Promise<{
+        [key: string]: string;
+    }>;
     isFirstMaster(): boolean;
     doAllRelocate(): Promise<void>;
 }

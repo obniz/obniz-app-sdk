@@ -107,8 +107,8 @@ class MqttAdaptor extends Adaptor_1.Adaptor {
             this._client = client;
         }
     }
-    async _send(json) {
-        const message = JSON.stringify(json);
+    async _sendMessage(data) {
+        const message = JSON.stringify(data);
         if (this._broker) {
             this._broker.publish({
                 cmd: 'publish',

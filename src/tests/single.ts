@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
 import { obnizCloudClientInstance } from '../ObnizCloudClient';
-import { wait } from './../tools';
+import { wait } from '../utils/common';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
 import { LogWorker } from './util/LogWorker';

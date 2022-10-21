@@ -1,15 +1,16 @@
-import { Adaptor, MessageBetweenInstance } from './Adaptor';
+import { Adaptor } from './Adaptor';
 import { Redis, RedisOptions } from 'ioredis';
+import { MessagesUnion } from '../utils/message';
 export declare type RedisAdaptorOptions = RedisOptions;
 export declare class RedisAdaptor extends Adaptor {
     private _redis;
-    private _pubRedis;
-    private _subRedis;
+    private _subOnlyRedis;
     private _isMaster;
     constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions);
     private _onRedisReady;
     private _onRedisMessage;
+    private _onPatternRedisMessage;
     private _bindRedisEvents;
-    _send(json: MessageBetweenInstance): Promise<void>;
+    protected _sendMessage(data: MessagesUnion): Promise<void>;
     getRedisInstance(): Redis;
 }

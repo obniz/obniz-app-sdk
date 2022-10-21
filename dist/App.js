@@ -148,6 +148,12 @@ class App {
         }
         return await this._manager.request(key, timeout);
     }
+    async directRequest(obnizId, key, timeout = 30 * 1000) {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
+        }
+        return await this._manager.directRequest(obnizId, key, timeout);
+    }
     isFirstManager() {
         if (!this._manager) {
             throw new Error(`This function is only available on master`);

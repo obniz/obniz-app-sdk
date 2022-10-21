@@ -96,6 +96,9 @@ export declare class App<O extends IObniz> {
     request(key: string, timeout?: number): Promise<{
         [key: string]: string;
     }>;
+    directRequest(obnizId: string, key: string, timeout?: number): Promise<{
+        [key: string]: string;
+    }>;
     isFirstManager(): boolean;
     doAllRelocate(): Promise<void>;
     get obnizClass(): IObnizStatic<O>;

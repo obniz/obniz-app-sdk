@@ -15,7 +15,7 @@ const logger_1 = require("./logger");
 const ObnizCloudClient_1 = require("./ObnizCloudClient");
 const express_1 = __importDefault(require("express"));
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
-const tools_1 = require("./tools");
+const common_1 = require("./utils/common");
 const Errors_1 = require("./Errors");
 const MemoryWorkerStore_1 = require("./worker_store/MemoryWorkerStore");
 const RedisAdaptor_1 = require("./adaptor/RedisAdaptor");
@@ -451,7 +451,7 @@ class Manager {
                 for (var instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), !instanceKeys_1_1.done;) {
                     const instanceName = instanceKeys_1_1.value;
                     logger_1.logger.debug(`synchronize sent to ${instanceName} via Redis`);
-                    await this.adaptor.synchronize(instanceName, {
+                    await this.adaptor.synchronizeRequest({
                         syncType: 'redis',
                     });
                 }
@@ -478,7 +478,7 @@ class Manager {
                 for (var instanceKeys_2 = __asyncValues(instanceKeys), instanceKeys_2_1; instanceKeys_2_1 = await instanceKeys_2.next(), !instanceKeys_2_1.done;) {
                     const instanceName = instanceKeys_2_1.value;
                     logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
-                    await this.adaptor.synchronize(instanceName, {
+                    await this.adaptor.synchronizeRequest({
                         syncType: 'list',
                         installs: installsByInstanceName[instanceName],
                     });
@@ -545,7 +545,40 @@ class Manager {
                 };
                 this._keyRequestExecutes[requestId] = execute;
                 await this.adaptor.keyRequest(key, requestId);
-                await (0, tools_1.wait)(timeout);
+                await (0, common_1.wait)(timeout);
+                if (this._keyRequestExecutes[requestId]) {
+                    delete this._keyRequestExecutes[requestId];
+                    reject(new Errors_1.ObnizAppTimeoutError('Request timed out.'));
+                }
+                else {
+                    reject(new Errors_1.ObnizAppMasterSlaveCommunicationError('Could not get request data.'));
+                }
+            }
+            catch (e) {
+                reject(e);
+            }
+        });
+    }
+    async directRequest(obnizId, key, timeout) {
+        const install = await this._installStore.get(obnizId);
+        if (!install)
+            throw new Errors_1.ObnizAppIdNotFoundError(`${obnizId}'s Worker is not running`);
+        return new Promise(async (resolve, reject) => {
+            try {
+                const requestId = `${Date.now()} - ${Math.random()
+                    .toString(36)
+                    .slice(-8)}`;
+                const execute = {
+                    requestId,
+                    returnedInstanceCount: 0,
+                    waitingInstanceCount: 1,
+                    results: {},
+                    resolve,
+                    reject,
+                };
+                this._keyRequestExecutes[requestId] = execute;
+                await this.adaptor.directKeyRequest(obnizId, install.instanceName, key, requestId);
+                await (0, common_1.wait)(timeout);
                 if (this._keyRequestExecutes[requestId]) {
                     delete this._keyRequestExecutes[requestId];
                     reject(new Errors_1.ObnizAppTimeoutError('Request timed out.'));

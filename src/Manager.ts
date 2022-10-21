@@ -10,8 +10,9 @@ import {
   DatabaseConfig,
 } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
-import { wait } from './tools';
+import { wait } from './utils/common';
 import {
+  ObnizAppIdNotFoundError,
   ObnizAppMasterSlaveCommunicationError,
   ObnizAppTimeoutError,
 } from './Errors';
@@ -525,7 +526,7 @@ export class Manager<T extends Database> {
     if (this.adaptor instanceof RedisAdaptor) {
       for await (const instanceName of instanceKeys) {
         logger.debug(`synchronize sent to ${instanceName} via Redis`);
-        await this.adaptor.synchronize(instanceName, {
+        await this.adaptor.synchronizeRequest({
           syncType: 'redis',
         });
       }
@@ -543,7 +544,7 @@ export class Manager<T extends Database> {
         logger.debug(
           `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
         );
-        await this.adaptor.synchronize(instanceName, {
+        await this.adaptor.synchronizeRequest({
           syncType: 'list',
           installs: installsByInstanceName[instanceName],
         });
@@ -621,6 +622,51 @@ export class Manager<T extends Database> {
         };
         this._keyRequestExecutes[requestId] = execute;
         await this.adaptor.keyRequest(key, requestId);
+        await wait(timeout);
+        if (this._keyRequestExecutes[requestId]) {
+          delete this._keyRequestExecutes[requestId];
+          reject(new ObnizAppTimeoutError('Request timed out.'));
+        } else {
+          reject(
+            new ObnizAppMasterSlaveCommunicationError(
+              'Could not get request data.'
+            )
+          );
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  public async directRequest(
+    obnizId: string,
+    key: string,
+    timeout: number
+  ): Promise<{ [key: string]: string }> {
+    const install = await this._installStore.get(obnizId);
+    if (!install)
+      throw new ObnizAppIdNotFoundError(`${obnizId}'s Worker is not running`);
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId = `${Date.now()} - ${Math.random()
+          .toString(36)
+          .slice(-8)}`;
+        const execute: KeyRequestExecute = {
+          requestId,
+          returnedInstanceCount: 0,
+          waitingInstanceCount: 1,
+          results: {},
+          resolve,
+          reject,
+        };
+        this._keyRequestExecutes[requestId] = execute;
+        await this.adaptor.directKeyRequest(
+          obnizId,
+          install.instanceName,
+          key,
+          requestId
+        );
         await wait(timeout);
         if (this._keyRequestExecutes[requestId]) {
           delete this._keyRequestExecutes[requestId];

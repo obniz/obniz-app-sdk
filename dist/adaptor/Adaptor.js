@@ -15,69 +15,6 @@ class Adaptor {
         this.id = id;
         this.isMaster = isMaster;
     }
-    _onMasterMessage(message) {
-        if (message.action === 'report') {
-            if (this.onReported) {
-                this.onReported(message.instanceName, message.installIds)
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-            }
-        }
-        else if (message.action === 'keyRequestResponse') {
-            if (this.onKeyRequestResponse) {
-                this.onKeyRequestResponse(message.requestId, message.instanceName, message.results)
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-            }
-        }
-    }
-    _onSlaveMessage(message) {
-        if (message.action === 'synchronize') {
-            if (this.onSynchronize) {
-                if (message.syncType === 'redis') {
-                    this.onSynchronize({
-                        syncType: message.syncType,
-                    })
-                        .then(() => { })
-                        .catch((e) => {
-                        logger_1.logger.error(e);
-                    });
-                }
-                else {
-                    this.onSynchronize({
-                        syncType: message.syncType,
-                        installs: message.installs,
-                    })
-                        .then(() => { })
-                        .catch((e) => {
-                        logger_1.logger.error(e);
-                    });
-                }
-            }
-        }
-        else if (message.action === 'reportRequest') {
-            if (this.onReportRequest) {
-                this.onReportRequest()
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-            }
-        }
-        else if (message.action === 'keyRequest') {
-            if (this.onKeyRequest) {
-                this.onKeyRequest(message.requestId, message.key)
-                    .then(() => { })
-                    .catch((e) => {
-                    logger_1.logger.error(e);
-                });
-            }
-        }
-    }
     _onReady() {
         this.isReady = true;
         logger_1.logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
@@ -98,66 +35,142 @@ class Adaptor {
             }
         }
     }
-    onMessage(message) {
-        if (message.toMaster === false &&
-            (message.instanceName === this.id || message.instanceName === '*')) {
-            this._onSlaveMessage(message);
+    async onMessage(mes) {
+        if (mes.info.toMaster) {
+            await this._onMasterMessage(mes);
         }
-        else if (message.toMaster === true && this.isMaster === true) {
-            this._onMasterMessage(message);
+        else {
+            await this._onSlaveMessage(mes);
+        }
+    }
+    async _onSlaveMessage(mes) {
+        if (mes.info.toMaster)
+            return;
+        if (mes.info.sendMode === 'direct' && mes.info.instanceName !== this.id)
+            return;
+        try {
+            if (mes.action === 'synchronize') {
+                if (this.onSynchronize) {
+                    if (mes.body.syncType === 'redis') {
+                        await this.onSynchronize({
+                            syncType: mes.body.syncType,
+                        });
+                    }
+                    else {
+                        await this.onSynchronize({
+                            syncType: mes.body.syncType,
+                            installs: mes.body.installs,
+                        });
+                    }
+                }
+            }
+            else if (mes.action === 'reportRequest') {
+                if (this.onReportRequest) {
+                    await this.onReportRequest();
+                }
+            }
+            else if (mes.action === 'keyRequest') {
+                if (this.onKeyRequest) {
+                    await this.onKeyRequest(mes.body.requestId, mes.body.key, mes.body.obnizId);
+                }
+            }
+        }
+        catch (e) {
+            logger_1.logger.error(e);
+        }
+    }
+    async _onMasterMessage(mes) {
+        if (!mes.info.toMaster)
+            return;
+        try {
+            if (mes.action === 'report') {
+                if (this.onReported)
+                    await this.onReported(mes.info.instanceName, mes.body.installIds);
+            }
+            else if (mes.action === 'keyRequestResponse') {
+                const { requestId, results } = mes.body;
+                if (this.onKeyRequestResponse)
+                    await this.onKeyRequestResponse(requestId, mes.info.instanceName, results);
+            }
+        }
+        catch (e) {
+            logger_1.logger.error(e);
         }
     }
     async reportRequest() {
-        await this._send({
+        await this._sendMessage({
             action: 'reportRequest',
-            instanceName: '*',
-            toMaster: false,
+            info: {
+                sendMode: 'broadcast',
+                toMaster: false,
+            },
+            body: {},
         });
     }
     async report(instanceName, installIds) {
-        await this._send({
+        await this._sendMessage({
             action: 'report',
-            instanceName,
-            toMaster: true,
-            installIds,
+            info: {
+                instanceName,
+                sendMode: 'direct',
+                toMaster: true,
+            },
+            body: {
+                installIds,
+            },
         });
     }
     async keyRequest(key, requestId) {
-        await this._send({
+        await this._sendMessage({
             action: 'keyRequest',
-            instanceName: '*',
-            toMaster: false,
-            key,
-            requestId,
+            info: {
+                toMaster: false,
+                sendMode: 'broadcast',
+            },
+            body: {
+                requestId,
+                key,
+            },
+        });
+    }
+    async directKeyRequest(obnizId, instanceName, key, requestId) {
+        await this._sendMessage({
+            action: 'keyRequest',
+            info: {
+                toMaster: false,
+                sendMode: 'direct',
+                instanceName,
+            },
+            body: {
+                obnizId,
+                requestId,
+                key,
+            },
         });
     }
     async keyRequestResponse(requestId, instanceName, results) {
-        await this._send({
+        await this._sendMessage({
             action: 'keyRequestResponse',
-            instanceName,
-            toMaster: true,
-            results,
-            requestId,
+            info: {
+                toMaster: true,
+                instanceName,
+                sendMode: 'direct',
+            },
+            body: {
+                requestId,
+                results,
+            },
         });
     }
-    async synchronize(instanceName, options) {
-        if (options.syncType === 'redis') {
-            await this._send({
-                action: 'synchronize',
-                instanceName,
+    async synchronizeRequest(options) {
+        await this._sendMessage({
+            action: 'synchronize',
+            info: {
+                sendMode: 'broadcast',
                 toMaster: false,
-                syncType: options.syncType,
-            });
-        }
-        else {
-            await this._send({
-                action: 'synchronize',
-                instanceName,
-                toMaster: false,
-                syncType: options.syncType,
-                installs: options.installs,
-            });
-        }
+            },
+            body: options,
+        });
     }
 }
 exports.Adaptor = Adaptor;

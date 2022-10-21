@@ -12,9 +12,8 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         super(id, isMaster);
         this._isMaster = isMaster;
         this._redis = new ioredis_1.default(redisOption);
-        this._pubRedis = new ioredis_1.default(redisOption);
-        this._subRedis = new ioredis_1.default(redisOption);
-        this._bindRedisEvents(this._subRedis);
+        this._subOnlyRedis = new ioredis_1.default(redisOption);
+        this._bindRedisEvents(this._subOnlyRedis);
     }
     _onRedisReady() {
         if (this._isMaster) {
@@ -31,20 +30,31 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         // slave functions
         this.onMessage(parsed);
     }
-    _bindRedisEvents(redis) {
-        redis.subscribe('app', () => { });
-        redis.on('ready', this._onRedisReady.bind(this));
-        redis.on('message', this._onRedisMessage.bind(this));
-        redis.on('+node', () => {
+    _onPatternRedisMessage(pattern, channel, message) {
+        const parsed = JSON.parse(message);
+        // slave functions
+        this.onMessage(parsed);
+    }
+    _bindRedisEvents(_redis) {
+        if (this.isMaster) {
+            _redis.psubscribe('app?');
+            _redis.on('message', this._onRedisMessage.bind(this));
+        }
+        else {
+            _redis.subscribe('app', `app.${this.id}`);
+            _redis.on('pmessage', this._onPatternRedisMessage.bind(this));
+        }
+        _redis.on('ready', this._onRedisReady.bind(this));
+        _redis.on('+node', () => {
             logger_1.logger.debug('+node');
         });
-        redis.on('-node', () => {
+        _redis.on('-node', () => {
             logger_1.logger.debug('-node');
         });
     }
-    // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-    async _send(json) {
-        await this._pubRedis.publish('app', JSON.stringify(json));
+    async _sendMessage(data) {
+        const channel = data.info.sendMode === 'direct' ? `app.${data.info.instanceName}` : 'app';
+        await this._redis.publish(channel, JSON.stringify(data));
     }
     getRedisInstance() {
         return this._redis;

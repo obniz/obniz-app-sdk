@@ -1,5 +1,5 @@
 import { IObniz } from './Obniz.interface';
-import { Adaptor, SynchronizeMethodOption } from './adaptor/Adaptor';
+import { Adaptor } from './adaptor/Adaptor';
 import { Worker } from './Worker';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from './logger';
@@ -7,6 +7,7 @@ import { App } from './App';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { ManagedInstall } from './install_store/InstallStoreBase';
 import { deepEqual } from 'fast-equals';
+import { MessageBodies } from './utils/message';
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
@@ -22,17 +23,9 @@ export class Slave<O extends IObniz> {
   }
 
   private bindAdaptorCallbacks(adaptor: Adaptor) {
-    adaptor.onRequestRequested = async (
-      key: string
-    ): Promise<{ [key: string]: string }> => {
-      const results: { [key: string]: string } = {};
-      for (const install_id in this._workers) {
-        results[install_id] = await this._workers[install_id].onRequest(key);
-      }
-      return results;
-    };
-
-    this._adaptor.onSynchronize = async (options: SynchronizeMethodOption) => {
+    this._adaptor.onSynchronize = async (
+      options: MessageBodies['synchronize']
+    ) => {
       await this._synchronize(options);
     };
 
@@ -40,17 +33,30 @@ export class Slave<O extends IObniz> {
       await this._reportToMaster();
     };
 
-    this._adaptor.onKeyRequest = async (requestId: string, key: string) => {
-      await this._keyRequestProcess(requestId, key);
+    this._adaptor.onKeyRequest = async (
+      requestId: string,
+      key: string,
+      obnizId?: string
+    ) => {
+      await this._keyRequestProcess(requestId, key, obnizId);
     };
   }
 
   protected async _keyRequestProcess(
     requestId: string,
-    key: string
+    key: string,
+    obnizId?: string
   ): Promise<void> {
+    if (obnizId !== undefined && this._workers[obnizId] === undefined) {
+      await this._adaptor.keyRequestResponse(requestId, this._instanceName, {});
+      return;
+    }
+    const targetWorkers =
+      obnizId === undefined
+        ? this._workers
+        : { obnizId: this._workers[obnizId] };
     const results: { [key: string]: string } = {};
-    for (const install_id in this._workers) {
+    for (const install_id in targetWorkers) {
       results[install_id] = await this._workers[install_id].onRequest(key);
     }
     await this._adaptor.keyRequestResponse(
@@ -90,7 +96,7 @@ export class Slave<O extends IObniz> {
    * Receive Master Generated List and compare current apps.
    */
   protected async _synchronize(
-    options: SynchronizeMethodOption
+    options: MessageBodies['synchronize']
   ): Promise<void> {
     if (this._syncing) {
       return;

@@ -1,52 +1,4 @@
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
-export interface ReportMessage {
-    toMaster: true;
-    instanceName: string;
-    action: 'report';
-    installIds: string[];
-}
-export interface ReportRequestMessage {
-    toMaster: false;
-    instanceName: string;
-    action: 'reportRequest';
-}
-export declare type SynchronizeByListRequestMessage = {
-    toMaster: false;
-    instanceName: string;
-    action: 'synchronize';
-    syncType: 'list';
-    installs: InstalledDevice[];
-};
-export declare type SynchronizeByRedisRequestMessage = {
-    toMaster: false;
-    instanceName: string;
-    action: 'synchronize';
-    syncType: 'redis';
-};
-declare type SynchronizeByListParams = Pick<SynchronizeByListRequestMessage, 'syncType' | 'installs'>;
-declare type SynchronizeByRedisParams = Pick<SynchronizeByRedisRequestMessage, 'syncType'>;
-export declare type SynchronizeMethodOption = SynchronizeByListParams | SynchronizeByRedisParams;
-export declare type SynchronizeRequestMessage = SynchronizeByListRequestMessage | SynchronizeByRedisRequestMessage;
-export declare type SynchronizeRequestType = SynchronizeRequestMessage['syncType'];
-export interface KeyRequestMessage {
-    toMaster: false;
-    instanceName: string;
-    action: 'keyRequest';
-    key: string;
-    requestId: string;
-}
-export interface KeyRequestResponseMessage {
-    toMaster: true;
-    instanceName: string;
-    action: 'keyRequestResponse';
-    results: {
-        [key: string]: string;
-    };
-    requestId: string;
-}
-export declare type ToMasterMessage = ReportMessage | KeyRequestResponseMessage;
-export declare type ToSlaveMessage = ReportRequestMessage | SynchronizeRequestMessage | KeyRequestMessage;
-export declare type MessageBetweenInstance = ToMasterMessage | ToSlaveMessage;
+import { MessageBodies, MessagesUnion } from '../utils/message';
 /**
  * 一方向性のリスト同期
  * Masterからは各Instanceへ分割されたリストを同期
@@ -58,27 +10,24 @@ export declare abstract class Adaptor {
     id: string;
     isReady: boolean;
     onReportRequest?: () => Promise<void>;
-    onKeyRequest?: (requestId: string, key: string) => Promise<void>;
+    onKeyRequest?: (requestId: string, key: string, obnizId?: string) => Promise<void>;
     onKeyRequestResponse?: (requestId: string, instanceName: string, results: {
         [key: string]: string;
     }) => Promise<void>;
-    onSynchronize?: (options: SynchronizeMethodOption) => Promise<void>;
+    onSynchronize?: (options: MessageBodies['synchronize']) => Promise<void>;
     onReported?: (instanceName: string, installIds: string[]) => Promise<void>;
-    onRequestRequested?: (key: string) => Promise<{
-        [key: string]: string;
-    }>;
     constructor(id: string, isMaster: boolean);
-    protected _onMasterMessage(message: ToMasterMessage): void;
-    protected _onSlaveMessage(message: ToSlaveMessage): void;
     protected _onReady(): void;
-    onMessage(message: MessageBetweenInstance): void;
+    onMessage(mes: MessagesUnion): Promise<void>;
+    protected _onSlaveMessage(mes: MessagesUnion): Promise<void>;
+    protected _onMasterMessage(mes: MessagesUnion): Promise<void>;
     reportRequest(): Promise<void>;
     report(instanceName: string, installIds: string[]): Promise<void>;
     keyRequest(key: string, requestId: string): Promise<void>;
+    directKeyRequest(obnizId: string, instanceName: string, key: string, requestId: string): Promise<void>;
     keyRequestResponse(requestId: string, instanceName: string, results: {
         [key: string]: string;
     }): Promise<void>;
-    synchronize(instanceName: string, options: SynchronizeMethodOption): Promise<void>;
-    protected abstract _send(json: MessageBetweenInstance): Promise<void>;
+    synchronizeRequest(options: MessageBodies['synchronize']): Promise<void>;
+    protected abstract _sendMessage(data: MessagesUnion): Promise<void>;
 }
-export {};

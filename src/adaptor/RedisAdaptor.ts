@@ -1,22 +1,21 @@
-import { Adaptor, MessageBetweenInstance } from './Adaptor';
+import { Adaptor } from './Adaptor';
 import IORedis, { Redis, RedisOptions } from 'ioredis';
 import { logger } from '../logger';
+import { MessagesUnion } from '../utils/message';
 
 export type RedisAdaptorOptions = RedisOptions;
 
 export class RedisAdaptor extends Adaptor {
   private _redis: Redis;
-  private _pubRedis: Redis;
-  private _subRedis: Redis;
+  private _subOnlyRedis: Redis;
   private _isMaster: boolean;
 
   constructor(id: string, isMaster: boolean, redisOption: RedisAdaptorOptions) {
     super(id, isMaster);
     this._isMaster = isMaster;
     this._redis = new IORedis(redisOption);
-    this._pubRedis = new IORedis(redisOption);
-    this._subRedis = new IORedis(redisOption);
-    this._bindRedisEvents(this._subRedis);
+    this._subOnlyRedis = new IORedis(redisOption);
+    this._bindRedisEvents(this._subOnlyRedis);
   }
 
   private _onRedisReady() {
@@ -30,26 +29,42 @@ export class RedisAdaptor extends Adaptor {
   }
 
   private _onRedisMessage(channel: string, message: string) {
-    const parsed = JSON.parse(message) as MessageBetweenInstance;
+    const parsed = JSON.parse(message) as MessagesUnion;
     // slave functions
     this.onMessage(parsed);
   }
 
-  private _bindRedisEvents(redis: Redis) {
-    redis.subscribe('app', () => {});
-    redis.on('ready', this._onRedisReady.bind(this));
-    redis.on('message', this._onRedisMessage.bind(this));
-    redis.on('+node', () => {
+  private _onPatternRedisMessage(
+    pattern: string,
+    channel: string,
+    message: string
+  ) {
+    const parsed = JSON.parse(message) as MessagesUnion;
+    // slave functions
+    this.onMessage(parsed);
+  }
+
+  private _bindRedisEvents(_redis: Redis) {
+    if (this.isMaster) {
+      _redis.psubscribe('app?');
+      _redis.on('message', this._onRedisMessage.bind(this));
+    } else {
+      _redis.subscribe('app', `app.${this.id}`);
+      _redis.on('pmessage', this._onPatternRedisMessage.bind(this));
+    }
+    _redis.on('ready', this._onRedisReady.bind(this));
+    _redis.on('+node', () => {
       logger.debug('+node');
     });
-    redis.on('-node', () => {
+    _redis.on('-node', () => {
       logger.debug('-node');
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
-  async _send(json: MessageBetweenInstance): Promise<void> {
-    await this._pubRedis.publish('app', JSON.stringify(json));
+  protected async _sendMessage(data: MessagesUnion): Promise<void> {
+    const channel =
+      data.info.sendMode === 'direct' ? `app.${data.info.instanceName}` : 'app';
+    await this._redis.publish(channel, JSON.stringify(data));
   }
 
   getRedisInstance(): Redis {

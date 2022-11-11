@@ -1,4 +1,5 @@
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { UnionOmit } from './common';
 
 export type MessageBodies = {
   report: {
@@ -46,18 +47,24 @@ type _MessageKeyCheck = TrueCheck<
   Equals<typeof MessageKeysArray[number], MessageKeys>
 >;
 
-type Message<ActionName extends MessageKeys> = {
+export type MessageInfo =
+  | {
+      to: string;
+      toManager: boolean;
+      sendMode: 'direct';
+      from: string;
+    }
+  | {
+      toManager: boolean;
+      sendMode: 'broadcast';
+      from: string;
+    };
+
+export type MessageInfoOmitFrom = UnionOmit<Message<'report'>['info'], 'from'>;
+
+export type Message<ActionName extends MessageKeys> = {
   action: ActionName;
-  info:
-    | {
-        instanceName: string;
-        toMaster: boolean;
-        sendMode: 'direct';
-      }
-    | {
-        toMaster: false;
-        sendMode: 'broadcast';
-      };
+  info: MessageInfo;
 } & { body: MessageBodies[ActionName] };
 
 export type Messages<T extends string> = T extends MessageKeys

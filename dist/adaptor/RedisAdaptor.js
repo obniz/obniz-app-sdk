@@ -7,16 +7,16 @@ exports.RedisAdaptor = void 0;
 const Adaptor_1 = require("./Adaptor");
 const ioredis_1 = __importDefault(require("ioredis"));
 const logger_1 = require("../logger");
+const App_1 = require("../App");
 class RedisAdaptor extends Adaptor_1.Adaptor {
-    constructor(id, isMaster, redisOption) {
-        super(id, isMaster);
-        this._isMaster = isMaster;
+    constructor(id, instanceType, redisOption) {
+        super(id, instanceType);
         this._redis = new ioredis_1.default(redisOption);
         this._subOnlyRedis = new ioredis_1.default(redisOption);
         this._bindRedisEvents(this._subOnlyRedis);
     }
     _onRedisReady() {
-        if (this._isMaster) {
+        if (this.isMaster) {
             setTimeout(() => {
                 this._onReady();
             }, 3 * 1000);
@@ -27,21 +27,18 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
     }
     _onRedisMessage(channel, message) {
         const parsed = JSON.parse(message);
-        // slave functions
         this.onMessage(parsed);
     }
     _onPatternRedisMessage(pattern, channel, message) {
-        const parsed = JSON.parse(message);
-        // slave functions
-        this.onMessage(parsed);
+        this._onRedisMessage(channel, message);
     }
     _bindRedisEvents(_redis) {
-        if (this.isMaster) {
-            _redis.psubscribe('app?');
+        if (this.instanceType === App_1.AppInstanceType.Slave) {
+            _redis.subscribe('app', `app.${this.id}`);
             _redis.on('message', this._onRedisMessage.bind(this));
         }
         else {
-            _redis.subscribe('app', `app.${this.id}`);
+            _redis.psubscribe('app*');
             _redis.on('pmessage', this._onPatternRedisMessage.bind(this));
         }
         _redis.on('ready', this._onRedisReady.bind(this));
@@ -52,8 +49,12 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
             logger_1.logger.debug('-node');
         });
     }
-    async _sendMessage(data) {
-        const channel = data.info.sendMode === 'direct' ? `app.${data.info.instanceName}` : 'app';
+    async _onSendMessage(data) {
+        const channel = data.info.sendMode === 'direct'
+            ? this.instanceType === App_1.AppInstanceType.Slave
+                ? `app.${data.info.from}` // m(to) <= (app.{from}) == s(from)
+                : `app.${data.info.to}` // m(from) == (app.{to}) => s(to)
+            : 'app'; // m(any) <= (app) => s(any)
         await this._redis.publish(channel, JSON.stringify(data));
     }
     getRedisInstance() {

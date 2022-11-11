@@ -25,26 +25,26 @@ class Slave {
         this._adaptor.onSynchronize = async (options) => {
             await this._synchronize(options);
         };
-        this._adaptor.onReportRequest = async () => {
-            await this._reportToMaster();
+        this._adaptor.onReportRequest = async (masterName) => {
+            await this._reportToMaster(masterName);
         };
-        this._adaptor.onKeyRequest = async (requestId, key, obnizId) => {
-            await this._keyRequestProcess(requestId, key, obnizId);
+        this._adaptor.onKeyRequest = async (masterName, requestId, key, obnizId) => {
+            await this._keyRequestProcess(masterName, requestId, key, obnizId);
         };
     }
-    async _keyRequestProcess(requestId, key, obnizId) {
+    async _keyRequestProcess(masterName, requestId, key, obnizId) {
         if (obnizId !== undefined && this._workers[obnizId] === undefined) {
-            await this._adaptor.keyRequestResponse(requestId, this._instanceName, {});
+            await this._adaptor.keyRequestResponse(masterName, requestId, {});
             return;
         }
         const targetWorkers = obnizId === undefined
             ? this._workers
-            : { obnizId: this._workers[obnizId] };
+            : { [obnizId]: this._workers[obnizId] };
         const results = {};
         for (const install_id in targetWorkers) {
             results[install_id] = await this._workers[install_id].onRequest(key);
         }
-        await this._adaptor.keyRequestResponse(requestId, this._instanceName, results);
+        await this._adaptor.keyRequestResponse(masterName, requestId, results);
     }
     async _getInstallsFromRedis() {
         if (!(this._adaptor instanceof RedisAdaptor_1.RedisAdaptor)) {
@@ -149,32 +149,35 @@ class Slave {
             });
         }
     }
-    /**
-     * Let Master know worker is working.
-     */
-    async _reportToMaster() {
+    async _onHeartBeat() {
         if (this._adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
             // If adaptor is Redis
             const redis = this._adaptor.getRedisInstance();
             await redis.set(`slave:${this._app._options.instanceName}:heartbeat`, Date.now(), 'EX', 20);
         }
         else {
-            const keys = Object.keys(this._workers);
-            await this._adaptor.report(this._app._options.instanceName, keys);
+            await this._reportToMaster('unknown');
         }
+    }
+    /**
+     * Let Master know worker is working.
+     */
+    async _reportToMaster(masterName) {
+        const keys = Object.keys(this._workers);
+        await this._adaptor.report(keys);
     }
     startSyncing() {
         // every minutes
         if (!this._interval) {
             this._interval = setInterval(async () => {
                 try {
-                    await this._reportToMaster();
+                    await this._onHeartBeat();
                 }
                 catch (e) {
                     logger_1.logger.error(e);
                 }
             }, 10 * 1000);
-            this._reportToMaster()
+            this._onHeartBeat()
                 .then()
                 .catch((e) => {
                 logger_1.logger.error(e);

@@ -14,7 +14,6 @@ exports.Manager = void 0;
 const logger_1 = require("./logger");
 const ObnizCloudClient_1 = require("./ObnizCloudClient");
 const express_1 = __importDefault(require("express"));
-const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
 const common_1 = require("./utils/common");
 const Errors_1 = require("./Errors");
 const MemoryWorkerStore_1 = require("./worker_store/MemoryWorkerStore");
@@ -24,7 +23,7 @@ const RedisInstallStore_1 = require("./install_store/RedisInstallStore");
 const MemoryInstallStore_1 = require("./install_store/MemoryInstallStore");
 const fast_equals_1 = require("fast-equals");
 class Manager {
-    constructor(appToken, instanceName, database, databaseConfig, obnizSdkOption) {
+    constructor(appToken, instanceName, adaptor, obnizSdkOption) {
         this._syncing = false;
         this._isHeartbeatInit = false;
         this._isFirstManager = false;
@@ -38,7 +37,7 @@ class Manager {
         this._appToken = appToken;
         this._obnizSdkOption = obnizSdkOption;
         this._instanceName = instanceName;
-        this.adaptor = new AdaptorFactory_1.AdaptorFactory().create(database, instanceName, true, databaseConfig);
+        this.adaptor = adaptor;
         /**
          * Workerのうちいずれかから状況報告をもらった
          * これが初回連絡の場合、onInstanceAttached()が呼ばれる
@@ -442,27 +441,15 @@ class Manager {
         await this._installStore.remove(obnizId);
     }
     async synchronize() {
-        var e_6, _a, e_7, _b;
+        var e_6, _a;
         const installsByInstanceName = {};
         const instances = await this._workerStore.getAllWorkerInstances();
         const instanceKeys = Object.keys(instances);
         if (this.adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
-            try {
-                for (var instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), !instanceKeys_1_1.done;) {
-                    const instanceName = instanceKeys_1_1.value;
-                    logger_1.logger.debug(`synchronize sent to ${instanceName} via Redis`);
-                    await this.adaptor.synchronizeRequest({
-                        syncType: 'redis',
-                    });
-                }
-            }
-            catch (e_6_1) { e_6 = { error: e_6_1 }; }
-            finally {
-                try {
-                    if (instanceKeys_1_1 && !instanceKeys_1_1.done && (_a = instanceKeys_1.return)) await _a.call(instanceKeys_1);
-                }
-                finally { if (e_6) throw e_6.error; }
-            }
+            logger_1.logger.debug(`Sent sync request via Redis to all instance.`);
+            await this.adaptor.synchronizeRequest({
+                syncType: 'redis',
+            });
         }
         else {
             for (const instanceName in instances) {
@@ -475,8 +462,8 @@ class Manager {
                 installsByInstanceName[instanceName].push(managedInstall.install);
             }
             try {
-                for (var instanceKeys_2 = __asyncValues(instanceKeys), instanceKeys_2_1; instanceKeys_2_1 = await instanceKeys_2.next(), !instanceKeys_2_1.done;) {
-                    const instanceName = instanceKeys_2_1.value;
+                for (var instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), !instanceKeys_1_1.done;) {
+                    const instanceName = instanceKeys_1_1.value;
                     logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
                     await this.adaptor.synchronizeRequest({
                         syncType: 'list',
@@ -484,12 +471,12 @@ class Manager {
                     });
                 }
             }
-            catch (e_7_1) { e_7 = { error: e_7_1 }; }
+            catch (e_6_1) { e_6 = { error: e_6_1 }; }
             finally {
                 try {
-                    if (instanceKeys_2_1 && !instanceKeys_2_1.done && (_b = instanceKeys_2.return)) await _b.call(instanceKeys_2);
+                    if (instanceKeys_1_1 && !instanceKeys_1_1.done && (_a = instanceKeys_1.return)) await _a.call(instanceKeys_1);
                 }
-                finally { if (e_7) throw e_7.error; }
+                finally { if (e_6) throw e_6.error; }
             }
         }
     }

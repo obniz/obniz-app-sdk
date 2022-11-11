@@ -15,7 +15,7 @@ export declare class Slave<O extends IObniz> {
     protected _syncing: boolean;
     constructor(_adaptor: Adaptor, _instanceName: string, _app: App<O>);
     private bindAdaptorCallbacks;
-    protected _keyRequestProcess(requestId: string, key: string, obnizId?: string): Promise<void>;
+    protected _keyRequestProcess(masterName: string, requestId: string, key: string, obnizId?: string): Promise<void>;
     private _getInstallsFromRedis;
     /**
      * Receive Master Generated List and compare current apps.
@@ -24,9 +24,10 @@ export declare class Slave<O extends IObniz> {
     protected _startOneWorker(install: InstalledDevice): Promise<void>;
     protected _startOrRestartOneWorker(install: InstalledDevice): Promise<void>;
     protected _stopOneWorker(installId: string): Promise<void>;
+    protected _onHeartBeat(): Promise<void>;
     /**
      * Let Master know worker is working.
      */
-    protected _reportToMaster(): Promise<void>;
+    protected _reportToMaster(masterName: string): Promise<void>;
     startSyncing(): void;
 }

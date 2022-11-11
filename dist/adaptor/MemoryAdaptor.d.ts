@@ -1,3 +1,4 @@
+import { AppInstanceType } from '../App';
 import { MessagesUnion } from '../utils/message';
 import { Adaptor } from './Adaptor';
 export interface MemoryAdaptorOptions {
@@ -5,6 +6,6 @@ export interface MemoryAdaptorOptions {
 }
 export declare class MemoryAdaptor extends Adaptor {
     static memoryAdaptorList: MemoryAdaptor[];
-    constructor(id: string, isMaster: boolean, memoryOption: MemoryAdaptorOptions);
-    protected _sendMessage(data: MessagesUnion): Promise<void>;
+    constructor(id: string, instanceType: AppInstanceType, memoryOption: MemoryAdaptorOptions);
+    protected _onSendMessage(data: MessagesUnion): Promise<void>;
 }

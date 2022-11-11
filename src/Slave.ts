@@ -29,41 +29,39 @@ export class Slave<O extends IObniz> {
       await this._synchronize(options);
     };
 
-    this._adaptor.onReportRequest = async () => {
-      await this._reportToMaster();
+    this._adaptor.onReportRequest = async (masterName: string) => {
+      await this._reportToMaster(masterName);
     };
 
     this._adaptor.onKeyRequest = async (
+      masterName: string,
       requestId: string,
       key: string,
       obnizId?: string
     ) => {
-      await this._keyRequestProcess(requestId, key, obnizId);
+      await this._keyRequestProcess(masterName, requestId, key, obnizId);
     };
   }
 
   protected async _keyRequestProcess(
+    masterName: string,
     requestId: string,
     key: string,
     obnizId?: string
   ): Promise<void> {
     if (obnizId !== undefined && this._workers[obnizId] === undefined) {
-      await this._adaptor.keyRequestResponse(requestId, this._instanceName, {});
+      await this._adaptor.keyRequestResponse(masterName, requestId, {});
       return;
     }
     const targetWorkers =
       obnizId === undefined
         ? this._workers
-        : { obnizId: this._workers[obnizId] };
+        : { [obnizId]: this._workers[obnizId] };
     const results: { [key: string]: string } = {};
     for (const install_id in targetWorkers) {
       results[install_id] = await this._workers[install_id].onRequest(key);
     }
-    await this._adaptor.keyRequestResponse(
-      requestId,
-      this._instanceName,
-      results
-    );
+    await this._adaptor.keyRequestResponse(masterName, requestId, results);
   }
 
   private async _getInstallsFromRedis(): Promise<{
@@ -174,10 +172,7 @@ export class Slave<O extends IObniz> {
     }
   }
 
-  /**
-   * Let Master know worker is working.
-   */
-  protected async _reportToMaster(): Promise<void> {
+  protected async _onHeartBeat(): Promise<void> {
     if (this._adaptor instanceof RedisAdaptor) {
       // If adaptor is Redis
       const redis = this._adaptor.getRedisInstance();
@@ -188,9 +183,16 @@ export class Slave<O extends IObniz> {
         20
       );
     } else {
-      const keys = Object.keys(this._workers);
-      await this._adaptor.report(this._app._options.instanceName, keys);
+      await this._reportToMaster('unknown');
     }
+  }
+
+  /**
+   * Let Master know worker is working.
+   */
+  protected async _reportToMaster(masterName: string): Promise<void> {
+    const keys = Object.keys(this._workers);
+    await this._adaptor.report(keys);
   }
 
   public startSyncing(): void {
@@ -198,12 +200,12 @@ export class Slave<O extends IObniz> {
     if (!this._interval) {
       this._interval = setInterval(async () => {
         try {
-          await this._reportToMaster();
+          await this._onHeartBeat();
         } catch (e) {
           logger.error(e);
         }
       }, 10 * 1000);
-      this._reportToMaster()
+      this._onHeartBeat()
         .then()
         .catch((e) => {
           logger.error(e);

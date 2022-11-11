@@ -51,6 +51,7 @@ var AppInstanceType;
 })(AppInstanceType = exports.AppInstanceType || (exports.AppInstanceType = {}));
 class App {
     constructor(option) {
+        var _a;
         this.expressWebhook = this._expressWebhook.bind(this);
         // validate obniz.js
         const requiredObnizJsVersion = '3.15.0-alpha.1';
@@ -68,7 +69,7 @@ class App {
                     return this._options.workerClass;
                 }),
             obnizClass: option.obnizClass,
-            instanceType: option.instanceType || AppInstanceType.Master,
+            instanceType: (_a = option.instanceType) !== null && _a !== void 0 ? _a : AppInstanceType.Master,
             instanceName: option.instanceName || os.hostname(),
             obnizOption: option.obnizOption || {},
             obnizCloudSdkOption: option.obnizCloudSdkOption || {},
@@ -81,16 +82,14 @@ class App {
             // make unique in same machine
             this._options.instanceName += `-${process.env.NODE_APP_INSTANCE}`;
         }
-        if ((option.instanceType === AppInstanceType.Master ||
+        const hasManager = (option.instanceType === AppInstanceType.Master ||
             option.instanceType === AppInstanceType.Manager) &&
-            isMasterOnSameMachine) {
-            this._manager = new Manager_1.Manager(option.appToken, this._options.instanceName, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
+            isMasterOnSameMachine;
+        const adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, option.instanceType, this._options.databaseConfig);
+        if (hasManager) {
+            this._manager = new Manager_1.Manager(option.appToken, this._options.instanceName, adaptor, this._options.obnizCloudSdkOption);
         }
         if (option.instanceType !== AppInstanceType.Manager) {
-            // If master mode, share adaptor
-            const adaptor = this._manager
-                ? this._manager.adaptor
-                : new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
             this._slave = new Slave_1.Slave(adaptor, this._options.instanceName, this);
         }
     }

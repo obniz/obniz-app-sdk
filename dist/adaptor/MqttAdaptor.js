@@ -30,9 +30,9 @@ const aedes_1 = require("aedes");
 const net_1 = require("net");
 const mqtt = __importStar(require("mqtt"));
 class MqttAdaptor extends Adaptor_1.Adaptor {
-    constructor(id, isMaster, mqttOption) {
-        super(id, isMaster);
-        if (isMaster) {
+    constructor(id, instanceType, mqttOption) {
+        super(id, instanceType);
+        if (this.isMaster) {
             const broker = (0, aedes_1.Server)({
                 concurrency: 100,
                 heartbeatInterval: 60 * 1000,
@@ -107,7 +107,7 @@ class MqttAdaptor extends Adaptor_1.Adaptor {
             this._client = client;
         }
     }
-    async _sendMessage(data) {
+    async _onSendMessage(data) {
         const message = JSON.stringify(data);
         if (this._broker) {
             this._broker.publish({

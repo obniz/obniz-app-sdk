@@ -6,14 +6,15 @@ import { createServer } from 'net';
 
 import * as mqtt from 'mqtt';
 import { MessagesUnion } from '../utils/message';
+import { AppInstanceType } from '../App';
 
 export class MqttAdaptor extends Adaptor {
   private _broker?: Aedes;
   private _client?: mqtt.Client;
 
-  constructor(id: string, isMaster: boolean, mqttOption: string) {
-    super(id, isMaster);
-    if (isMaster) {
+  constructor(id: string, instanceType: AppInstanceType, mqttOption: string) {
+    super(id, instanceType);
+    if (this.isMaster) {
       const broker = Server({
         concurrency: 100,
         heartbeatInterval: 60 * 1000,
@@ -101,7 +102,7 @@ export class MqttAdaptor extends Adaptor {
     }
   }
 
-  async _sendMessage(data: MessagesUnion): Promise<void> {
+  async _onSendMessage(data: MessagesUnion): Promise<void> {
     const message = JSON.stringify(data);
     if (this._broker) {
       this._broker.publish(

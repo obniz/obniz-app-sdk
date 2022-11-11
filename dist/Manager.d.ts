@@ -1,9 +1,8 @@
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
 import { AppStartOption } from './App';
-import { Database, DatabaseConfig } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
-export declare class Manager<T extends Database> {
+export declare class Manager {
     adaptor: Adaptor;
     private readonly _appToken;
     private readonly _obnizSdkOption;
@@ -17,7 +16,7 @@ export declare class Manager<T extends Database> {
     private _isFirstManager;
     private _keyRequestExecutes;
     private _currentAppEventsSequenceNo;
-    constructor(appToken: string, instanceName: string, database: T, databaseConfig: DatabaseConfig[T], obnizSdkOption: SdkOption);
+    constructor(appToken: string, instanceName: string, adaptor: Adaptor, obnizSdkOption: SdkOption);
     start(option?: AppStartOption): void;
     startWait(option?: AppStartOption): Promise<void>;
     private _startWeb;

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Adaptor = void 0;
+const App_1 = require("../App");
 const logger_1 = require("../logger");
 /**
  * 一方向性のリスト同期
@@ -9,11 +10,12 @@ const logger_1 = require("../logger");
  * Cassandraと同じく「時間が経てば正しくなる」方式を採用。
  */
 class Adaptor {
-    constructor(id, isMaster) {
-        this.isMaster = false;
+    constructor(id, instanceType) {
         this.isReady = false;
         this.id = id;
-        this.isMaster = isMaster;
+        this.instanceType = instanceType;
+        // For compatibility
+        this.isMaster = instanceType !== App_1.AppInstanceType.Slave;
     }
     _onReady() {
         this.isReady = true;
@@ -27,7 +29,7 @@ class Adaptor {
         }
         else {
             if (this.onReportRequest) {
-                this.onReportRequest()
+                this.onReportRequest('unknown')
                     .then(() => { })
                     .catch((e) => {
                     logger_1.logger.error(e);
@@ -36,18 +38,23 @@ class Adaptor {
         }
     }
     async onMessage(mes) {
-        if (mes.info.toMaster) {
-            await this._onMasterMessage(mes);
+        if (mes.info.toManager) {
+            if (this.instanceType === App_1.AppInstanceType.Master ||
+                this.instanceType === App_1.AppInstanceType.Manager)
+                await this._onManagerMessage(mes);
         }
         else {
-            await this._onSlaveMessage(mes);
+            if (this.instanceType === App_1.AppInstanceType.Master ||
+                this.instanceType === App_1.AppInstanceType.Slave)
+                await this._onSlaveMessage(mes);
         }
     }
     async _onSlaveMessage(mes) {
-        if (mes.info.toMaster)
+        if (mes.info.toManager)
             return;
-        if (mes.info.sendMode === 'direct' && mes.info.instanceName !== this.id)
+        if (mes.info.sendMode === 'direct' && mes.info.to !== this.id)
             return;
+        console.log('SlaveMessageReceived', { mes });
         try {
             if (mes.action === 'synchronize') {
                 if (this.onSynchronize) {
@@ -65,13 +72,13 @@ class Adaptor {
                 }
             }
             else if (mes.action === 'reportRequest') {
-                if (this.onReportRequest) {
-                    await this.onReportRequest();
+                if (this.onReportRequest && mes.info.sendMode === 'direct') {
+                    await this.onReportRequest(mes.info.to);
                 }
             }
             else if (mes.action === 'keyRequest') {
                 if (this.onKeyRequest) {
-                    await this.onKeyRequest(mes.body.requestId, mes.body.key, mes.body.obnizId);
+                    await this.onKeyRequest(mes.info.from, mes.body.requestId, mes.body.key, mes.body.obnizId);
                 }
             }
         }
@@ -79,18 +86,24 @@ class Adaptor {
             logger_1.logger.error(e);
         }
     }
-    async _onMasterMessage(mes) {
-        if (!mes.info.toMaster)
+    async _onManagerMessage(mes) {
+        if (!mes.info.toManager)
             return;
+        if (mes.info.sendMode === 'direct' && // mes is direct message
+            mes.info.to !== undefined && // "to" is set
+            mes.info.to !== this.id // "to" is not me
+        )
+            return;
+        console.log('ManagerMessageReceived', { mes });
         try {
             if (mes.action === 'report') {
                 if (this.onReported)
-                    await this.onReported(mes.info.instanceName, mes.body.installIds);
+                    await this.onReported(mes.info.from, mes.body.installIds);
             }
             else if (mes.action === 'keyRequestResponse') {
                 const { requestId, results } = mes.body;
                 if (this.onKeyRequestResponse)
-                    await this.onKeyRequestResponse(requestId, mes.info.instanceName, results);
+                    await this.onKeyRequestResponse(requestId, mes.info.from, results);
             }
         }
         catch (e) {
@@ -98,78 +111,67 @@ class Adaptor {
         }
     }
     async reportRequest() {
-        await this._sendMessage({
-            action: 'reportRequest',
-            info: {
-                sendMode: 'broadcast',
-                toMaster: false,
-            },
-            body: {},
-        });
+        await this._sendMessage('reportRequest', {
+            sendMode: 'broadcast',
+            toManager: false,
+        }, {});
     }
-    async report(instanceName, installIds) {
-        await this._sendMessage({
-            action: 'report',
-            info: {
-                instanceName,
+    async report(installIds, masterName) {
+        const info = (masterName !== undefined
+            ? {
                 sendMode: 'direct',
-                toMaster: true,
-            },
-            body: {
-                installIds,
-            },
+                toManager: true,
+                to: masterName,
+            }
+            : {
+                sendMode: 'broadcast',
+                toManager: true,
+            });
+        await this._sendMessage('report', info, {
+            installIds,
         });
     }
     async keyRequest(key, requestId) {
-        await this._sendMessage({
-            action: 'keyRequest',
-            info: {
-                toMaster: false,
-                sendMode: 'broadcast',
-            },
-            body: {
-                requestId,
-                key,
-            },
+        await this._sendMessage('keyRequest', {
+            toManager: false,
+            sendMode: 'broadcast',
+        }, {
+            requestId,
+            key,
         });
     }
     async directKeyRequest(obnizId, instanceName, key, requestId) {
-        await this._sendMessage({
-            action: 'keyRequest',
-            info: {
-                toMaster: false,
-                sendMode: 'direct',
-                instanceName,
-            },
-            body: {
-                obnizId,
-                requestId,
-                key,
-            },
+        await this._sendMessage('keyRequest', {
+            toManager: false,
+            sendMode: 'direct',
+            to: instanceName,
+        }, {
+            obnizId,
+            requestId,
+            key,
         });
     }
-    async keyRequestResponse(requestId, instanceName, results) {
-        await this._sendMessage({
-            action: 'keyRequestResponse',
-            info: {
-                toMaster: true,
-                instanceName,
-                sendMode: 'direct',
-            },
-            body: {
-                requestId,
-                results,
-            },
+    async keyRequestResponse(masterName, requestId, results) {
+        await this._sendMessage('keyRequestResponse', {
+            toManager: true,
+            sendMode: 'direct',
+            to: masterName,
+        }, {
+            requestId,
+            results,
         });
     }
     async synchronizeRequest(options) {
-        await this._sendMessage({
-            action: 'synchronize',
-            info: {
-                sendMode: 'broadcast',
-                toMaster: false,
-            },
-            body: options,
+        await this._sendMessage('synchronize', {
+            sendMode: 'broadcast',
+            toManager: false,
+        }, options);
+    }
+    async _sendMessage(action, info, data) {
+        await this._onSendMessage({
+            action,
+            info: Object.assign(Object.assign({}, info), { from: this.id }),
+            body: data,
         });
     }
 }

@@ -106,7 +106,7 @@ export class App<O extends IObniz> {
   readonly _options: AppOptionInternal<any, O>;
 
   // As Master
-  protected readonly _manager?: ManagerClass<any>;
+  protected readonly _manager?: ManagerClass;
 
   // As Worker
   protected readonly _slave?: SlaveClass<O>;
@@ -143,7 +143,7 @@ export class App<O extends IObniz> {
           return this._options.workerClass;
         }),
       obnizClass: option.obnizClass,
-      instanceType: option.instanceType || AppInstanceType.Master,
+      instanceType: option.instanceType ?? AppInstanceType.Master,
       instanceName: option.instanceName || os.hostname(),
       obnizOption: option.obnizOption || {},
       obnizCloudSdkOption: option.obnizCloudSdkOption || {},
@@ -162,30 +162,28 @@ export class App<O extends IObniz> {
       this._options.instanceName += `-${process.env.NODE_APP_INSTANCE}`;
     }
 
-    if (
+    const hasManager =
       (option.instanceType === AppInstanceType.Master ||
         option.instanceType === AppInstanceType.Manager) &&
-      isMasterOnSameMachine
-    ) {
+      isMasterOnSameMachine;
+
+    const adaptor = new AdaptorFactory().create(
+      this._options.database,
+      this._options.instanceName,
+      option.instanceType,
+      this._options.databaseConfig
+    );
+
+    if (hasManager) {
       this._manager = new ManagerClass(
         option.appToken,
         this._options.instanceName,
-        this._options.database,
-        this._options.databaseConfig,
+        adaptor,
         this._options.obnizCloudSdkOption
       );
     }
 
     if (option.instanceType !== AppInstanceType.Manager) {
-      // If master mode, share adaptor
-      const adaptor = this._manager
-        ? this._manager.adaptor
-        : new AdaptorFactory().create(
-            this._options.database,
-            this._options.instanceName,
-            false,
-            this._options.databaseConfig
-          );
       this._slave = new SlaveClass<O>(
         adaptor,
         this._options.instanceName,

@@ -1,5 +1,12 @@
+import { AppInstanceType } from '../App';
 import { logger } from '../logger';
-import { MessageBodies, MessagesUnion } from '../utils/message';
+import {
+  MessageBodies,
+  MessageKeys,
+  MessagesUnion,
+  Message,
+  MessageInfoOmitFrom,
+} from '../utils/message';
 
 /**
  * 一方向性のリスト同期
@@ -8,13 +15,15 @@ import { MessageBodies, MessagesUnion } from '../utils/message';
  * Cassandraと同じく「時間が経てば正しくなる」方式を採用。
  */
 export abstract class Adaptor {
-  public isMaster = false;
+  public instanceType: AppInstanceType;
+  public isMaster: boolean;
   public id: string;
 
   public isReady = false;
 
-  public onReportRequest?: () => Promise<void>;
+  public onReportRequest?: (masterName: string) => Promise<void>;
   public onKeyRequest?: (
+    masterName: string,
     requestId: string,
     key: string,
     obnizId?: string
@@ -32,9 +41,11 @@ export abstract class Adaptor {
     installIds: string[]
   ) => Promise<void>;
 
-  constructor(id: string, isMaster: boolean) {
+  constructor(id: string, instanceType: AppInstanceType) {
     this.id = id;
-    this.isMaster = isMaster;
+    this.instanceType = instanceType;
+    // For compatibility
+    this.isMaster = instanceType !== AppInstanceType.Slave;
   }
 
   protected _onReady(): void {
@@ -48,7 +59,7 @@ export abstract class Adaptor {
         });
     } else {
       if (this.onReportRequest) {
-        this.onReportRequest()
+        this.onReportRequest('unknown')
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -58,17 +69,25 @@ export abstract class Adaptor {
   }
 
   async onMessage(mes: MessagesUnion): Promise<void> {
-    if (mes.info.toMaster) {
-      await this._onMasterMessage(mes);
+    if (mes.info.toManager) {
+      if (
+        this.instanceType === AppInstanceType.Master ||
+        this.instanceType === AppInstanceType.Manager
+      )
+        await this._onManagerMessage(mes);
     } else {
-      await this._onSlaveMessage(mes);
+      if (
+        this.instanceType === AppInstanceType.Master ||
+        this.instanceType === AppInstanceType.Slave
+      )
+        await this._onSlaveMessage(mes);
     }
   }
 
   protected async _onSlaveMessage(mes: MessagesUnion): Promise<void> {
-    if (mes.info.toMaster) return;
-    if (mes.info.sendMode === 'direct' && mes.info.instanceName !== this.id)
-      return;
+    if (mes.info.toManager) return;
+    if (mes.info.sendMode === 'direct' && mes.info.to !== this.id) return;
+    console.log('SlaveMessageReceived', { mes });
     try {
       if (mes.action === 'synchronize') {
         if (this.onSynchronize) {
@@ -84,12 +103,13 @@ export abstract class Adaptor {
           }
         }
       } else if (mes.action === 'reportRequest') {
-        if (this.onReportRequest) {
-          await this.onReportRequest();
+        if (this.onReportRequest && mes.info.sendMode === 'direct') {
+          await this.onReportRequest(mes.info.to);
         }
       } else if (mes.action === 'keyRequest') {
         if (this.onKeyRequest) {
           await this.onKeyRequest(
+            mes.info.from,
             mes.body.requestId,
             mes.body.key,
             mes.body.obnizId
@@ -101,20 +121,23 @@ export abstract class Adaptor {
     }
   }
 
-  protected async _onMasterMessage(mes: MessagesUnion): Promise<void> {
-    if (!mes.info.toMaster) return;
+  protected async _onManagerMessage(mes: MessagesUnion): Promise<void> {
+    if (!mes.info.toManager) return;
+    if (
+      mes.info.sendMode === 'direct' && // mes is direct message
+      mes.info.to !== undefined && // "to" is set
+      mes.info.to !== this.id // "to" is not me
+    )
+      return;
+    console.log('ManagerMessageReceived', { mes });
     try {
       if (mes.action === 'report') {
         if (this.onReported)
-          await this.onReported(mes.info.instanceName, mes.body.installIds);
+          await this.onReported(mes.info.from, mes.body.installIds);
       } else if (mes.action === 'keyRequestResponse') {
         const { requestId, results } = mes.body;
         if (this.onKeyRequestResponse)
-          await this.onKeyRequestResponse(
-            requestId,
-            mes.info.instanceName,
-            results
-          );
+          await this.onKeyRequestResponse(requestId, mes.info.from, results);
       }
     } catch (e) {
       logger.error(e);
@@ -122,42 +145,46 @@ export abstract class Adaptor {
   }
 
   async reportRequest(): Promise<void> {
-    await this._sendMessage({
-      action: 'reportRequest',
-      info: {
+    await this._sendMessage(
+      'reportRequest',
+      {
         sendMode: 'broadcast',
-        toMaster: false,
+        toManager: false,
       },
-      body: {},
-    });
+      {}
+    );
   }
 
-  async report(instanceName: string, installIds: string[]): Promise<void> {
-    await this._sendMessage({
-      action: 'report',
-      info: {
-        instanceName,
-        sendMode: 'direct',
-        toMaster: true,
-      },
-      body: {
-        installIds,
-      },
+  async report(installIds: string[], masterName?: string): Promise<void> {
+    const info = (
+      masterName !== undefined
+        ? {
+            sendMode: 'direct',
+            toManager: true,
+            to: masterName,
+          }
+        : {
+            sendMode: 'broadcast',
+            toManager: true,
+          }
+    ) as MessageInfoOmitFrom;
+    await this._sendMessage('report', info, {
+      installIds,
     });
   }
 
   async keyRequest(key: string, requestId: string): Promise<void> {
-    await this._sendMessage({
-      action: 'keyRequest',
-      info: {
-        toMaster: false,
+    await this._sendMessage(
+      'keyRequest',
+      {
+        toManager: false,
         sendMode: 'broadcast',
       },
-      body: {
+      {
         requestId,
         key,
-      },
-    });
+      }
+    );
   }
 
   async directKeyRequest(
@@ -166,52 +193,64 @@ export abstract class Adaptor {
     key: string,
     requestId: string
   ): Promise<void> {
-    await this._sendMessage({
-      action: 'keyRequest',
-      info: {
-        toMaster: false,
+    await this._sendMessage(
+      'keyRequest',
+      {
+        toManager: false,
         sendMode: 'direct',
-        instanceName,
+        to: instanceName,
       },
-      body: {
+      {
         obnizId,
         requestId,
         key,
-      },
-    });
+      }
+    );
   }
 
   async keyRequestResponse(
+    masterName: string,
     requestId: string,
-    instanceName: string,
     results: { [key: string]: string }
   ): Promise<void> {
-    await this._sendMessage({
-      action: 'keyRequestResponse',
-      info: {
-        toMaster: true,
-        instanceName,
+    await this._sendMessage(
+      'keyRequestResponse',
+      {
+        toManager: true,
         sendMode: 'direct',
+        to: masterName,
       },
-      body: {
+      {
         requestId,
         results,
-      },
-    });
+      }
+    );
   }
 
   async synchronizeRequest(
     options: MessageBodies['synchronize']
   ): Promise<void> {
-    await this._sendMessage({
-      action: 'synchronize',
-      info: {
+    await this._sendMessage(
+      'synchronize',
+      {
         sendMode: 'broadcast',
-        toMaster: false,
+        toManager: false,
       },
-      body: options,
-    });
+      options
+    );
   }
 
-  protected abstract _sendMessage(data: MessagesUnion): Promise<void>;
+  protected async _sendMessage<ActionName extends MessageKeys>(
+    action: ActionName,
+    info: MessageInfoOmitFrom,
+    data: Message<ActionName>['body']
+  ): Promise<void> {
+    await this._onSendMessage({
+      action,
+      info: { ...info, from: this.id },
+      body: data,
+    } as MessagesUnion);
+  }
+
+  protected abstract _onSendMessage(data: MessagesUnion): Promise<void>;
 }

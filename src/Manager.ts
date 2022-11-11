@@ -4,11 +4,6 @@ import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
 import { AppStartOption } from './App';
-import {
-  AdaptorFactory,
-  Database,
-  DatabaseConfig,
-} from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
 import { wait } from './utils/common';
 import {
@@ -48,7 +43,7 @@ interface KeyRequestExecute {
   ) => void;
 }
 
-export class Manager<T extends Database> {
+export class Manager {
   public adaptor: Adaptor;
 
   private readonly _appToken: string;
@@ -75,20 +70,13 @@ export class Manager<T extends Database> {
   constructor(
     appToken: string,
     instanceName: string,
-    database: T,
-    databaseConfig: DatabaseConfig[T],
+    adaptor: Adaptor,
     obnizSdkOption: SdkOption
   ) {
     this._appToken = appToken;
     this._obnizSdkOption = obnizSdkOption;
     this._instanceName = instanceName;
-
-    this.adaptor = new AdaptorFactory().create<T>(
-      database,
-      instanceName,
-      true,
-      databaseConfig
-    );
+    this.adaptor = adaptor;
 
     /**
      * Workerのうちいずれかから状況報告をもらった
@@ -524,12 +512,10 @@ export class Manager<T extends Database> {
     const instances = await this._workerStore.getAllWorkerInstances();
     const instanceKeys = Object.keys(instances);
     if (this.adaptor instanceof RedisAdaptor) {
-      for await (const instanceName of instanceKeys) {
-        logger.debug(`synchronize sent to ${instanceName} via Redis`);
-        await this.adaptor.synchronizeRequest({
-          syncType: 'redis',
-        });
-      }
+      logger.debug(`Sent sync request via Redis to all instance.`);
+      await this.adaptor.synchronizeRequest({
+        syncType: 'redis',
+      });
     } else {
       for (const instanceName in instances) {
         installsByInstanceName[instanceName] = [];

@@ -1,3 +1,4 @@
+import { AppInstanceType } from '../App';
 import { MessagesUnion } from '../utils/message';
 import { Adaptor } from './Adaptor';
 
@@ -10,15 +11,15 @@ export class MemoryAdaptor extends Adaptor {
 
   constructor(
     id: string,
-    isMaster: boolean,
+    instanceType: AppInstanceType,
     memoryOption: MemoryAdaptorOptions
   ) {
-    super(id, isMaster);
+    super(id, instanceType);
     MemoryAdaptor.memoryAdaptorList.push(this);
     this._onReady();
   }
 
-  protected async _sendMessage(data: MessagesUnion): Promise<void> {
+  protected async _onSendMessage(data: MessagesUnion): Promise<void> {
     for (const one of MemoryAdaptor.memoryAdaptorList) {
       one.onMessage(data);
     }

@@ -110,7 +110,7 @@ export class RedisAdaptor extends Adaptor {
         this.id
       )) as [string];
       this._isManagerHeartbeatInited = true;
-      this._isFirstManager = true;
+      this._isFirstManager = res[0] === 'true';
     }
   }
 

@@ -11,12 +11,15 @@ const App_1 = require("../App");
 class RedisAdaptor extends Adaptor_1.Adaptor {
     constructor(id, instanceType, redisOption) {
         super(id, instanceType);
+        this._isManagerHeartbeatInited = false;
+        this._isFirstManager = false;
         this._redis = new ioredis_1.default(redisOption);
         this._subOnlyRedis = new ioredis_1.default(redisOption);
         this._bindRedisEvents(this._subOnlyRedis);
     }
     _onRedisReady() {
-        if (this.isMaster) {
+        if (this.instanceType === App_1.AppInstanceType.Master ||
+            this.instanceType === App_1.AppInstanceType.Manager) {
             setTimeout(() => {
                 this._onReady();
             }, 3 * 1000);
@@ -59,6 +62,32 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
     }
     getRedisInstance() {
         return this._redis;
+    }
+    getManagerStatus() {
+        if (!this._isManagerHeartbeatInited) {
+            return {
+                initialized: false,
+            };
+        }
+        return {
+            initialized: true,
+            isFirstManager: this._isFirstManager,
+        };
+    }
+    async onManagerHeartbeat() {
+        const redis = this.getRedisInstance();
+        if (this._isManagerHeartbeatInited) {
+            await redis.set(`master:${this.id}:heartbeat`, Date.now(), 'EX', 20);
+        }
+        else {
+            const res = (await redis.eval(`redis.replicate_commands()local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`, 1, this.id));
+            this._isManagerHeartbeatInited = true;
+            this._isFirstManager = true;
+        }
+    }
+    async onSlaveHeartbeat() {
+        const redis = this.getRedisInstance();
+        await redis.set(`slave:${this.id}:heartbeat`, Date.now(), 'EX', 20);
     }
 }
 exports.RedisAdaptor = RedisAdaptor;

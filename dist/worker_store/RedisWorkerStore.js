@@ -28,50 +28,64 @@ class RedisWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
         };
     }
     async getAllWorkerInstances() {
-        var e_1, _a, e_2, _b;
-        var _c, _d, _e, _f;
+        var _a, e_1, _b, _c, _d, e_2, _e, _f;
+        var _g, _h, _j, _k;
         const redis = this._redisAdaptor.getRedisInstance();
         const workingKeys = await redis.keys('slave:*:heartbeat');
         const assignedKeys = await redis.keys('workers:*');
         const instancePartials = {};
         try {
-            for (var workingKeys_1 = __asyncValues(workingKeys), workingKeys_1_1; workingKeys_1_1 = await workingKeys_1.next(), !workingKeys_1_1.done;) {
-                const workingKey = workingKeys_1_1.value;
-                const match = workingKey.match(/slave:(?<name>.+):heartbeat/);
-                if (match === null || ((_c = match.groups) === null || _c === void 0 ? void 0 : _c.name) === undefined)
-                    continue;
-                const workerName = match.groups.name;
-                if (instancePartials[workerName] === undefined)
-                    instancePartials[workerName] = {};
-                const heartbeat = await redis.get(`slave:${workerName}:heartbeat`);
-                if (heartbeat === null)
-                    continue;
-                instancePartials[workerName].updatedMillisecond = Number(heartbeat);
+            for (var _l = true, workingKeys_1 = __asyncValues(workingKeys), workingKeys_1_1; workingKeys_1_1 = await workingKeys_1.next(), _a = workingKeys_1_1.done, !_a;) {
+                _c = workingKeys_1_1.value;
+                _l = false;
+                try {
+                    const workingKey = _c;
+                    const match = workingKey.match(/slave:(?<name>.+):heartbeat/);
+                    if (match === null || ((_g = match.groups) === null || _g === void 0 ? void 0 : _g.name) === undefined)
+                        continue;
+                    const workerName = match.groups.name;
+                    if (instancePartials[workerName] === undefined)
+                        instancePartials[workerName] = {};
+                    const heartbeat = await redis.get(`slave:${workerName}:heartbeat`);
+                    if (heartbeat === null)
+                        continue;
+                    instancePartials[workerName].updatedMillisecond = Number(heartbeat);
+                }
+                finally {
+                    _l = true;
+                }
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
         finally {
             try {
-                if (workingKeys_1_1 && !workingKeys_1_1.done && (_a = workingKeys_1.return)) await _a.call(workingKeys_1);
+                if (!_l && !_a && (_b = workingKeys_1.return)) await _b.call(workingKeys_1);
             }
             finally { if (e_1) throw e_1.error; }
         }
         try {
-            for (var assignedKeys_1 = __asyncValues(assignedKeys), assignedKeys_1_1; assignedKeys_1_1 = await assignedKeys_1.next(), !assignedKeys_1_1.done;) {
-                const assignKey = assignedKeys_1_1.value;
-                const match = assignKey.match(/workers:(?<name>.+)/);
-                if (match === null || ((_d = match.groups) === null || _d === void 0 ? void 0 : _d.name) === undefined)
-                    continue;
-                const workerName = match.groups.name;
-                if (instancePartials[workerName] === undefined)
-                    instancePartials[workerName] = {};
-                instancePartials[workerName].installIds = await redis.hkeys(`workers:${workerName}`);
+            for (var _m = true, assignedKeys_1 = __asyncValues(assignedKeys), assignedKeys_1_1; assignedKeys_1_1 = await assignedKeys_1.next(), _d = assignedKeys_1_1.done, !_d;) {
+                _f = assignedKeys_1_1.value;
+                _m = false;
+                try {
+                    const assignKey = _f;
+                    const match = assignKey.match(/workers:(?<name>.+)/);
+                    if (match === null || ((_h = match.groups) === null || _h === void 0 ? void 0 : _h.name) === undefined)
+                        continue;
+                    const workerName = match.groups.name;
+                    if (instancePartials[workerName] === undefined)
+                        instancePartials[workerName] = {};
+                    instancePartials[workerName].installIds = await redis.hkeys(`workers:${workerName}`);
+                }
+                finally {
+                    _m = true;
+                }
             }
         }
         catch (e_2_1) { e_2 = { error: e_2_1 }; }
         finally {
             try {
-                if (assignedKeys_1_1 && !assignedKeys_1_1.done && (_b = assignedKeys_1.return)) await _b.call(assignedKeys_1);
+                if (!_m && !_d && (_e = assignedKeys_1.return)) await _e.call(assignedKeys_1);
             }
             finally { if (e_2) throw e_2.error; }
         }
@@ -80,8 +94,8 @@ class RedisWorkerStore extends WorkerStoreBase_1.WorkerStoreBase {
             const instancePartial = instancePartials[name];
             instances[name] = {
                 name,
-                installIds: (_e = instancePartial.installIds) !== null && _e !== void 0 ? _e : [],
-                updatedMillisecond: (_f = instancePartial.updatedMillisecond) !== null && _f !== void 0 ? _f : 0,
+                installIds: (_j = instancePartial.installIds) !== null && _j !== void 0 ? _j : [],
+                updatedMillisecond: (_k = instancePartial.updatedMillisecond) !== null && _k !== void 0 ? _k : 0,
             };
         }
         return instances;

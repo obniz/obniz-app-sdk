@@ -28,6 +28,6 @@ export declare class Slave<O extends IObniz> {
     /**
      * Let Master know worker is working.
      */
-    protected _reportToMaster(masterName: string): Promise<void>;
+    protected _reportToMaster(masterName?: string): Promise<void>;
     startSyncing(): void;
 }

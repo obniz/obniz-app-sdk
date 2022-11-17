@@ -16,7 +16,6 @@ import {
  */
 export abstract class Adaptor {
   public instanceType: AppInstanceType;
-  public isMaster: boolean;
   public id: string;
 
   public isReady = false;
@@ -44,14 +43,15 @@ export abstract class Adaptor {
   constructor(id: string, instanceType: AppInstanceType) {
     this.id = id;
     this.instanceType = instanceType;
-    // For compatibility
-    this.isMaster = instanceType !== AppInstanceType.Slave;
   }
 
   protected _onReady(): void {
     this.isReady = true;
     logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
-    if (this.isMaster) {
+    if (
+      this.instanceType === AppInstanceType.Master ||
+      this.instanceType === AppInstanceType.Manager
+    ) {
       this.reportRequest()
         .then(() => {})
         .catch((e) => {

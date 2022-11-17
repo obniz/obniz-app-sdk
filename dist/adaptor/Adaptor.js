@@ -14,13 +14,12 @@ class Adaptor {
         this.isReady = false;
         this.id = id;
         this.instanceType = instanceType;
-        // For compatibility
-        this.isMaster = instanceType !== App_1.AppInstanceType.Slave;
     }
     _onReady() {
         this.isReady = true;
         logger_1.logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
-        if (this.isMaster) {
+        if (this.instanceType === App_1.AppInstanceType.Master ||
+            this.instanceType === App_1.AppInstanceType.Manager) {
             this.reportRequest()
                 .then(() => { })
                 .catch((e) => {

@@ -29,10 +29,12 @@ const logger_1 = require("../logger");
 const aedes_1 = require("aedes");
 const net_1 = require("net");
 const mqtt = __importStar(require("mqtt"));
+const App_1 = require("../App");
 class MqttAdaptor extends Adaptor_1.Adaptor {
     constructor(id, instanceType, mqttOption) {
         super(id, instanceType);
-        if (this.isMaster) {
+        if (this.instanceType === App_1.AppInstanceType.Master ||
+            this.instanceType === App_1.AppInstanceType.Manager) {
             const broker = (0, aedes_1.Server)({
                 concurrency: 100,
                 heartbeatInterval: 60 * 1000,

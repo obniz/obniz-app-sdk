@@ -174,25 +174,18 @@ export class Slave<O extends IObniz> {
 
   protected async _onHeartBeat(): Promise<void> {
     if (this._adaptor instanceof RedisAdaptor) {
-      // If adaptor is Redis
-      const redis = this._adaptor.getRedisInstance();
-      await redis.set(
-        `slave:${this._app._options.instanceName}:heartbeat`,
-        Date.now(),
-        'EX',
-        20
-      );
+      await this._adaptor.onSlaveHeartbeat();
     } else {
-      await this._reportToMaster('unknown');
+      await this._reportToMaster();
     }
   }
 
   /**
    * Let Master know worker is working.
    */
-  protected async _reportToMaster(masterName: string): Promise<void> {
+  protected async _reportToMaster(masterName?: string): Promise<void> {
     const keys = Object.keys(this._workers);
-    await this._adaptor.report(keys);
+    await this._adaptor.report(keys, masterName);
   }
 
   public startSyncing(): void {

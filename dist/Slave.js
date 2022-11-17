@@ -68,7 +68,7 @@ class Slave {
      * Receive Master Generated List and compare current apps.
      */
     async _synchronize(options) {
-        var e_1, _a, e_2, _b;
+        var _a, e_1, _b, _c, _d, e_2, _e, _f;
         if (this._syncing) {
             return;
         }
@@ -82,32 +82,46 @@ class Slave {
                 exists[install_id] = this._workers[install_id];
             }
             try {
-                for (var installs_1 = __asyncValues(installs), installs_1_1; installs_1_1 = await installs_1.next(), !installs_1_1.done;) {
-                    const install = installs_1_1.value;
-                    await this._startOrRestartOneWorker(install);
-                    if (exists[install.id]) {
-                        delete exists[install.id];
+                for (var _g = true, installs_1 = __asyncValues(installs), installs_1_1; installs_1_1 = await installs_1.next(), _a = installs_1_1.done, !_a;) {
+                    _c = installs_1_1.value;
+                    _g = false;
+                    try {
+                        const install = _c;
+                        await this._startOrRestartOneWorker(install);
+                        if (exists[install.id]) {
+                            delete exists[install.id];
+                        }
+                    }
+                    finally {
+                        _g = true;
                     }
                 }
             }
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (installs_1_1 && !installs_1_1.done && (_a = installs_1.return)) await _a.call(installs_1);
+                    if (!_g && !_a && (_b = installs_1.return)) await _b.call(installs_1);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
             try {
                 // Apps which not listed
-                for (var _c = __asyncValues(Object.keys(exists)), _d; _d = await _c.next(), !_d.done;) {
-                    const install_id = _d.value;
-                    await this._stopOneWorker(install_id);
+                for (var _h = true, _j = __asyncValues(Object.keys(exists)), _k; _k = await _j.next(), _d = _k.done, !_d;) {
+                    _f = _k.value;
+                    _h = false;
+                    try {
+                        const install_id = _f;
+                        await this._stopOneWorker(install_id);
+                    }
+                    finally {
+                        _h = true;
+                    }
                 }
             }
             catch (e_2_1) { e_2 = { error: e_2_1 }; }
             finally {
                 try {
-                    if (_d && !_d.done && (_b = _c.return)) await _b.call(_c);
+                    if (!_h && !_d && (_e = _j.return)) await _e.call(_j);
                 }
                 finally { if (e_2) throw e_2.error; }
             }
@@ -151,12 +165,10 @@ class Slave {
     }
     async _onHeartBeat() {
         if (this._adaptor instanceof RedisAdaptor_1.RedisAdaptor) {
-            // If adaptor is Redis
-            const redis = this._adaptor.getRedisInstance();
-            await redis.set(`slave:${this._app._options.instanceName}:heartbeat`, Date.now(), 'EX', 20);
+            await this._adaptor.onSlaveHeartbeat();
         }
         else {
-            await this._reportToMaster('unknown');
+            await this._reportToMaster();
         }
     }
     /**
@@ -164,7 +176,7 @@ class Slave {
      */
     async _reportToMaster(masterName) {
         const keys = Object.keys(this._workers);
-        await this._adaptor.report(keys);
+        await this._adaptor.report(keys, masterName);
     }
     startSyncing() {
         // every minutes

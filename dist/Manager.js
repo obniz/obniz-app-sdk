@@ -25,8 +25,6 @@ const fast_equals_1 = require("fast-equals");
 class Manager {
     constructor(appToken, instanceName, adaptor, obnizSdkOption) {
         this._syncing = false;
-        this._isHeartbeatInit = false;
-        this._isFirstManager = false;
         // Note: moved to _installStore
         // private _allInstalls: { [key: string]: ManagedInstall } = {};
         // Note: moved to _workerStore
@@ -141,7 +139,7 @@ class Manager {
      * @param id
      */
     async onInstanceMissed(instanceName) {
-        var e_1, _a;
+        var _a, e_1, _b, _c;
         logger_1.logger.info(`worker lost ${instanceName}`);
         // delete immediately
         const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
@@ -150,32 +148,39 @@ class Manager {
         // Replacing missed instance workers.
         const missedInstalls = await this._installStore.getByWorker(diedWorker.name);
         try {
-            for (var _b = __asyncValues(Object.keys(missedInstalls)), _c; _c = await _b.next(), !_c.done;) {
-                const install = _c.value;
+            for (var _d = true, _e = __asyncValues(Object.keys(missedInstalls)), _f; _f = await _e.next(), _a = _f.done, !_a;) {
+                _c = _f.value;
+                _d = false;
                 try {
-                    const instance = await this._installStore.autoRelocate(install, false);
-                }
-                catch (e) {
-                    if (e instanceof Error) {
-                        switch (e.message) {
-                            case 'NO_NEED_TO_RELOCATE':
-                                logger_1.logger.info(`${install} already moved available worker.`);
-                                break;
-                            default:
-                                logger_1.logger.error(`Failed autoRelocate: ${e.message} (${e.name})`);
-                                break;
+                    const install = _c;
+                    try {
+                        const instance = await this._installStore.autoRelocate(install, false);
+                    }
+                    catch (e) {
+                        if (e instanceof Error) {
+                            switch (e.message) {
+                                case 'NO_NEED_TO_RELOCATE':
+                                    logger_1.logger.info(`${install} already moved available worker.`);
+                                    break;
+                                default:
+                                    logger_1.logger.error(`Failed autoRelocate: ${e.message} (${e.name})`);
+                                    break;
+                            }
+                        }
+                        else {
+                            logger_1.logger.error(e);
                         }
                     }
-                    else {
-                        logger_1.logger.error(e);
-                    }
+                }
+                finally {
+                    _d = true;
                 }
             }
         }
         catch (e_1_1) { e_1 = { error: e_1_1 }; }
         finally {
             try {
-                if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
+                if (!_d && !_a && (_b = _e.return)) await _b.call(_e);
             }
             finally { if (e_1) throw e_1.error; }
         }
@@ -258,7 +263,7 @@ class Manager {
         return success;
     }
     async _checkAllInstalls() {
-        var e_2, _a, e_3, _b, e_4, _c;
+        var _a, e_2, _b, _c, _d, e_3, _e, _f, _g, e_4, _h, _j;
         const startedTime = Date.now();
         logger_1.logger.debug('API Sync Start');
         const installsApi = [];
@@ -311,47 +316,68 @@ class Manager {
             logger_1.logger.debug(`${allNum} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`);
         }
         try {
-            for (var updated_1 = __asyncValues(updated), updated_1_1; updated_1_1 = await updated_1.next(), !updated_1_1.done;) {
-                const updDevice = updated_1_1.value;
-                await this._updateDevice(updDevice.id, updDevice);
+            for (var _k = true, updated_1 = __asyncValues(updated), updated_1_1; updated_1_1 = await updated_1.next(), _a = updated_1_1.done, !_a;) {
+                _c = updated_1_1.value;
+                _k = false;
+                try {
+                    const updDevice = _c;
+                    await this._updateDevice(updDevice.id, updDevice);
+                }
+                finally {
+                    _k = true;
+                }
             }
         }
         catch (e_2_1) { e_2 = { error: e_2_1 }; }
         finally {
             try {
-                if (updated_1_1 && !updated_1_1.done && (_a = updated_1.return)) await _a.call(updated_1);
+                if (!_k && !_a && (_b = updated_1.return)) await _b.call(updated_1);
             }
             finally { if (e_2) throw e_2.error; }
         }
         try {
-            for (var deleted_1 = __asyncValues(deleted), deleted_1_1; deleted_1_1 = await deleted_1.next(), !deleted_1_1.done;) {
-                const delInstall = deleted_1_1.value;
-                await this._deleteDevice(delInstall.install.id);
+            for (var _l = true, deleted_1 = __asyncValues(deleted), deleted_1_1; deleted_1_1 = await deleted_1.next(), _d = deleted_1_1.done, !_d;) {
+                _f = deleted_1_1.value;
+                _l = false;
+                try {
+                    const delInstall = _f;
+                    await this._deleteDevice(delInstall.install.id);
+                }
+                finally {
+                    _l = true;
+                }
             }
         }
         catch (e_3_1) { e_3 = { error: e_3_1 }; }
         finally {
             try {
-                if (deleted_1_1 && !deleted_1_1.done && (_b = deleted_1.return)) await _b.call(deleted_1);
+                if (!_l && !_d && (_e = deleted_1.return)) await _e.call(deleted_1);
             }
             finally { if (e_3) throw e_3.error; }
         }
         try {
-            for (var mustAdds_1 = __asyncValues(mustAdds), mustAdds_1_1; mustAdds_1_1 = await mustAdds_1.next(), !mustAdds_1_1.done;) {
-                const addDevice = mustAdds_1_1.value;
-                await this._addDevice(addDevice.id, addDevice);
+            for (var _m = true, mustAdds_1 = __asyncValues(mustAdds), mustAdds_1_1; mustAdds_1_1 = await mustAdds_1.next(), _g = mustAdds_1_1.done, !_g;) {
+                _j = mustAdds_1_1.value;
+                _m = false;
+                try {
+                    const addDevice = _j;
+                    await this._addDevice(addDevice.id, addDevice);
+                }
+                finally {
+                    _m = true;
+                }
             }
         }
         catch (e_4_1) { e_4 = { error: e_4_1 }; }
         finally {
             try {
-                if (mustAdds_1_1 && !mustAdds_1_1.done && (_c = mustAdds_1.return)) await _c.call(mustAdds_1);
+                if (!_m && !_g && (_h = mustAdds_1.return)) await _h.call(mustAdds_1);
             }
             finally { if (e_4) throw e_4.error; }
         }
     }
     async _checkDiffInstalls() {
-        var e_5, _a;
+        var _a, e_5, _b, _c;
         const startedTime = Date.now();
         logger_1.logger.debug('API Diff Sync Start');
         const events = [];
@@ -384,24 +410,31 @@ class Manager {
             }
         }
         try {
-            for (var _b = __asyncValues(Object.keys(list)), _c; _c = await _b.next(), !_c.done;) {
-                const key = _c.value;
-                const one = list[key];
-                if (one.type === 'install.update' && one.payload.device) {
-                    this._updateDevice(one.payload.device.id, one.payload.device);
+            for (var _d = true, _e = __asyncValues(Object.keys(list)), _f; _f = await _e.next(), _a = _f.done, !_a;) {
+                _c = _f.value;
+                _d = false;
+                try {
+                    const key = _c;
+                    const one = list[key];
+                    if (one.type === 'install.update' && one.payload.device) {
+                        this._updateDevice(one.payload.device.id, one.payload.device);
+                    }
+                    else if (one.type === 'install.delete' && one.payload.device) {
+                        await this._deleteDevice(one.payload.device.id);
+                    }
+                    else if (one.type === 'install.create' && one.payload.device) {
+                        await this._addDevice(one.payload.device.id, one.payload.device);
+                    }
                 }
-                else if (one.type === 'install.delete' && one.payload.device) {
-                    await this._deleteDevice(one.payload.device.id);
-                }
-                else if (one.type === 'install.create' && one.payload.device) {
-                    await this._addDevice(one.payload.device.id, one.payload.device);
+                finally {
+                    _d = true;
                 }
             }
         }
         catch (e_5_1) { e_5 = { error: e_5_1 }; }
         finally {
             try {
-                if (_c && !_c.done && (_a = _b.return)) await _a.call(_b);
+                if (!_d && !_a && (_b = _e.return)) await _b.call(_e);
             }
             finally { if (e_5) throw e_5.error; }
         }
@@ -441,7 +474,7 @@ class Manager {
         await this._installStore.remove(obnizId);
     }
     async synchronize() {
-        var e_6, _a;
+        var _a, e_6, _b, _c;
         const installsByInstanceName = {};
         const instances = await this._workerStore.getAllWorkerInstances();
         const instanceKeys = Object.keys(instances);
@@ -462,19 +495,26 @@ class Manager {
                 installsByInstanceName[instanceName].push(managedInstall.install);
             }
             try {
-                for (var instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), !instanceKeys_1_1.done;) {
-                    const instanceName = instanceKeys_1_1.value;
-                    logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
-                    await this.adaptor.synchronizeRequest({
-                        syncType: 'list',
-                        installs: installsByInstanceName[instanceName],
-                    });
+                for (var _d = true, instanceKeys_1 = __asyncValues(instanceKeys), instanceKeys_1_1; instanceKeys_1_1 = await instanceKeys_1.next(), _a = instanceKeys_1_1.done, !_a;) {
+                    _c = instanceKeys_1_1.value;
+                    _d = false;
+                    try {
+                        const instanceName = _c;
+                        logger_1.logger.debug(`synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`);
+                        await this.adaptor.synchronizeRequest({
+                            syncType: 'list',
+                            installs: installsByInstanceName[instanceName],
+                        });
+                    }
+                    finally {
+                        _d = true;
+                    }
                 }
             }
             catch (e_6_1) { e_6 = { error: e_6_1 }; }
             finally {
                 try {
-                    if (instanceKeys_1_1 && !instanceKeys_1_1.done && (_a = instanceKeys_1.return)) await _a.call(instanceKeys_1);
+                    if (!_d && !_a && (_b = instanceKeys_1.return)) await _b.call(instanceKeys_1);
                 }
                 finally { if (e_6) throw e_6.error; }
             }
@@ -483,16 +523,7 @@ class Manager {
     async _writeSelfHeartbeat() {
         if (!(this.adaptor instanceof RedisAdaptor_1.RedisAdaptor))
             return;
-        const redis = this.adaptor.getRedisInstance();
-        if (this._isHeartbeatInit) {
-            await redis.set(`master:${this._instanceName}:heartbeat`, Date.now(), 'EX', 20);
-        }
-        else {
-            const res = (await redis.eval(`redis.replicate_commands()local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`, 1, this._instanceName));
-            this._isFirstManager = res[0] === 'true';
-        }
-        if (!this._isHeartbeatInit)
-            this._isHeartbeatInit = true;
+        await this.adaptor.onManagerHeartbeat();
     }
     async _healthCheck() {
         const current = Date.now();
@@ -580,16 +611,17 @@ class Manager {
         });
     }
     isFirstMaster() {
-        if (!this._isHeartbeatInit)
+        if (!(this.adaptor instanceof RedisAdaptor_1.RedisAdaptor))
+            return true;
+        const status = this.adaptor.getManagerStatus();
+        if (!status.initialized)
             throw new Error('init process has not been completed. Please delay a little longer before checking or start app using startWait().');
-        return this._isFirstManager;
+        return status.isFirstManager;
     }
     async doAllRelocate() {
         if (!(this._installStore instanceof RedisInstallStore_1.RedisInstallStore))
             throw new Error('This function is currently only available when using redis.');
-        logger_1.logger.debug('doAllRelocate Start');
         await this._installStore.doAllRelocate();
-        logger_1.logger.debug('doAllRelocate Finish');
         await this.synchronize();
     }
 }

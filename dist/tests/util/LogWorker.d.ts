@@ -3,7 +3,7 @@ import { DummyObniz } from './DummyObniz';
 import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 import { App } from '../../App';
 import { IObnizOptions } from '../../Obniz.interface';
-export declare type WorkerLogEventType = 'onStart' | 'onLoop' | 'onEnd' | 'onRequest' | 'onObnizConnect' | 'onObnizLoop' | 'onObnizClose';
+export type WorkerLogEventType = 'onStart' | 'onLoop' | 'onEnd' | 'onRequest' | 'onObnizConnect' | 'onObnizLoop' | 'onObnizClose';
 export interface WorkerLog {
     obnizId: string;
     date: Date;

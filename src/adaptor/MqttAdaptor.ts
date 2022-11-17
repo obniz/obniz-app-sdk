@@ -14,7 +14,10 @@ export class MqttAdaptor extends Adaptor {
 
   constructor(id: string, instanceType: AppInstanceType, mqttOption: string) {
     super(id, instanceType);
-    if (this.isMaster) {
+    if (
+      this.instanceType === AppInstanceType.Master ||
+      this.instanceType === AppInstanceType.Manager
+    ) {
       const broker = Server({
         concurrency: 100,
         heartbeatInterval: 60 * 1000,

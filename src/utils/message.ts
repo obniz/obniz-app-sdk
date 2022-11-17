@@ -27,25 +27,14 @@ export type MessageBodies = {
 
 export type MessageKeys = keyof MessageBodies;
 
-// https://github.com/microsoft/TypeScript/issues/27024#issuecomment-421529650
-type Equals<X, Y> = (<T>() => T extends X ? 1 : 2) extends <T>() => T extends Y
-  ? 1
-  : 2
-  ? true
-  : false;
-type TrueCheck<T extends true> = T;
-
+// Waiting for @typescript-eslint/parser to support version ts 4.9
 const MessageKeysArray = [
   'report',
   'reportRequest',
   'synchronize',
   'keyRequest',
   'keyRequestResponse',
-] as const;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _MessageKeyCheck = TrueCheck<
-  Equals<typeof MessageKeysArray[number], MessageKeys>
->;
+] satisfies Array<keyof MessageBodies>;
 
 export type MessageInfo =
   | {

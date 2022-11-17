@@ -2,15 +2,15 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DummyObniz = void 0;
 class DummyObniz {
+    static __reset() {
+        DummyObniz.obnizes = [];
+    }
     constructor(id, options) {
         this.__logs = [];
         this.__autoConnect = false;
         this.id = id;
         this.options = options;
         DummyObniz.obnizes.push(this);
-    }
-    static __reset() {
-        DummyObniz.obnizes = [];
     }
     get autoConnect() {
         return this.__autoConnect;

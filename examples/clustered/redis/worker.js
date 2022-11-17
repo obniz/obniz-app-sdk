@@ -13,6 +13,10 @@ class MyWorker extends Worker {
     console.log(`obniz loop ${obniz.id} ${obniz.metadata.description}`);
   }
 
+  async onRequest(key){
+    return `I'm ${this.install.id}, received ${key}!`;
+  }
+
 }
 const app = new App({
   appToken: process.env.APPTOKEN,

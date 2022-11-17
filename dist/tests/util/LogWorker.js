@@ -3,15 +3,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.LogWorker = void 0;
 const Worker_1 = require("../../Worker");
 class LogWorker extends Worker_1.Worker {
+    static __reset() {
+        LogWorker.workers = [];
+    }
     constructor(install, app, option = {}) {
         super(install, app, option);
         this.__logs = [];
         this.__addedObnizLoopEvent = false;
         this.__addedLoopEvent = false;
         LogWorker.workers.push(this);
-    }
-    static __reset() {
-        LogWorker.workers = [];
     }
     __getOption() {
         return this._obnizOption;

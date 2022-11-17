@@ -64,7 +64,7 @@ export interface AppOption<T extends Database, O extends IObniz> {
      */
     obnizCloudSdkOption?: SdkOption;
 }
-export declare type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
+export type AppOptionInternal<T extends Database, O extends IObniz> = Required<AppOption<T, O>>;
 export interface AppStartOption {
     express?: express.Express | false;
     webhookUrl?: string;

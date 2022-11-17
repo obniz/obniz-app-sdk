@@ -12,8 +12,6 @@ export declare class Manager {
     private _syncTimeout;
     private _workerStore;
     private _installStore;
-    private _isHeartbeatInit;
-    private _isFirstManager;
     private _keyRequestExecutes;
     private _currentAppEventsSequenceNo;
     constructor(appToken: string, instanceName: string, adaptor: Adaptor, obnizSdkOption: SdkOption);

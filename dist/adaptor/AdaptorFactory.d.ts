@@ -7,7 +7,7 @@ export interface DatabaseConfig {
     memory: MemoryAdaptorOptions;
     mqtt: string;
 }
-export declare type Database = keyof DatabaseConfig;
+export type Database = keyof DatabaseConfig;
 export declare class AdaptorFactory {
     create<T extends Database>(database: T, id: string, instanceType: AppInstanceType, option: DatabaseConfig[T]): Adaptor;
 }

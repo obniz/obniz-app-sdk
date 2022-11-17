@@ -8,7 +8,6 @@ import { MessageBodies, MessageKeys, MessagesUnion, Message, MessageInfoOmitFrom
  */
 export declare abstract class Adaptor {
     instanceType: AppInstanceType;
-    isMaster: boolean;
     id: string;
     isReady: boolean;
     onReportRequest?: (masterName: string) => Promise<void>;

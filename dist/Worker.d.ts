@@ -65,4 +65,4 @@ export declare class Worker<O extends IObniz> {
         error: (message: string) => void;
     };
 }
-export declare type WorkerStatic<O extends IObniz> = new (install: Installed_Device, app: App<O>, option: IObnizOptions) => Worker<O>;
+export type WorkerStatic<O extends IObniz> = new (install: Installed_Device, app: App<O>, option: IObnizOptions) => Worker<O>;

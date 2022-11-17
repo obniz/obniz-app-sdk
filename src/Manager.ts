@@ -54,8 +54,6 @@ export class Manager {
   private _syncTimeout: any;
   private _workerStore: WorkerStoreBase;
   private _installStore: InstallStoreBase;
-  private _isHeartbeatInit = false;
-  private _isFirstManager = false;
 
   // Note: moved to _installStore
   // private _allInstalls: { [key: string]: ManagedInstall } = {};
@@ -540,23 +538,7 @@ export class Manager {
 
   private async _writeSelfHeartbeat() {
     if (!(this.adaptor instanceof RedisAdaptor)) return;
-    const redis = this.adaptor.getRedisInstance();
-    if (this._isHeartbeatInit) {
-      await redis.set(
-        `master:${this._instanceName}:heartbeat`,
-        Date.now(),
-        'EX',
-        20
-      );
-    } else {
-      const res = (await redis.eval(
-        `redis.replicate_commands()local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`,
-        1,
-        this._instanceName
-      )) as [string];
-      this._isFirstManager = res[0] === 'true';
-    }
-    if (!this._isHeartbeatInit) this._isHeartbeatInit = true;
+    await this.adaptor.onManagerHeartbeat();
   }
 
   private async _healthCheck() {
@@ -671,11 +653,13 @@ export class Manager {
   }
 
   public isFirstMaster(): boolean {
-    if (!this._isHeartbeatInit)
+    if (!(this.adaptor instanceof RedisAdaptor)) return true;
+    const status = this.adaptor.getManagerStatus();
+    if (!status.initialized)
       throw new Error(
         'init process has not been completed. Please delay a little longer before checking or start app using startWait().'
       );
-    return this._isFirstManager;
+    return status.isFirstManager;
   }
 
   public async doAllRelocate(): Promise<void> {
@@ -683,9 +667,7 @@ export class Manager {
       throw new Error(
         'This function is currently only available when using redis.'
       );
-    logger.debug('doAllRelocate Start');
     await this._installStore.doAllRelocate();
-    logger.debug('doAllRelocate Finish');
     await this.synchronize();
   }
 }

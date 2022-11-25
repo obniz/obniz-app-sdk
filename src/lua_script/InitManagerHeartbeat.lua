@@ -1,6 +1,3 @@
--- enable commands replication redis < 5.0
-redis.replicate_commands()
-
 --- get running managers
 local runningManagerKeys = redis.call('KEYS', 'master:*:heartbeat')
 

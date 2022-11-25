@@ -6,9 +6,6 @@ local function hasKey(keys, key)
   return false
 end
 
--- enable commands replication redis < 5.0
-redis.replicate_commands()
-
 -- get workers
 local runningWorkerKeys = redis.call('KEYS', 'slave:*:heartbeat')
 local assignedWorkerKeys = redis.call('KEYS', 'workers:*');

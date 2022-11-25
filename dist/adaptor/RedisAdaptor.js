@@ -80,7 +80,7 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
             await redis.set(`master:${this.id}:heartbeat`, Date.now(), 'EX', 20);
         }
         else {
-            const res = (await redis.eval(`redis.replicate_commands()local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`, 1, this.id));
+            const res = (await redis.eval(`local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`, 1, this.id));
             this._isManagerHeartbeatInited = true;
             this._isFirstManager = res[0] === 'true';
         }

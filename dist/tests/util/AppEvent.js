@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.appEventDeleteAndUpdateSamples = exports.appEventDeleteAllDeviceSamples = exports.appEventDeleteSamples = exports.appEventAddSamples = exports.appEvnetSamples = void 0;
-exports.appEvnetSamples = [
+exports.appEventDeleteAndUpdateSamples = exports.appEventDeleteAllDeviceSamples = exports.appEventDeleteSamples = exports.appEventAddSamples = exports.appEventSamples = void 0;
+exports.appEventSamples = [
     {
         id: 1,
         createdAt: '2021-07-09T08:46:46.043Z',

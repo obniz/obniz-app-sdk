@@ -9,6 +9,7 @@
     "test": "mocha \"src/tests/**/*.ts\"",
     "_testrun-single": "npm run build && node ./examples/backgroundApp/Single.js",
     "_testrun-multi-master": "npm run build && node ./examples/backgroundApp/Multi-Master.js",
+    "test:single": "mocha \"src/tests/single.test.ts\"",
     "test:redis": "mocha \"src/tests/redis.test.ts\"",
     "version": "npm run build",
     "precommit": "npm run build && lint-staged && git add dist"

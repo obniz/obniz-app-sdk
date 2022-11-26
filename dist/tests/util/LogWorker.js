@@ -31,7 +31,7 @@ class LogWorker extends Worker_1.Worker {
         LogWorker.workers = LogWorker.workers.filter((e) => e !== this);
     }
     async onRequest(key) {
-        this.__addLog('onObnizClose');
+        this.__addLog('onRequest');
         return `response from ${this.obniz.id}`;
     }
     async onObnizConnect(obniz) {

@@ -13,7 +13,7 @@ import {
   appEventDeleteAllDeviceSamples,
   appEventDeleteAndUpdateSamples,
   appEventDeleteSamples,
-  appEvnetSamples,
+  appEventSamples,
 } from './util/AppEvent';
 
 describe('single', () => {
@@ -352,7 +352,7 @@ function obnizApiStub() {
 
   const getDiffListFromObnizCloudStub = sinon.stub();
   getDiffListFromObnizCloudStub.returns({
-    appEvents: appEvnetSamples,
+    appEvents: appEventSamples,
     maxId: 4,
   });
   obnizCloudClientInstance.getDiffListFromObnizCloud =

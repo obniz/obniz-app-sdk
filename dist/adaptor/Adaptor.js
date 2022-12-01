@@ -16,6 +16,7 @@ class Adaptor {
         this.isMaster = isMaster;
     }
     _onMasterMessage(message) {
+        console.log('onMasterMessage');
         if (message.action === 'report') {
             if (this.onReported) {
                 this.onReported(message.instanceName, message.installIds)
@@ -36,6 +37,7 @@ class Adaptor {
         }
     }
     _onSlaveMessage(message) {
+        console.log('onSlaveMessage');
         if (message.action === 'synchronize') {
             if (this.onSynchronize) {
                 this.onSynchronize(message.installs)

@@ -282,6 +282,7 @@ export class Manager<T extends Database> {
   private _startHealthCheck() {
     setInterval(async () => {
       try {
+        await this.adaptor.reportRequest();
         this._healthCheck();
       } catch (e) {
         logger.error(e);

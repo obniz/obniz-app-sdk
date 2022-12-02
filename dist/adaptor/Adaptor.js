@@ -53,7 +53,6 @@ class Adaptor {
             return;
         if (mes.info.sendMode === 'direct' && mes.info.to !== this.id)
             return;
-        console.log('SlaveMessageReceived', { mes });
         try {
             if (mes.action === 'synchronize') {
                 if (this.onSynchronize) {
@@ -93,7 +92,6 @@ class Adaptor {
             mes.info.to !== this.id // "to" is not me
         )
             return;
-        console.log('ManagerMessageReceived', { mes });
         try {
             if (mes.action === 'report') {
                 if (this.onReported)

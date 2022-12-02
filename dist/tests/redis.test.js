@@ -7,54 +7,65 @@ const mocha_1 = require("mocha");
 const DummyObniz_1 = require("./util/DummyObniz");
 const LogWorker_1 = require("./util/LogWorker");
 const App_1 = require("../App");
-const ioredis_mock_1 = __importDefault(require("ioredis-mock"));
-const proxyquire_1 = __importDefault(require("proxyquire"));
+const ioredis_1 = __importDefault(require("ioredis"));
 const chai_1 = require("chai");
 const common_1 = require("../utils/common");
 const sinon_1 = __importDefault(require("sinon"));
 const Device_1 = require("./util/Device");
 const AppEvent_1 = require("./util/AppEvent");
+const redis_memory_server_1 = require("redis-memory-server");
+const ObnizCloudClient_1 = require("../ObnizCloudClient");
+let redisServer;
+let redisAddress;
+(0, mocha_1.beforeEach)(async () => {
+    redisServer = new redis_memory_server_1.RedisMemoryServer();
+    redisAddress = `redis://${await redisServer.getHost()}:${await redisServer.getPort()}`;
+    console.log(redisAddress);
+    LogWorker_1.LogWorker.__reset();
+    DummyObniz_1.DummyObniz.__reset();
+});
+(0, mocha_1.afterEach)(async () => {
+    if (redisServer)
+        await redisServer.stop();
+});
 (0, mocha_1.describe)('redis', () => {
-    (0, mocha_1.beforeEach)(() => {
-        LogWorker_1.LogWorker.__reset();
-        DummyObniz_1.DummyObniz.__reset();
-    });
     (0, mocha_1.it)('not start worker', async () => {
-        const TestApp = getProxyedApp({});
-        const app1 = new TestApp({
+        const app1 = new App_1.App({
             appToken: process.env.AppToken || '',
             workerClass: LogWorker_1.LogWorker,
             instanceType: App_1.AppInstanceType.Master,
             obnizClass: DummyObniz_1.DummyObniz,
             database: 'redis',
             instanceName: 'app1',
+            databaseConfig: redisAddress,
         });
         (0, chai_1.expect)(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
     });
     (0, mocha_1.it)('one sync request to all slaves via redis', async () => {
-        const { proxyStub, stubs: { getDiffListFromObnizCloudStub, getListFromObnizCloudStub }, } = createApiStub();
-        const TestApp = getProxyedApp(proxyStub);
-        const app1 = new TestApp({
+        const app1 = new App_1.App({
             appToken: process.env.AppToken || '',
             workerClass: LogWorker_1.LogWorker,
             instanceType: App_1.AppInstanceType.Master,
             obnizClass: DummyObniz_1.DummyObniz,
             database: 'redis',
             instanceName: 'app1',
+            databaseConfig: redisAddress,
         });
-        const app2 = new TestApp({
+        const app2 = new App_1.App({
             appToken: process.env.AppToken || '',
             workerClass: LogWorker_1.LogWorker,
             instanceType: App_1.AppInstanceType.Slave,
             obnizClass: DummyObniz_1.DummyObniz,
             database: 'redis',
             instanceName: 'app2',
+            databaseConfig: redisAddress,
         });
         (0, chai_1.expect)(LogWorker_1.LogWorker.workers.length).to.be.equal(0);
+        const { getCurrentEventNoStub, getDiffListFromObnizCloudStub, getListFromObnizCloudStub, } = obnizApiStub();
         let appMessageCount = 0;
-        const redisMock = new ioredis_mock_1.default();
-        await redisMock.subscribe('app');
-        redisMock.on('message', (c, m) => {
+        const redisClient = new ioredis_1.default(redisAddress);
+        await redisClient.subscribe('app');
+        redisClient.on('message', (c, m) => {
             console.log({ c, m });
             appMessageCount++;
         });
@@ -66,90 +77,74 @@ const AppEvent_1 = require("./util/AppEvent");
         (0, chai_1.expect)(getListFromObnizCloudStub.callCount).to.be.equal(1);
         (0, chai_1.expect)(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
         (0, chai_1.expect)(appMessageCount).to.be.equal(2);
+        redisClient.disconnect();
     }).timeout(20 * 1000);
-    // it('broadcast key request', async () => {
-    //   const app1 = new AppMock({
-    //     appToken: process.env.AppToken || '',
-    //     workerClass: LogWorker,
-    //     instanceType: AppInstanceType.Master,
-    //     obnizClass: DummyObniz,
-    //     database: 'redis',
-    //     instanceName: 'app1',
-    //   });
-    //   const {
-    //     getCurrentEventNoStub,
-    //     getDiffListFromObnizCloudStub,
-    //     getListFromObnizCloudStub,
-    //   } = obnizApiStub();
-    //   expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
-    //   expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
-    //   await app1.startWait({ express: false });
-    //   await wait(1000);
-    //   expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
-    //   expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
-    //   expect(LogWorker.workers.length).to.be.equal(2);
-    //   const response = await app1.request('ping');
-    //   expect(response).to.be.deep.equal({
-    //     '7877-4454': 'response from 7877-4454',
-    //     '0883-8329': 'response from 0883-8329',
-    //   });
-    // }).timeout(20 * 1000);
-    // it('direct key request', async () => {
-    //   const app1 = new AppMock({
-    //     appToken: process.env.AppToken || '',
-    //     workerClass: LogWorker,
-    //     instanceType: AppInstanceType.Master,
-    //     obnizClass: DummyObniz,
-    //     database: 'redis',
-    //     instanceName: 'app1',
-    //   });
-    //   const {
-    //     getCurrentEventNoStub,
-    //     getDiffListFromObnizCloudStub,
-    //     getListFromObnizCloudStub,
-    //   } = obnizApiStub();
-    //   expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
-    //   expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
-    //   await app1.startWait({ express: false });
-    //   await wait(1000);
-    //   expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
-    //   expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
-    //   expect(LogWorker.workers.length).to.be.equal(2);
-    //   const response = await app1.directRequest('7877-4454', 'ping');
-    //   expect(response).to.be.deep.equal({
-    //     '7877-4454': 'response from 7877-4454',
-    //   });
-    // }).timeout(20 * 1000);
+    (0, mocha_1.it)('broadcast key request', async () => {
+        const app1 = new App_1.App({
+            appToken: process.env.AppToken || '',
+            workerClass: LogWorker_1.LogWorker,
+            instanceType: App_1.AppInstanceType.Master,
+            obnizClass: DummyObniz_1.DummyObniz,
+            database: 'redis',
+            instanceName: 'app1',
+            databaseConfig: redisAddress,
+        });
+        const { getCurrentEventNoStub, getDiffListFromObnizCloudStub, getListFromObnizCloudStub, } = obnizApiStub();
+        (0, chai_1.expect)(getListFromObnizCloudStub.callCount).to.be.equal(0);
+        (0, chai_1.expect)(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+        await app1.startWait({ express: false });
+        await (0, common_1.wait)(5000);
+        (0, chai_1.expect)(getListFromObnizCloudStub.callCount).to.be.equal(1);
+        (0, chai_1.expect)(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+        (0, chai_1.expect)(LogWorker_1.LogWorker.workers.length).to.be.equal(2);
+        const response = await app1.request('ping');
+        (0, chai_1.expect)(response).to.be.deep.equal({
+            '7877-4454': 'response from 7877-4454',
+            '0883-8329': 'response from 0883-8329',
+        });
+    }).timeout(20 * 1000);
+    (0, mocha_1.it)('direct key request', async () => {
+        const app1 = new App_1.App({
+            appToken: process.env.AppToken || '',
+            workerClass: LogWorker_1.LogWorker,
+            instanceType: App_1.AppInstanceType.Master,
+            obnizClass: DummyObniz_1.DummyObniz,
+            database: 'redis',
+            instanceName: 'app1',
+            databaseConfig: redisAddress,
+        });
+        const { getCurrentEventNoStub, getDiffListFromObnizCloudStub, getListFromObnizCloudStub, } = obnizApiStub();
+        (0, chai_1.expect)(getListFromObnizCloudStub.callCount).to.be.equal(0);
+        (0, chai_1.expect)(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+        await app1.startWait({ express: false });
+        await (0, common_1.wait)(5000);
+        (0, chai_1.expect)(getListFromObnizCloudStub.callCount).to.be.equal(1);
+        (0, chai_1.expect)(getListFromObnizCloudStub.callCount).to.be.equal(1);
+        (0, chai_1.expect)(LogWorker_1.LogWorker.workers.length).to.be.equal(2);
+        const response = await app1.directRequest('7877-4454', 'ping');
+        (0, chai_1.expect)(response).to.be.deep.equal({
+            '7877-4454': 'response from 7877-4454',
+        });
+    }).timeout(20 * 1000);
 });
-function createApiStub() {
+function obnizApiStub() {
     const getListFromObnizCloudStub = sinon_1.default.stub();
     getListFromObnizCloudStub.returns([Device_1.deviceA, Device_1.deviceB]);
+    ObnizCloudClient_1.obnizCloudClientInstance.getListFromObnizCloud = getListFromObnizCloudStub;
     const getDiffListFromObnizCloudStub = sinon_1.default.stub();
     getDiffListFromObnizCloudStub.returns({
         appEvents: AppEvent_1.appEventSamples,
         maxId: 4,
     });
+    ObnizCloudClient_1.obnizCloudClientInstance.getDiffListFromObnizCloud =
+        getDiffListFromObnizCloudStub;
     const getCurrentEventNoStub = sinon_1.default.stub();
     getCurrentEventNoStub.returns(0);
+    ObnizCloudClient_1.obnizCloudClientInstance.getCurrentEventNo = getCurrentEventNoStub;
     return {
-        proxyStub: {
-            './ObnizCloudClient': Object.assign({
-                obnizCloudClientInstance: {
-                    getListFromObnizCloud: getListFromObnizCloudStub,
-                    getDiffListFromObnizCloud: getDiffListFromObnizCloudStub,
-                    getCurrentEventNo: getCurrentEventNoStub,
-                },
-            }, { '@global': true }),
-        },
-        stubs: {
-            getListFromObnizCloudStub,
-            getDiffListFromObnizCloudStub,
-            getCurrentEventNoStub,
-        },
+        getListFromObnizCloudStub,
+        getDiffListFromObnizCloudStub,
+        getCurrentEventNoStub,
     };
-}
-function getProxyedApp(_anyStub) {
-    const stub = Object.assign({ ioredis: Object.assign(ioredis_mock_1.default, { '@global': true }) }, _anyStub);
-    return (0, proxyquire_1.default)('../App', stub).App;
 }
 //# sourceMappingURL=redis.test.js.map

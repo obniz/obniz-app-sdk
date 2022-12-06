@@ -7,10 +7,16 @@ import {
   Maybe,
   User,
 } from 'obniz-cloud-sdk/sdk';
+import { RateLimiter } from 'limiter';
 
 export type AppEvent = NonNullable<
   NonNullable<AppEventsQuery['appEvents']>['events'][number]
 >;
+
+const limiter = new RateLimiter({
+  tokensPerInterval: 10, // 10/1secでおこなう
+  interval: 'second',
+});
 
 export class InstalledDeviceManager {
   async getListFromObnizCloud(
@@ -23,6 +29,8 @@ export class InstalledDeviceManager {
     let failCount = 0;
     while (true) {
       try {
+        // 流量制限
+        await limiter.removeTokens(1);
         const result = await sdk.app({ skip });
         if (!result.app || !result.app.installs) {
           break;
@@ -59,6 +67,8 @@ export class InstalledDeviceManager {
     let maxId = 0;
     while (true) {
       try {
+        // 流量制限
+        await limiter.removeTokens(1);
         const result = await sdk.appEvents({ skip });
         if (!result.appEvents || !result.appEvents.events) {
           break;
@@ -90,6 +100,8 @@ export class InstalledDeviceManager {
 
   async getCurrentEventNo(token: string, option: SdkOption) {
     const sdk = getSdk(token, option);
+    // 流量制限
+    await limiter.removeTokens(1);
     const result = await sdk.appEvents({ first: 1 });
     return result.appEvents?.totalCount || 0;
   }

@@ -2,6 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sharedInstalledDeviceManager = exports.InstalledDeviceManager = void 0;
 const obniz_cloud_sdk_1 = require("obniz-cloud-sdk");
+const limiter_1 = require("limiter");
+const limiter = new limiter_1.RateLimiter({
+    tokensPerInterval: 10,
+    interval: 'second',
+});
 class InstalledDeviceManager {
     async getListFromObnizCloud(token, option) {
         const sdk = obniz_cloud_sdk_1.getSdk(token, option);
@@ -10,6 +15,8 @@ class InstalledDeviceManager {
         let failCount = 0;
         while (true) {
             try {
+                // 流量制限
+                await limiter.removeTokens(1);
                 const result = await sdk.app({ skip });
                 if (!result.app || !result.app.installs) {
                     break;
@@ -41,6 +48,8 @@ class InstalledDeviceManager {
         let maxId = 0;
         while (true) {
             try {
+                // 流量制限
+                await limiter.removeTokens(1);
                 const result = await sdk.appEvents({ skip });
                 if (!result.appEvents || !result.appEvents.events) {
                     break;
@@ -69,6 +78,8 @@ class InstalledDeviceManager {
     async getCurrentEventNo(token, option) {
         var _a;
         const sdk = obniz_cloud_sdk_1.getSdk(token, option);
+        // 流量制限
+        await limiter.removeTokens(1);
         const result = await sdk.appEvents({ first: 1 });
         return ((_a = result.appEvents) === null || _a === void 0 ? void 0 : _a.totalCount) || 0;
     }

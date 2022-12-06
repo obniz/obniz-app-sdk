@@ -14,7 +14,6 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         this._redis = new ioredis_1.default(redisOption);
         this._pubRedis = new ioredis_1.default(redisOption);
         this._bindRedisEvents(this._redis);
-        console.log('redis worker init');
     }
     _onRedisReady() {
         if (this._isMaster) {
@@ -28,7 +27,6 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
     }
     _onRedisMessage(channel, message) {
         const parsed = JSON.parse(message);
-        console.log('on redis message', message);
         // slave functions
         this.onMessage(parsed);
     }
@@ -45,7 +43,6 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
     }
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
     async _send(json) {
-        console.log('pub redis', json);
         await this._pubRedis.publish('app', JSON.stringify(json));
     }
 }

@@ -55,7 +55,7 @@ class App {
         if (semver_1.default.satisfies(option.obnizClass.version, `<${requiredObnizJsVersion}`)) {
             throw new Error(`obniz.js version > ${requiredObnizJsVersion} is required, but current is ${option.obnizClass.version}`);
         }
-        // bind default values. aaa
+        // bind default values.
         this._options = {
             appToken: option.appToken,
             database: option.database || 'memory',
@@ -71,7 +71,6 @@ class App {
             obnizOption: option.obnizOption || {},
             obnizCloudSdkOption: option.obnizCloudSdkOption || {},
         };
-        console.log('InstanceType', this._options.instanceType);
         // detection of pm2 cluster enabled.
         const pm2ClusterEnabled = typeof process.env.NODE_APP_INSTANCE === 'string';
         const isMasterOnSameMachine = !pm2ClusterEnabled || process.env.NODE_APP_INSTANCE === '0';
@@ -145,9 +144,7 @@ class App {
         catch (e) {
             logger_1.logger.error(e);
         }
-        finally {
-            this._syncing = false;
-        }
+        this._syncing = false;
     }
     /**
      * Let Master know worker is working.

@@ -34,6 +34,7 @@ class Manager {
          */
         this.adaptor.onReported = async (reportInstanceName, installIds) => {
             const exist = this._allWorkerInstances[reportInstanceName];
+            console.log('onreported!', this._allWorkerInstances[reportInstanceName]);
             if (exist) {
                 exist.installIds = installIds;
                 exist.updatedMillisecond = Date.now();
@@ -194,6 +195,7 @@ class Manager {
     _startHealthCheck() {
         setInterval(async () => {
             try {
+                await this.adaptor.reportRequest();
                 this._healthCheck();
             }
             catch (e) {

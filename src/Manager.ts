@@ -330,16 +330,15 @@ export class Manager<T extends Database> {
           this._obnizSdkOption
         ))
       );
+      logger.debug(
+        `API Sync Finished Count=${installsApi.length} duration=${
+          Date.now() - startedTime
+        }msec`
+      );
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
-      process.exit(-1);
     }
-
-    logger.debug(
-      `API Sync Finished Count=${installsApi.length} duration=${
-        Date.now() - startedTime
-      }msec`
-    );
 
     /**
      * Compare with currents
@@ -414,16 +413,15 @@ export class Manager<T extends Database> {
       );
       events.push(...appEvents);
       this._currentAppEventsSequenceNo = maxId;
+      logger.debug(
+        `API Diff Sync Finished DiffCount=${events.length} duration=${
+          Date.now() - startedTime
+        }msec`
+      );
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
-      process.exit(-1);
     }
-
-    logger.debug(
-      `API Diff Sync Finished DiffCount=${events.length} duration=${
-        Date.now() - startedTime
-      }msec`
-    );
 
     if (events.length > 0) {
       const addNum = events.filter((e) => e.type === 'install.create').length;

@@ -232,12 +232,12 @@ class Manager {
             // set current id before getting data
             this._currentAppEventsSequenceNo = await install_1.sharedInstalledDeviceManager.getCurrentEventNo(this._appToken, this._obnizSdkOption);
             installsApi.push(...(await install_1.sharedInstalledDeviceManager.getListFromObnizCloud(this._appToken, this._obnizSdkOption)));
+            logger_1.logger.debug(`API Sync Finished Count=${installsApi.length} duration=${Date.now() - startedTime}msec`);
         }
         catch (e) {
+            logger_1.logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
             console.error(e);
-            process.exit(-1);
         }
-        logger_1.logger.debug(`API Sync Finished Count=${installsApi.length} duration=${Date.now() - startedTime}msec`);
         /**
          * Compare with currents
          */
@@ -298,12 +298,12 @@ class Manager {
             const { maxId, appEvents, } = await install_1.sharedInstalledDeviceManager.getDiffListFromObnizCloud(this._appToken, this._obnizSdkOption, this._currentAppEventsSequenceNo);
             events.push(...appEvents);
             this._currentAppEventsSequenceNo = maxId;
+            logger_1.logger.debug(`API Diff Sync Finished DiffCount=${events.length} duration=${Date.now() - startedTime}msec`);
         }
         catch (e) {
+            logger_1.logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
             console.error(e);
-            process.exit(-1);
         }
-        logger_1.logger.debug(`API Diff Sync Finished DiffCount=${events.length} duration=${Date.now() - startedTime}msec`);
         if (events.length > 0) {
             const addNum = events.filter((e) => e.type === 'install.create').length;
             const updateNum = events.filter((e) => e.type === 'install.update')

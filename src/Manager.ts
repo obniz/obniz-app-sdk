@@ -338,6 +338,7 @@ export class Manager<T extends Database> {
     } catch (e) {
       logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
+      return;
     }
 
     /**
@@ -421,6 +422,7 @@ export class Manager<T extends Database> {
     } catch (e) {
       logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
+      return;
     }
 
     if (events.length > 0) {

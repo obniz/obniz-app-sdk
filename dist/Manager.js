@@ -237,6 +237,7 @@ class Manager {
         catch (e) {
             logger_1.logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
             console.error(e);
+            return;
         }
         /**
          * Compare with currents
@@ -303,6 +304,7 @@ class Manager {
         catch (e) {
             logger_1.logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
             console.error(e);
+            return;
         }
         if (events.length > 0) {
             const addNum = events.filter((e) => e.type === 'install.create').length;

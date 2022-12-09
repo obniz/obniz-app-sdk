@@ -30,6 +30,7 @@ const Worker_1 = require("./Worker");
 const logger_1 = require("./logger");
 const Manager_1 = require("./Manager");
 const AdaptorFactory_1 = require("./adaptor/AdaptorFactory");
+const Slave_1 = require("./Slave");
 var AppInstanceType;
 (function (AppInstanceType) {
     /**
@@ -47,9 +48,6 @@ var AppInstanceType;
 })(AppInstanceType = exports.AppInstanceType || (exports.AppInstanceType = {}));
 class App {
     constructor(option) {
-        this._workers = {};
-        this._interval = null;
-        this._syncing = false;
         this.expressWebhook = this._expressWebhook.bind(this);
         // validate obniz.js
         const requiredObnizJsVersion = '3.15.0-alpha.1';
@@ -85,97 +83,12 @@ class App {
             isMasterOnSameMachine) {
             this._manager = new Manager_1.Manager(option.appToken, this._options.instanceName, this._options.database, this._options.databaseConfig, this._options.obnizCloudSdkOption);
         }
-        if (this._manager) {
-            // share same adaptor
-            this._adaptor = this._manager.adaptor;
-        }
-        else {
-            this._adaptor = new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
-        }
-        this._adaptor.onSynchronize = async (installs) => {
-            await this._synchronize(installs);
-        };
-        this._adaptor.onReportRequest = async () => {
-            await this._reportToManager();
-        };
-        this._adaptor.onKeyRequest = async (requestId, key) => {
-            await this._keyRequestProcess(requestId, key);
-        };
-        this._adaptor.onRequestRequested = async (key) => {
-            const results = {};
-            for (const install_id in this._workers) {
-                results[install_id] = await this._workers[install_id].onRequest(key);
-            }
-            return results;
-        };
-    }
-    async _keyRequestProcess(requestId, key) {
-        const results = {};
-        for (const install_id in this._workers) {
-            results[install_id] = await this._workers[install_id].onRequest(key);
-        }
-        await this._adaptor.keyRequestResponse(requestId, this._options.instanceName, results);
-    }
-    /**
-     * Receive Master Generated List and compare current apps.
-     * @param installs
-     */
-    async _synchronize(installs) {
-        try {
-            if (this._syncing) {
-                return;
-            }
-            this._syncing = true;
-            // logger.debug("receive synchronize message");
-            const exists = {};
-            for (const install_id in this._workers) {
-                exists[install_id] = this._workers[install_id];
-            }
-            for (const install of installs) {
-                await this._startOrRestartOneWorker(install);
-                if (exists[install.id]) {
-                    delete exists[install.id];
-                }
-            }
-            // Apps which not listed
-            for (const install_id in exists) {
-                await this._stopOneWorker(install_id);
-            }
-        }
-        catch (e) {
-            logger_1.logger.error(e);
-        }
-        this._syncing = false;
-    }
-    /**
-     * Let Master know worker is working.
-     */
-    async _reportToManager() {
-        /**
-         * Only Report status and letting master know i am exist when worker or master.
-         */
-        if (!this._manager ||
-            (this._manager && this._options.instanceType === AppInstanceType.Master)) {
-            const keys = Object.keys(this._workers);
-            await this._adaptor.report(this._options.instanceName, keys);
-        }
-    }
-    _startSyncing() {
-        // every minutes
-        if (!this._interval) {
-            this._interval = setInterval(async () => {
-                try {
-                    await this._reportToManager();
-                }
-                catch (e) {
-                    logger_1.logger.error(e);
-                }
-            }, 10 * 1000);
-            this._reportToManager()
-                .then()
-                .catch((e) => {
-                logger_1.logger.error(e);
-            });
+        if (option.instanceType !== AppInstanceType.Manager) {
+            // If master mode, share adaptor
+            const adaptor = this._manager
+                ? this._manager.adaptor
+                : new AdaptorFactory_1.AdaptorFactory().create(this._options.database, this._options.instanceName, false, this._options.databaseConfig);
+            this._slave = new Slave_1.Slave(adaptor, this._options.instanceName, this);
         }
     }
     _expressWebhook(req, res) {
@@ -183,12 +96,25 @@ class App {
         (_a = this._manager) === null || _a === void 0 ? void 0 : _a.webhook(req, res);
     }
     start(option) {
+        this.startWait(option)
+            .then(() => { })
+            .catch((e) => {
+            if (e instanceof Error) {
+                throw e;
+            }
+            else {
+                logger_1.logger.error('ErrorOnStarting', e);
+            }
+        });
+    }
+    async startWait(option) {
         if (this._manager) {
-            this._manager.start(option);
+            await this._manager.startWait(option);
+            logger_1.logger.info('ManagerClass started');
         }
-        if (this._options.instanceType === AppInstanceType.Master ||
-            this._options.instanceType === AppInstanceType.Manager) {
-            this._startSyncing();
+        if (this._slave) {
+            this._slave.startSyncing();
+            logger_1.logger.info('SlaveClass started');
         }
     }
     async getAllUsers() {
@@ -219,19 +145,11 @@ class App {
         }
         return await this._manager.request(key, timeout);
     }
-    async _startOneWorker(install, onInstall) {
-        logger_1.logger.info(`New Worker Start id=${install.id}`);
-        let access_token = this._options.appToken;
-        // @ts-ignore
-        if (this._appTokenForObniz) {
-            // @ts-ignore
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-            access_token = this._appTokenForObniz(install);
+    isFirstManager() {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
         }
-        const wclass = this._options.workerClassFunction(install);
-        const worker = new wclass(install, this, Object.assign(Object.assign({}, this._options.obnizOption), { access_token }));
-        this._workers[install.id] = worker;
-        await worker.start(onInstall);
+        return this._manager.isFirstMaster();
     }
     async _startOrRestartOneWorker(install) {
         const oldWorker = this._workers[install.id];
@@ -272,6 +190,12 @@ class App {
             // background
             stop().then(() => { });
         }
+    }
+    async doAllRelocate() {
+        if (!this._manager) {
+            throw new Error(`This function is only available on master`);
+        }
+        await this._manager.doAllRelocate();
     }
     get obnizClass() {
         return this._options.obnizClass;

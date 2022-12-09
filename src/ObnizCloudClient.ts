@@ -18,7 +18,7 @@ const limiter = new RateLimiter({
   interval: 'second',
 });
 
-export class InstalledDeviceManager {
+export class ObnizCloudClient {
   async getListFromObnizCloud(
     token: string,
     option: SdkOption
@@ -98,7 +98,7 @@ export class InstalledDeviceManager {
     return { appEvents, maxId };
   }
 
-  async getCurrentEventNo(token: string, option: SdkOption) {
+  async getCurrentEventNo(token: string, option: SdkOption): Promise<number> {
     const sdk = getSdk(token, option);
     // 流量制限
     await limiter.removeTokens(1);
@@ -107,4 +107,4 @@ export class InstalledDeviceManager {
   }
 }
 
-export const sharedInstalledDeviceManager = new InstalledDeviceManager();
+export const obnizCloudClientInstance = new ObnizCloudClient();

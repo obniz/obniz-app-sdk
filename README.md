@@ -1,24 +1,34 @@
+# obniz-app-sdk
+
 [日本語はこちら](./README-ja.md)
 
-
 This is a framework for creating nodejs hosted apps using obniz.
-By running your program constantly using this SDK, you can control the devices on which your app is installed with this program.
-There is no need to change the program or do any other work every time you add, remove, or change the device settings. obnizCloud and this SDK will automatically apply your program.
-In addition, this SDK can operate a large number of devices by load balancing across multiple machine instances, helping you to run a large number of devices for a long time.
 
-Features
+You can use this SDK to run your program all the time and control the devices on which your app is installed with this program.  
+It will periodically synchronize with obnizCloud and automatically apply device additions, removals, and configuration changes.  
+This SDK can also operate a large number of devices by load balancing across multiple machine instances to support the long-term operation of a large number of devices.  
+
+## Features
 - Program operation in conjunction with obnizCloud
 - Load balancing mode with multiple instances
 - Multi-core load balancing support by pm2
+- Master/Manager reduction by redis
 
-
-## System Architecture
+### System Architecture
 
 ![](./doc/images/description.png)
 
+## How to introduce
 
+### Create Hosted App on obnizCloud
 
-## Installing SDK
+Create a hosted app on obnizCloud.
+
+[Hosted App - obniz Docs](https://obniz.com/ja/doc/reference/cloud/app/hostedapp)
+
+Next, install the created application on the device you wish to use.
+
+[Install an App - obniz Docs](https://obniz.com/ja/doc/reference/cloud/app/install)
 
 ### Installing SDK
 
@@ -28,9 +38,9 @@ Create a nodejs project and install the sdk.
 $ npm i obniz-app-sdk
 ```
 
-### Worker
+### Use SDK
 
-Prepare a nodejs program to control the device, and include obniz-app-sdk.
+Prepare a Nodejs program to control the device, and include obniz-app-sdk.
 
 You will be creating a child class of the Worker class, which will be instantiated and executed for each device, and App is where you specify the app information and how to scale it.
 
@@ -71,36 +81,40 @@ const app = new App({
 app.start();
 ```
 
+### Options
 
-App parameters are
+The following options are available for App.
 
-| Key | description |
+|key | mean |
 |:---|:---|
-| workerClass | Specify the MyWorker class that describes the process for each device|
-| appToken | Create a hosted app on obnizCloud and specify the token for the app.
-| instanceType | Specify the Master class for the first device and Slave for the second and subsequent devices. Master, Manager, Slave can be used.
-| obnizClass | Specify the obniz class to be used by the Worker.
-| obnizOption | The second argument of `new Obniz()`.
-| database | Specify the coordination mode for multiple machines. You can select `memory`, `redis`, or `mqtt`.
-| databaseConfig | Specifies the DB connection method for multi-machine coordination.
-| instanceName | Specify a string to identify this process. By default, `os.hostname()` is used.
-
+| workerClass | Specify a MyWorker class that describes the process for each device.<br>(Not necessary if `instanceType` is set to Manager. |
+| appToken | Specify the App Token listed in the App Settings page of the [Developer Console](https://obniz.com/ja/console/). |
+| instanceType | Required for autoscaling.<br>1st unit must be `Master` or `Manager`, 2nd and later units must be `Slave`. |
+| obnizClass | Specify the obniz class to be used by the Worker. |
+| obnizOption | The second argument of `new Obniz()`. |
+| database | Specifies the coordination mode for multiple machines. See [Multi-Machines](#multi-machines) for details. |
+| databaseConfig | Specify the DB connection method for multi-machine cooperation. See [Multi-Machines](#multi-machines) for details. |
+| instanceName | Specify a string that identifies this process. This must be unique. By default, `os.hostname()` is used. |
 
 For other optional parameters, please refer to the program (App.ts).
 
-### obnizCloud
+#### instanceType
 
-Create a hosted app on obnizCloud
+There are three types of `instanceType`, each of which works as follows
 
-[document](https://obniz.com/doc/reference/cloud/app/hostedapp)
-
-Also, install the created app on the device you want to use it on.
-
-[About installation](https://obniz.com/doc/reference/cloud/app/install)
+- Master ( `AppInstanceType.Master` )
+  - This type performs three types of operations: synchronization with obnizCloud, distribution of Workers, and operation as a Worker.
+  - **It can work as a standalone unit.**。
+- Manager ( `AppInstanceType.Manager` )
+  - This type performs only two operations: synchronization with obnizCloud and worker allocation.
+  - **At least one Slave must be running at the same time**。
+- Slave ( `AppInstanceType.Slave` )
+  - This type performs only one operation as a Worker.
+  - **At least one Master or Manager must be running at the same time**。
 
 ### Deploy
 
-Run this nodejs project on a server. The following is an example of [pm2](https://github.com/Unitech/pm2).
+Run this Nodejs project on a server. The following is an example of [pm2](https://github.com/Unitech/pm2).
 
 ```shell
 $ npm install pm2 -g
@@ -117,10 +131,10 @@ Examples can be found [Examples](./examples)
 
 ## Multi-Machines
 
-This program can be run on multiple machines and work together to operate a large number of devices.
+This program can be run on multiple machines and work together to operate a large number of devices.  
 The mode is specified by `database`.
 
-Here are the features of load balancing
+Here are some of the features of load balancing.
 
 - The master process also functions as a worker. Specify `Manager` to focus on managing without worker inside of it.
 - It distributes the load so that all loads are evenly distributed.
@@ -130,16 +144,20 @@ Here are the features of load balancing
 
 [Example](./examples/single-instance/basic.js)
 
-`memory` is a single-instance mode. Distributed on multiple cores, not distributed on multiple machines.
+`memory` is a single-instance mode.  
+Distributed on multiple cores, not distributed on multiple machines.
 
 ### `database:'redis'`
 
-[Example](./examples/clustered/redis)
+It performs inter-process coordination and load balancing using a redis server.  
+Each machine must be able to access a common redis server.
 
-[Example](./examples/clustered/redis-manager-style)
-
-The redis server is used for inter-process coordination and load balancing.
-You need to be able to access a common redis server from each machine.
+- [Example1](./examples/clustered/redis)
+  - 1x Master + 1x Slave pattern that manages workers and has its own worker
+- [Example2](./examples/clustered/redis-manager-style)
+  - 1x Manager + 1x Slave pattern that only manages workers and has no worker itself
+- [Example3](./examples/clustered/redis-multi-master)
+  - 2x Manager or 2x Master + 2x Slave pattern (Master and Manager can operate together)
 
 ```javascript
 // Example
@@ -233,10 +251,10 @@ The number of obniz devices that can be operated on one machine depends on the p
 
 On a machine with 1Ghz, 1Core, 1GB Memory
 
-Recommended range of the number of obniz devices in one instance | Case
----|---
-300-1,000 | In the case of BLE beacon detection and periodic API transmission of collected information to another server
-30-200 | if frequent communication and analysis is needed with connected BLE devices
-100-500 | For a program that converts AD voltage, detects voltage errors, and sends API to another server
+| Recommended range of the number of obniz devices in one instance | Case                                                                                                         |
+|------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| 300-1,000                                                        | In the case of BLE beacon detection and periodic API transmission of collected information to another server |
+| 30-200                                                           | if frequent communication and analysis is needed with connected BLE devices                                  |
+| 100-500                                                          | For a program that converts AD voltage, detects voltage errors, and sends API to another server              |
 
 

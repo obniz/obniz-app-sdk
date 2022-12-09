@@ -1,4 +1,4 @@
-import { AppEvent } from '../../install';
+import { AppEvent } from '../../ObnizCloudClient';
 
 export const appEvnetSamples: AppEvent[] = [
   {

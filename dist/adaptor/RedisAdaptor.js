@@ -13,7 +13,8 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         this._isMaster = isMaster;
         this._redis = new ioredis_1.default(redisOption);
         this._pubRedis = new ioredis_1.default(redisOption);
-        this._bindRedisEvents(this._redis);
+        this._subRedis = new ioredis_1.default(redisOption);
+        this._bindRedisEvents(this._subRedis);
     }
     _onRedisReady() {
         if (this._isMaster) {
@@ -31,7 +32,7 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
         this.onMessage(parsed);
     }
     _bindRedisEvents(redis) {
-        this._redis.subscribe('app', () => { });
+        redis.subscribe('app', () => { });
         redis.on('ready', this._onRedisReady.bind(this));
         redis.on('message', this._onRedisMessage.bind(this));
         redis.on('+node', () => {
@@ -44,6 +45,9 @@ class RedisAdaptor extends Adaptor_1.Adaptor {
     // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
     async _send(json) {
         await this._pubRedis.publish('app', JSON.stringify(json));
+    }
+    getRedisInstance() {
+        return this._redis;
     }
 }
 exports.RedisAdaptor = RedisAdaptor;

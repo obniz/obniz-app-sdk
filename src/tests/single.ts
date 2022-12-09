@@ -2,7 +2,7 @@ import { describe, it, beforeEach } from 'mocha';
 import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
-import { sharedInstalledDeviceManager } from '../install';
+import { obnizCloudClientInstance } from '../ObnizCloudClient';
 import { wait } from './../tools';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
@@ -310,23 +310,56 @@ describe('single', () => {
     expect(obnizA.options.auto_connect).to.be.equal(false);
     expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
   });
+
+  it('request', async () => {
+    const app = new App<DummyObniz>({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+    });
+
+    expect(LogWorker.workers.length).to.be.equal(0);
+
+    const {
+      getCurrentEventNoStub,
+      getDiffListFromObnizCloudStub,
+      getListFromObnizCloudStub,
+    } = obnizApiStub();
+
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    app.start({ express: false });
+    await wait(1000);
+    expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
+    expect(getListFromObnizCloudStub.callCount).to.be.equal(1);
+
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    const response = await app.request('KEY');
+
+    expect(response).to.be.deep.equal({
+      '7877-4454': 'response from 7877-4454',
+      '0883-8329': 'response from 0883-8329',
+    });
+  }).timeout(80 * 1000);
 });
 
 function obnizApiStub() {
   const getListFromObnizCloudStub = sinon.stub();
   getListFromObnizCloudStub.returns([deviceA, deviceB]);
-  sharedInstalledDeviceManager.getListFromObnizCloud = getListFromObnizCloudStub;
+  obnizCloudClientInstance.getListFromObnizCloud = getListFromObnizCloudStub;
 
   const getDiffListFromObnizCloudStub = sinon.stub();
   getDiffListFromObnizCloudStub.returns({
     appEvents: appEvnetSamples,
     maxId: 4,
   });
-  sharedInstalledDeviceManager.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
+  obnizCloudClientInstance.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
 
   const getCurrentEventNoStub = sinon.stub();
   getCurrentEventNoStub.returns(0);
-  sharedInstalledDeviceManager.getCurrentEventNo = getCurrentEventNoStub;
+  obnizCloudClientInstance.getCurrentEventNo = getCurrentEventNoStub;
 
   return {
     getListFromObnizCloudStub,

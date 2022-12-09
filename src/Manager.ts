@@ -336,9 +336,9 @@ export class Manager {
         ))
       );
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
       return;
-      // process.exit(-1);
     }
 
     logger.debug(
@@ -413,9 +413,9 @@ export class Manager {
       events.push(...appEvents);
       this._currentAppEventsSequenceNo = maxId;
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
       return;
-      // process.exit(-1);
     }
 
     logger.debug(

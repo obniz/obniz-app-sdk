@@ -87,7 +87,6 @@ export abstract class Adaptor {
   protected async _onSlaveMessage(mes: MessagesUnion): Promise<void> {
     if (mes.info.toManager) return;
     if (mes.info.sendMode === 'direct' && mes.info.to !== this.id) return;
-    console.log('SlaveMessageReceived', { mes });
     try {
       if (mes.action === 'synchronize') {
         if (this.onSynchronize) {
@@ -129,7 +128,6 @@ export abstract class Adaptor {
       mes.info.to !== this.id // "to" is not me
     )
       return;
-    console.log('ManagerMessageReceived', { mes });
     try {
       if (mes.action === 'report') {
         if (this.onReported)

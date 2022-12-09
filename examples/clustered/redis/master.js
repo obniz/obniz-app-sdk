@@ -13,10 +13,6 @@ class MyWorker extends Worker {
     console.log(`obniz loop ${obniz.id} ${obniz.metadata.description}`);
   }
 
-  async onRequest(key){
-    return `I'm ${this.install.id}, received ${key}!`;
-  }
-
 }
 
 const app = new App({
@@ -29,13 +25,3 @@ const app = new App({
 })
 
 app.start();
-
-setTimeout(async () => {
-  const data = await app.directRequest('4255-6262', 'I love 4255-6262❤');
-  console.log(data);
-}, 10 * 1000);
-
-setTimeout(async () => {
-  const data = await app.request('Hello');
-  console.log(data);
-}, 15 * 1000);

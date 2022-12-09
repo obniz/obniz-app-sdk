@@ -10,7 +10,7 @@
     "_testrun-single": "npm run build && node ./examples/backgroundApp/Single.js",
     "_testrun-multi-master": "npm run build && node ./examples/backgroundApp/Multi-Master.js",
     "version": "npm run build",
-    "precommit": "npm run build && lint-staged && git add dist"
+    "precommit": "npm run build && lint-staged"
   },
   "lint-staged": {
     "src/**/*.ts": [

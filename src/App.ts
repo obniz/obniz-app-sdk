@@ -3,6 +3,7 @@ import * as os from 'os';
 
 import semver from 'semver';
 
+const isEqual = require('json-is-equal');
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Manager as ManagerClass } from './Manager';

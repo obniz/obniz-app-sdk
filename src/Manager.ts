@@ -16,10 +16,7 @@ import {
   ObnizAppTimeoutError,
 } from './Errors';
 import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
-import {
-  WorkerInstance,
-  WorkerStoreBase,
-} from './worker_store/WorkerStoreBase';
+import { WorkerStoreBase } from './worker_store/WorkerStoreBase';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { RedisWorkerStore } from './worker_store/RedisWorkerStore';
 import {
@@ -29,6 +26,19 @@ import {
 import { RedisInstallStore } from './install_store/RedisInstallStore';
 import { MemoryInstallStore } from './install_store/MemoryInstallStore';
 import { deepEqual } from 'fast-equals';
+
+enum InstallStatus {
+  Starting,
+  Started,
+  Stopping,
+  Stopped,
+}
+
+interface WorkerInstance {
+  name: string;
+  installIds: string[];
+  updatedMillisecond: number;
+}
 
 interface AppStartOptionInternal extends AppStartOption {
   express: express.Express;
@@ -348,9 +358,9 @@ export class Manager<T extends Database> {
         ))
       );
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
       return;
-      // process.exit(-1);
     }
 
     logger.debug(
@@ -427,9 +437,9 @@ export class Manager<T extends Database> {
       events.push(...appEvents);
       this._currentAppEventsSequenceNo = maxId;
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
       return;
-      // process.exit(-1);
     }
 
     logger.debug(

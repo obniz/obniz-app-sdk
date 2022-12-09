@@ -20,3 +20,5 @@ log
 /test/test*.ts
 .vscode
 
+
+dist

@@ -251,10 +251,10 @@ The number of obniz devices that can be operated on one machine depends on the p
 
 On a machine with 1Ghz, 1Core, 1GB Memory
 
-Recommended range of the number of obniz devices in one instance | Case
----|---
-300-1,000 | In the case of BLE beacon detection and periodic API transmission of collected information to another server
-30-200 | if frequent communication and analysis is needed with connected BLE devices
-100-500 | For a program that converts AD voltage, detects voltage errors, and sends API to another server
+| Recommended range of the number of obniz devices in one instance | Case                                                                                                         |
+|------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| 300-1,000                                                        | In the case of BLE beacon detection and periodic API transmission of collected information to another server |
+| 30-200                                                           | if frequent communication and analysis is needed with connected BLE devices                                  |
+| 100-500                                                          | For a program that converts AD voltage, detects voltage errors, and sends API to another server              |
 
 

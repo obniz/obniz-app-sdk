@@ -151,46 +151,6 @@ class App {
         }
         return this._manager.isFirstMaster();
     }
-    async _startOrRestartOneWorker(install) {
-        const oldWorker = this._workers[install.id];
-        if (oldWorker &&
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-            !isEqual(oldWorker.install, install)) {
-            logger_1.logger.info(`App config changed id=${install.id} before:${JSON.stringify(oldWorker.install)} after:${JSON.stringify(install)}`);
-            await this._stopOneWorker(install.id);
-            await this._startOneWorker(install, false);
-        }
-        else if (!oldWorker) {
-            // TODO: Should detect new install or just starting Application.
-            await this._startOneWorker(install, true);
-        }
-    }
-    async _stopOneWorker(installId) {
-        logger_1.logger.info(`App Deleted id=${installId}`);
-        const worker = this._workers[installId];
-        if (worker) {
-            delete this._workers[installId];
-            const trace = new Error('worker stop error');
-            const stop = async () => {
-                try {
-                    await worker.stop();
-                }
-                catch (e) {
-                    e.cause = trace;
-                    logger_1.logger.error(e);
-                }
-                try {
-                    await worker.onUnInstall();
-                }
-                catch (e) {
-                    e.cause = trace;
-                    logger_1.logger.error(e);
-                }
-            };
-            // background
-            stop().then(() => { });
-        }
-    }
     async doAllRelocate() {
         if (!this._manager) {
             throw new Error(`This function is only available on master`);

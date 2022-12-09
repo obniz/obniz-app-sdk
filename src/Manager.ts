@@ -16,10 +16,7 @@ import {
   ObnizAppTimeoutError,
 } from './Errors';
 import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
-import {
-  WorkerInstance,
-  WorkerStoreBase,
-} from './worker_store/WorkerStoreBase';
+import { WorkerStoreBase } from './worker_store/WorkerStoreBase';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { RedisWorkerStore } from './worker_store/RedisWorkerStore';
 import {
@@ -35,13 +32,6 @@ enum InstallStatus {
   Started,
   Stopping,
   Stopped,
-}
-
-interface ManagedInstall {
-  instanceName: string; // Which Instance handling this
-  install: InstalledDevice;
-  status: InstallStatus;
-  updatedMillisecond: number;
 }
 
 interface WorkerInstance {

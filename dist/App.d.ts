@@ -97,8 +97,6 @@ export declare class App<O extends IObniz> {
         [key: string]: string;
     }>;
     isFirstManager(): boolean;
-    protected _startOrRestartOneWorker(install: InstalledDevice): Promise<void>;
-    protected _stopOneWorker(installId: string): Promise<void>;
     doAllRelocate(): Promise<void>;
     get obnizClass(): IObnizStatic<O>;
 }

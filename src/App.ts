@@ -268,55 +268,6 @@ export class App<O extends IObniz> {
     return this._manager.isFirstMaster();
   }
 
-  protected async _startOrRestartOneWorker(
-    install: InstalledDevice
-  ): Promise<void> {
-    const oldWorker = this._workers[install.id];
-    if (
-      oldWorker &&
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-      !isEqual(oldWorker.install, install)
-    ) {
-      logger.info(
-        `App config changed id=${install.id} before:${JSON.stringify(
-          oldWorker.install
-        )} after:${JSON.stringify(install)}`
-      );
-      await this._stopOneWorker(install.id);
-      await this._startOneWorker(install, false);
-    } else if (!oldWorker) {
-      // TODO: Should detect new install or just starting Application.
-      await this._startOneWorker(install, true);
-    }
-  }
-
-  protected async _stopOneWorker(installId: string): Promise<void> {
-    logger.info(`App Deleted id=${installId}`);
-    const worker = this._workers[installId];
-    if (worker) {
-      delete this._workers[installId];
-
-      const trace = new Error('worker stop error');
-      const stop = async () => {
-        try {
-          await worker.stop();
-        } catch (e: any) {
-          e.cause = trace;
-          logger.error(e);
-        }
-        try {
-          await worker.onUnInstall();
-        } catch (e: any) {
-          e.cause = trace;
-          logger.error(e);
-        }
-      };
-
-      // background
-      stop().then(() => {});
-    }
-  }
-
   public async doAllRelocate(): Promise<void> {
     if (!this._manager) {
       throw new Error(`This function is only available on master`);

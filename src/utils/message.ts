@@ -27,14 +27,13 @@ export type MessageBodies = {
 
 export type MessageKeys = keyof MessageBodies;
 
-// Waiting for @typescript-eslint/parser to support version ts 4.9
 const MessageKeysArray = [
   'report',
   'reportRequest',
   'synchronize',
   'keyRequest',
   'keyRequestResponse',
-] satisfies Array<keyof MessageBodies>;
+] satisfies (keyof MessageBodies)[];
 
 export type MessageInfo =
   | {

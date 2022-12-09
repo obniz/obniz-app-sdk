@@ -1,18 +1,23 @@
-import { Adaptor, MessageBetweenInstance } from './Adaptor';
+import { Adaptor } from './Adaptor';
 import { logger } from '../logger';
 
 import { Server, Aedes, AedesPublishPacket } from 'aedes';
 import { createServer } from 'net';
 
 import * as mqtt from 'mqtt';
+import { MessagesUnion } from '../utils/message';
+import { AppInstanceType } from '../App';
 
 export class MqttAdaptor extends Adaptor {
   private _broker?: Aedes;
   private _client?: mqtt.Client;
 
-  constructor(id: string, isMaster: boolean, mqttOption: string) {
-    super(id, isMaster);
-    if (isMaster) {
+  constructor(id: string, instanceType: AppInstanceType, mqttOption: string) {
+    super(id, instanceType);
+    if (
+      this.instanceType === AppInstanceType.Master ||
+      this.instanceType === AppInstanceType.Manager
+    ) {
       const broker = Server({
         concurrency: 100,
         heartbeatInterval: 60 * 1000,
@@ -53,9 +58,7 @@ export class MqttAdaptor extends Adaptor {
         'general',
         (packet: AedesPublishPacket, cb) => {
           // logger.debug(packet.payload.toString());
-          const parsed = JSON.parse(
-            packet.payload.toString()
-          ) as MessageBetweenInstance;
+          const parsed = JSON.parse(packet.payload.toString()) as MessagesUnion;
           this.onMessage(parsed);
           cb();
         },
@@ -95,15 +98,15 @@ export class MqttAdaptor extends Adaptor {
       client.on('message', (topic: string, message: Buffer) => {
         // message is Buffer
         // logger.debug(message.toString());
-        const parsed = JSON.parse(message.toString()) as MessageBetweenInstance;
+        const parsed = JSON.parse(message.toString()) as MessagesUnion;
         this.onMessage(parsed);
       });
       this._client = client;
     }
   }
 
-  async _send(json: MessageBetweenInstance): Promise<void> {
-    const message = JSON.stringify(json);
+  async _onSendMessage(data: MessagesUnion): Promise<void> {
+    const message = JSON.stringify(data);
     if (this._broker) {
       this._broker.publish(
         {

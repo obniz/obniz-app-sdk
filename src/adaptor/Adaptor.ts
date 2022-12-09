@@ -1,74 +1,12 @@
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { AppInstanceType } from '../App';
 import { logger } from '../logger';
-
-export interface ReportMessage {
-  toMaster: true;
-  instanceName: string;
-  action: 'report';
-  installIds: string[];
-}
-
-export interface ReportRequestMessage {
-  toMaster: false;
-  instanceName: string;
-  action: 'reportRequest';
-}
-
-export type SynchronizeByListRequestMessage = {
-  toMaster: false;
-  instanceName: string;
-  action: 'synchronize';
-  syncType: 'list';
-  installs: InstalledDevice[];
-};
-
-export type SynchronizeByRedisRequestMessage = {
-  toMaster: false;
-  instanceName: string;
-  action: 'synchronize';
-  syncType: 'redis';
-};
-
-type SynchronizeByListParams = Pick<
-  SynchronizeByListRequestMessage,
-  'syncType' | 'installs'
->;
-type SynchronizeByRedisParams = Pick<
-  SynchronizeByRedisRequestMessage,
-  'syncType'
->;
-export type SynchronizeMethodOption =
-  | SynchronizeByListParams
-  | SynchronizeByRedisParams;
-
-export type SynchronizeRequestMessage =
-  | SynchronizeByListRequestMessage
-  | SynchronizeByRedisRequestMessage;
-
-export type SynchronizeRequestType = SynchronizeRequestMessage['syncType'];
-
-export interface KeyRequestMessage {
-  toMaster: false;
-  instanceName: string;
-  action: 'keyRequest';
-  key: string;
-  requestId: string;
-}
-
-export interface KeyRequestResponseMessage {
-  toMaster: true;
-  instanceName: string;
-  action: 'keyRequestResponse';
-  results: { [key: string]: string };
-  requestId: string;
-}
-
-export type ToMasterMessage = ReportMessage | KeyRequestResponseMessage;
-export type ToSlaveMessage =
-  | ReportRequestMessage
-  | SynchronizeRequestMessage
-  | KeyRequestMessage;
-export type MessageBetweenInstance = ToMasterMessage | ToSlaveMessage;
+import {
+  MessageBodies,
+  MessageKeys,
+  MessagesUnion,
+  Message,
+  MessageInfoOmitFrom,
+} from '../utils/message';
 
 /**
  * 一方向性のリスト同期
@@ -77,101 +15,43 @@ export type MessageBetweenInstance = ToMasterMessage | ToSlaveMessage;
  * Cassandraと同じく「時間が経てば正しくなる」方式を採用。
  */
 export abstract class Adaptor {
-  public isMaster = false;
+  public instanceType: AppInstanceType;
   public id: string;
 
   public isReady = false;
 
-  public onReportRequest?: () => Promise<void>;
-  public onKeyRequest?: (requestId: string, key: string) => Promise<void>;
+  public onReportRequest?: (masterName: string) => Promise<void>;
+  public onKeyRequest?: (
+    masterName: string,
+    requestId: string,
+    key: string,
+    obnizId?: string
+  ) => Promise<void>;
   public onKeyRequestResponse?: (
     requestId: string,
     instanceName: string,
     results: { [key: string]: string }
   ) => Promise<void>;
-  public onSynchronize?: (options: SynchronizeMethodOption) => Promise<void>;
+  public onSynchronize?: (
+    options: MessageBodies['synchronize']
+  ) => Promise<void>;
   public onReported?: (
     instanceName: string,
     installIds: string[]
   ) => Promise<void>;
-  public onRequestRequested?: (
-    key: string
-  ) => Promise<{ [key: string]: string }>;
 
-  constructor(id: string, isMaster: boolean) {
+  constructor(id: string, instanceType: AppInstanceType) {
     this.id = id;
-    this.isMaster = isMaster;
-  }
-
-  protected _onMasterMessage(message: ToMasterMessage): void {
-    if (message.action === 'report') {
-      if (this.onReported) {
-        this.onReported(message.instanceName, message.installIds)
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
-      }
-    } else if (message.action === 'keyRequestResponse') {
-      if (this.onKeyRequestResponse) {
-        this.onKeyRequestResponse(
-          message.requestId,
-          message.instanceName,
-          message.results
-        )
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
-      }
-    }
-  }
-
-  protected _onSlaveMessage(message: ToSlaveMessage): void {
-    if (message.action === 'synchronize') {
-      if (this.onSynchronize) {
-        if (message.syncType === 'redis') {
-          this.onSynchronize({
-            syncType: message.syncType,
-          })
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
-        } else {
-          this.onSynchronize({
-            syncType: message.syncType,
-            installs: message.installs,
-          })
-            .then(() => {})
-            .catch((e) => {
-              logger.error(e);
-            });
-        }
-      }
-    } else if (message.action === 'reportRequest') {
-      if (this.onReportRequest) {
-        this.onReportRequest()
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
-      }
-    } else if (message.action === 'keyRequest') {
-      if (this.onKeyRequest) {
-        this.onKeyRequest(message.requestId, message.key)
-          .then(() => {})
-          .catch((e) => {
-            logger.error(e);
-          });
-      }
-    }
+    this.instanceType = instanceType;
   }
 
   protected _onReady(): void {
     this.isReady = true;
     logger.debug(`ready id: ${this.id} (type: ${this.constructor.name})`);
-    if (this.isMaster) {
+    if (
+      this.instanceType === AppInstanceType.Master ||
+      this.instanceType === AppInstanceType.Manager
+    ) {
       this.reportRequest()
         .then(() => {})
         .catch((e) => {
@@ -179,7 +59,7 @@ export abstract class Adaptor {
         });
     } else {
       if (this.onReportRequest) {
-        this.onReportRequest()
+        this.onReportRequest('unknown')
           .then(() => {})
           .catch((e) => {
             logger.error(e);
@@ -188,79 +68,187 @@ export abstract class Adaptor {
     }
   }
 
-  onMessage(message: MessageBetweenInstance): void {
+  async onMessage(mes: MessagesUnion): Promise<void> {
+    if (mes.info.toManager) {
+      if (
+        this.instanceType === AppInstanceType.Master ||
+        this.instanceType === AppInstanceType.Manager
+      )
+        await this._onManagerMessage(mes);
+    } else {
+      if (
+        this.instanceType === AppInstanceType.Master ||
+        this.instanceType === AppInstanceType.Slave
+      )
+        await this._onSlaveMessage(mes);
+    }
+  }
+
+  protected async _onSlaveMessage(mes: MessagesUnion): Promise<void> {
+    if (mes.info.toManager) return;
+    if (mes.info.sendMode === 'direct' && mes.info.to !== this.id) return;
+    try {
+      if (mes.action === 'synchronize') {
+        if (this.onSynchronize) {
+          if (mes.body.syncType === 'redis') {
+            await this.onSynchronize({
+              syncType: mes.body.syncType,
+            });
+          } else {
+            await this.onSynchronize({
+              syncType: mes.body.syncType,
+              installs: mes.body.installs,
+            });
+          }
+        }
+      } else if (mes.action === 'reportRequest') {
+        if (this.onReportRequest && mes.info.sendMode === 'direct') {
+          await this.onReportRequest(mes.info.to);
+        }
+      } else if (mes.action === 'keyRequest') {
+        if (this.onKeyRequest) {
+          await this.onKeyRequest(
+            mes.info.from,
+            mes.body.requestId,
+            mes.body.key,
+            mes.body.obnizId
+          );
+        }
+      }
+    } catch (e) {
+      logger.error(e);
+    }
+  }
+
+  protected async _onManagerMessage(mes: MessagesUnion): Promise<void> {
+    if (!mes.info.toManager) return;
     if (
-      message.toMaster === false &&
-      (message.instanceName === this.id || message.instanceName === '*')
-    ) {
-      this._onSlaveMessage(message);
-    } else if (message.toMaster === true && this.isMaster === true) {
-      this._onMasterMessage(message);
+      mes.info.sendMode === 'direct' && // mes is direct message
+      mes.info.to !== undefined && // "to" is set
+      mes.info.to !== this.id // "to" is not me
+    )
+      return;
+    try {
+      if (mes.action === 'report') {
+        if (this.onReported)
+          await this.onReported(mes.info.from, mes.body.installIds);
+      } else if (mes.action === 'keyRequestResponse') {
+        const { requestId, results } = mes.body;
+        if (this.onKeyRequestResponse)
+          await this.onKeyRequestResponse(requestId, mes.info.from, results);
+      }
+    } catch (e) {
+      logger.error(e);
     }
   }
 
   async reportRequest(): Promise<void> {
-    await this._send({
-      action: 'reportRequest',
-      instanceName: '*',
-      toMaster: false,
-    });
+    await this._sendMessage(
+      'reportRequest',
+      {
+        sendMode: 'broadcast',
+        toManager: false,
+      },
+      {}
+    );
   }
 
-  async report(instanceName: string, installIds: string[]): Promise<void> {
-    await this._send({
-      action: 'report',
-      instanceName,
-      toMaster: true,
+  async report(installIds: string[], masterName?: string): Promise<void> {
+    const info = (
+      masterName !== undefined
+        ? {
+            sendMode: 'direct',
+            toManager: true,
+            to: masterName,
+          }
+        : {
+            sendMode: 'broadcast',
+            toManager: true,
+          }
+    ) as MessageInfoOmitFrom;
+    await this._sendMessage('report', info, {
       installIds,
     });
   }
 
   async keyRequest(key: string, requestId: string): Promise<void> {
-    await this._send({
-      action: 'keyRequest',
-      instanceName: '*',
-      toMaster: false,
-      key,
-      requestId,
-    });
+    await this._sendMessage(
+      'keyRequest',
+      {
+        toManager: false,
+        sendMode: 'broadcast',
+      },
+      {
+        requestId,
+        key,
+      }
+    );
+  }
+
+  async directKeyRequest(
+    obnizId: string,
+    instanceName: string,
+    key: string,
+    requestId: string
+  ): Promise<void> {
+    await this._sendMessage(
+      'keyRequest',
+      {
+        toManager: false,
+        sendMode: 'direct',
+        to: instanceName,
+      },
+      {
+        obnizId,
+        requestId,
+        key,
+      }
+    );
   }
 
   async keyRequestResponse(
+    masterName: string,
     requestId: string,
-    instanceName: string,
     results: { [key: string]: string }
   ): Promise<void> {
-    await this._send({
-      action: 'keyRequestResponse',
-      instanceName,
-      toMaster: true,
-      results,
-      requestId,
-    });
+    await this._sendMessage(
+      'keyRequestResponse',
+      {
+        toManager: true,
+        sendMode: 'direct',
+        to: masterName,
+      },
+      {
+        requestId,
+        results,
+      }
+    );
   }
 
-  async synchronize(
-    instanceName: string,
-    options: SynchronizeMethodOption
+  async synchronizeRequest(
+    options: MessageBodies['synchronize']
   ): Promise<void> {
-    if (options.syncType === 'redis') {
-      await this._send({
-        action: 'synchronize',
-        instanceName,
-        toMaster: false,
-        syncType: options.syncType,
-      });
-    } else {
-      await this._send({
-        action: 'synchronize',
-        instanceName,
-        toMaster: false,
-        syncType: options.syncType,
-        installs: options.installs,
-      });
-    }
+    await this._sendMessage(
+      'synchronize',
+      {
+        sendMode: 'broadcast',
+        toManager: false,
+      },
+      options
+    );
   }
 
-  protected abstract _send(json: MessageBetweenInstance): Promise<void>;
+  protected async _sendMessage<ActionName extends MessageKeys>(
+    action: ActionName,
+    info: MessageInfoOmitFrom,
+    data: Message<ActionName>['body']
+  ): Promise<void> {
+    await this._onSendMessage({
+      action,
+      info: { ...info, from: this.id },
+      body: data,
+    } as MessagesUnion);
+  }
+
+  protected abstract _onSendMessage(data: MessagesUnion): Promise<void>;
 }

@@ -1,5 +1,5 @@
 import { IObniz } from './Obniz.interface';
-import { Adaptor, SynchronizeMethodOption } from './adaptor/Adaptor';
+import { Adaptor } from './adaptor/Adaptor';
 import { Worker } from './Worker';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from './logger';
@@ -7,6 +7,7 @@ import { App } from './App';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { ManagedInstall } from './install_store/InstallStoreBase';
 import { deepEqual } from 'fast-equals';
+import { MessageBodies } from './utils/message';
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
@@ -22,42 +23,45 @@ export class Slave<O extends IObniz> {
   }
 
   private bindAdaptorCallbacks(adaptor: Adaptor) {
-    adaptor.onRequestRequested = async (
-      key: string
-    ): Promise<{ [key: string]: string }> => {
-      const results: { [key: string]: string } = {};
-      for (const install_id in this._workers) {
-        results[install_id] = await this._workers[install_id].onRequest(key);
-      }
-      return results;
-    };
-
-    this._adaptor.onSynchronize = async (options: SynchronizeMethodOption) => {
+    this._adaptor.onSynchronize = async (
+      options: MessageBodies['synchronize']
+    ) => {
       await this._synchronize(options);
     };
 
-    this._adaptor.onReportRequest = async () => {
-      await this._reportToMaster();
+    this._adaptor.onReportRequest = async (masterName: string) => {
+      await this._reportToMaster(masterName);
     };
 
-    this._adaptor.onKeyRequest = async (requestId: string, key: string) => {
-      await this._keyRequestProcess(requestId, key);
+    this._adaptor.onKeyRequest = async (
+      masterName: string,
+      requestId: string,
+      key: string,
+      obnizId?: string
+    ) => {
+      await this._keyRequestProcess(masterName, requestId, key, obnizId);
     };
   }
 
   protected async _keyRequestProcess(
+    masterName: string,
     requestId: string,
-    key: string
+    key: string,
+    obnizId?: string
   ): Promise<void> {
+    if (obnizId !== undefined && this._workers[obnizId] === undefined) {
+      await this._adaptor.keyRequestResponse(masterName, requestId, {});
+      return;
+    }
+    const targetWorkers =
+      obnizId === undefined
+        ? this._workers
+        : { [obnizId]: this._workers[obnizId] };
     const results: { [key: string]: string } = {};
-    for (const install_id in this._workers) {
+    for (const install_id in targetWorkers) {
       results[install_id] = await this._workers[install_id].onRequest(key);
     }
-    await this._adaptor.keyRequestResponse(
-      requestId,
-      this._instanceName,
-      results
-    );
+    await this._adaptor.keyRequestResponse(masterName, requestId, results);
   }
 
   private async _getInstallsFromRedis(): Promise<{
@@ -75,9 +79,9 @@ export class Slave<O extends IObniz> {
       );
       const installs: { [id: string]: InstalledDevice } = {};
       for (const obnizId in rawInstalls) {
-        installs[obnizId] = (JSON.parse(
-          rawInstalls[obnizId]
-        ) as ManagedInstall).install;
+        installs[obnizId] = (
+          JSON.parse(rawInstalls[obnizId]) as ManagedInstall
+        ).install;
       }
       return installs;
     } catch (e) {
@@ -90,7 +94,7 @@ export class Slave<O extends IObniz> {
    * Receive Master Generated List and compare current apps.
    */
   protected async _synchronize(
-    options: SynchronizeMethodOption
+    options: MessageBodies['synchronize']
   ): Promise<void> {
     if (this._syncing) {
       return;
@@ -168,23 +172,20 @@ export class Slave<O extends IObniz> {
     }
   }
 
+  protected async _onHeartBeat(): Promise<void> {
+    if (this._adaptor instanceof RedisAdaptor) {
+      await this._adaptor.onSlaveHeartbeat();
+    } else {
+      await this._reportToMaster();
+    }
+  }
+
   /**
    * Let Master know worker is working.
    */
-  protected async _reportToMaster(): Promise<void> {
-    if (this._adaptor instanceof RedisAdaptor) {
-      // If adaptor is Redis
-      const redis = this._adaptor.getRedisInstance();
-      await redis.set(
-        `slave:${this._app._options.instanceName}:heartbeat`,
-        Date.now(),
-        'EX',
-        20
-      );
-    } else {
-      const keys = Object.keys(this._workers);
-      await this._adaptor.report(this._app._options.instanceName, keys);
-    }
+  protected async _reportToMaster(masterName?: string): Promise<void> {
+    const keys = Object.keys(this._workers);
+    await this._adaptor.report(keys, masterName);
   }
 
   public startSyncing(): void {
@@ -192,12 +193,12 @@ export class Slave<O extends IObniz> {
     if (!this._interval) {
       this._interval = setInterval(async () => {
         try {
-          await this._reportToMaster();
+          await this._onHeartBeat();
         } catch (e) {
           logger.error(e);
         }
       }, 10 * 1000);
-      this._reportToMaster()
+      this._onHeartBeat()
         .then()
         .catch((e) => {
           logger.error(e);

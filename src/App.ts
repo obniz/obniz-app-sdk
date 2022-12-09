@@ -3,11 +3,9 @@ import * as os from 'os';
 
 import semver from 'semver';
 
-const isEqual = require('json-is-equal');
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Manager as ManagerClass } from './Manager';
-import { Adaptor } from './adaptor/Adaptor';
 import {
   Installed_Device,
   Installed_Device as InstalledDevice,
@@ -107,7 +105,7 @@ export class App<O extends IObniz> {
   readonly _options: AppOptionInternal<any, O>;
 
   // As Master
-  protected readonly _manager?: ManagerClass<any>;
+  protected readonly _manager?: ManagerClass;
 
   // As Worker
   protected readonly _slave?: SlaveClass<O>;
@@ -144,7 +142,7 @@ export class App<O extends IObniz> {
           return this._options.workerClass;
         }),
       obnizClass: option.obnizClass,
-      instanceType: option.instanceType || AppInstanceType.Master,
+      instanceType: option.instanceType ?? AppInstanceType.Master,
       instanceName: option.instanceName || os.hostname(),
       obnizOption: option.obnizOption || {},
       obnizCloudSdkOption: option.obnizCloudSdkOption || {},
@@ -163,30 +161,28 @@ export class App<O extends IObniz> {
       this._options.instanceName += `-${process.env.NODE_APP_INSTANCE}`;
     }
 
-    if (
+    const hasManager =
       (option.instanceType === AppInstanceType.Master ||
         option.instanceType === AppInstanceType.Manager) &&
-      isMasterOnSameMachine
-    ) {
+      isMasterOnSameMachine;
+
+    const adaptor = new AdaptorFactory().create(
+      this._options.database,
+      this._options.instanceName,
+      option.instanceType,
+      this._options.databaseConfig
+    );
+
+    if (hasManager) {
       this._manager = new ManagerClass(
         option.appToken,
         this._options.instanceName,
-        this._options.database,
-        this._options.databaseConfig,
+        adaptor,
         this._options.obnizCloudSdkOption
       );
     }
 
     if (option.instanceType !== AppInstanceType.Manager) {
-      // If master mode, share adaptor
-      const adaptor = this._manager
-        ? this._manager.adaptor
-        : new AdaptorFactory().create(
-            this._options.database,
-            this._options.instanceName,
-            false,
-            this._options.databaseConfig
-          );
       this._slave = new SlaveClass<O>(
         adaptor,
         this._options.instanceName,
@@ -259,6 +255,17 @@ export class App<O extends IObniz> {
       throw new Error(`This function is only available on master`);
     }
     return await this._manager.request(key, timeout);
+  }
+
+  public async directRequest(
+    obnizId: string,
+    key: string,
+    timeout = 30 * 1000
+  ): Promise<{ [key: string]: string }> {
+    if (!this._manager) {
+      throw new Error(`This function is only available on master`);
+    }
+    return await this._manager.directRequest(obnizId, key, timeout);
   }
 
   public isFirstManager(): boolean {

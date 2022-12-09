@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import sinon from 'sinon';
 import { App, AppInstanceType } from '../index';
 import { obnizCloudClientInstance } from '../ObnizCloudClient';
-import { wait } from './../tools';
+import { wait } from '../utils/common';
 import { DummyObniz } from './util/DummyObniz';
 import { deviceA, deviceB, deviceC } from './util/Device';
 import { LogWorker } from './util/LogWorker';
@@ -355,7 +355,8 @@ function obnizApiStub() {
     appEvents: appEvnetSamples,
     maxId: 4,
   });
-  obnizCloudClientInstance.getDiffListFromObnizCloud = getDiffListFromObnizCloudStub;
+  obnizCloudClientInstance.getDiffListFromObnizCloud =
+    getDiffListFromObnizCloudStub;
 
   const getCurrentEventNoStub = sinon.stub();
   getCurrentEventNoStub.returns(0);

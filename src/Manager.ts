@@ -4,19 +4,18 @@ import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
 import { AppStartOption } from './App';
-import {
-  AdaptorFactory,
-  Database,
-  DatabaseConfig,
-} from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
-import { wait } from './tools';
+import { wait } from './utils/common';
 import {
+  ObnizAppIdNotFoundError,
   ObnizAppMasterSlaveCommunicationError,
   ObnizAppTimeoutError,
 } from './Errors';
 import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
-import { WorkerStoreBase } from './worker_store/WorkerStoreBase';
+import {
+  WorkerInstance,
+  WorkerStoreBase,
+} from './worker_store/WorkerStoreBase';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { RedisWorkerStore } from './worker_store/RedisWorkerStore';
 import {
@@ -26,19 +25,6 @@ import {
 import { RedisInstallStore } from './install_store/RedisInstallStore';
 import { MemoryInstallStore } from './install_store/MemoryInstallStore';
 import { deepEqual } from 'fast-equals';
-
-enum InstallStatus {
-  Starting,
-  Started,
-  Stopping,
-  Stopped,
-}
-
-interface WorkerInstance {
-  name: string;
-  installIds: string[];
-  updatedMillisecond: number;
-}
 
 interface AppStartOptionInternal extends AppStartOption {
   express: express.Express;
@@ -57,7 +43,7 @@ interface KeyRequestExecute {
   ) => void;
 }
 
-export class Manager<T extends Database> {
+export class Manager {
   public adaptor: Adaptor;
 
   private readonly _appToken: string;
@@ -68,8 +54,6 @@ export class Manager<T extends Database> {
   private _syncTimeout: any;
   private _workerStore: WorkerStoreBase;
   private _installStore: InstallStoreBase;
-  private _isHeartbeatInit = false;
-  private _isFirstManager = false;
 
   // Note: moved to _installStore
   // private _allInstalls: { [key: string]: ManagedInstall } = {};
@@ -84,20 +68,13 @@ export class Manager<T extends Database> {
   constructor(
     appToken: string,
     instanceName: string,
-    database: T,
-    databaseConfig: DatabaseConfig[T],
+    adaptor: Adaptor,
     obnizSdkOption: SdkOption
   ) {
     this._appToken = appToken;
     this._obnizSdkOption = obnizSdkOption;
     this._instanceName = instanceName;
-
-    this.adaptor = new AdaptorFactory().create<T>(
-      database,
-      instanceName,
-      true,
-      databaseConfig
-    );
+    this.adaptor = adaptor;
 
     /**
      * Workerのうちいずれかから状況報告をもらった
@@ -346,10 +323,11 @@ export class Manager<T extends Database> {
     const installsApi: InstalledDevice[] = [];
     try {
       // set current id before getting data
-      this._currentAppEventsSequenceNo = await obnizCloudClientInstance.getCurrentEventNo(
-        this._appToken,
-        this._obnizSdkOption
-      );
+      this._currentAppEventsSequenceNo =
+        await obnizCloudClientInstance.getCurrentEventNo(
+          this._appToken,
+          this._obnizSdkOption
+        );
 
       installsApi.push(
         ...(await obnizCloudClientInstance.getListFromObnizCloud(
@@ -426,14 +404,12 @@ export class Manager<T extends Database> {
     logger.debug('API Diff Sync Start');
     const events: AppEvent[] = [];
     try {
-      const {
-        maxId,
-        appEvents,
-      } = await obnizCloudClientInstance.getDiffListFromObnizCloud(
-        this._appToken,
-        this._obnizSdkOption,
-        this._currentAppEventsSequenceNo
-      );
+      const { maxId, appEvents } =
+        await obnizCloudClientInstance.getDiffListFromObnizCloud(
+          this._appToken,
+          this._obnizSdkOption,
+          this._currentAppEventsSequenceNo
+        );
       events.push(...appEvents);
       this._currentAppEventsSequenceNo = maxId;
     } catch (e) {
@@ -450,10 +426,12 @@ export class Manager<T extends Database> {
 
     if (events.length > 0) {
       const addNum = events.filter((e) => e.type === 'install.create').length;
-      const updateNum = events.filter((e) => e.type === 'install.update')
-        .length;
-      const deleteNum = events.filter((e) => e.type === 'install.delete')
-        .length;
+      const updateNum = events.filter(
+        (e) => e.type === 'install.update'
+      ).length;
+      const deleteNum = events.filter(
+        (e) => e.type === 'install.delete'
+      ).length;
       const allNum =
         Object.keys(await this._installStore.getAll()).length +
         addNum -
@@ -532,12 +510,10 @@ export class Manager<T extends Database> {
     const instances = await this._workerStore.getAllWorkerInstances();
     const instanceKeys = Object.keys(instances);
     if (this.adaptor instanceof RedisAdaptor) {
-      for await (const instanceName of instanceKeys) {
-        logger.debug(`synchronize sent to ${instanceName} via Redis`);
-        await this.adaptor.synchronize(instanceName, {
-          syncType: 'redis',
-        });
-      }
+      logger.debug(`Sent sync request via Redis to all instance.`);
+      await this.adaptor.synchronizeRequest({
+        syncType: 'redis',
+      });
     } else {
       for (const instanceName in instances) {
         installsByInstanceName[instanceName] = [];
@@ -552,7 +528,7 @@ export class Manager<T extends Database> {
         logger.debug(
           `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
         );
-        await this.adaptor.synchronize(instanceName, {
+        await this.adaptor.synchronizeRequest({
           syncType: 'list',
           installs: installsByInstanceName[instanceName],
         });
@@ -562,23 +538,7 @@ export class Manager<T extends Database> {
 
   private async _writeSelfHeartbeat() {
     if (!(this.adaptor instanceof RedisAdaptor)) return;
-    const redis = this.adaptor.getRedisInstance();
-    if (this._isHeartbeatInit) {
-      await redis.set(
-        `master:${this._instanceName}:heartbeat`,
-        Date.now(),
-        'EX',
-        20
-      );
-    } else {
-      const res = (await redis.eval(
-        `redis.replicate_commands()local a=redis.call('KEYS','master:*:heartbeat')local b=redis.call('SET','master:'..KEYS[1]..':heartbeat',redis.call('TIME')[1],'EX',20)if not b=='OK'then return{err='FAILED_ADD_MANAGER_HEARTBEAT'}end;return{#a==0 and'true'or'false'}`,
-        1,
-        this._instanceName
-      )) as [string];
-      this._isFirstManager = res[0] === 'true';
-    }
-    if (!this._isHeartbeatInit) this._isHeartbeatInit = true;
+    await this.adaptor.onManagerHeartbeat();
   }
 
   private async _healthCheck() {
@@ -647,12 +607,59 @@ export class Manager<T extends Database> {
     });
   }
 
+  public async directRequest(
+    obnizId: string,
+    key: string,
+    timeout: number
+  ): Promise<{ [key: string]: string }> {
+    const install = await this._installStore.get(obnizId);
+    if (!install)
+      throw new ObnizAppIdNotFoundError(`${obnizId}'s Worker is not running`);
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId = `${Date.now()} - ${Math.random()
+          .toString(36)
+          .slice(-8)}`;
+        const execute: KeyRequestExecute = {
+          requestId,
+          returnedInstanceCount: 0,
+          waitingInstanceCount: 1,
+          results: {},
+          resolve,
+          reject,
+        };
+        this._keyRequestExecutes[requestId] = execute;
+        await this.adaptor.directKeyRequest(
+          obnizId,
+          install.instanceName,
+          key,
+          requestId
+        );
+        await wait(timeout);
+        if (this._keyRequestExecutes[requestId]) {
+          delete this._keyRequestExecutes[requestId];
+          reject(new ObnizAppTimeoutError('Request timed out.'));
+        } else {
+          reject(
+            new ObnizAppMasterSlaveCommunicationError(
+              'Could not get request data.'
+            )
+          );
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
   public isFirstMaster(): boolean {
-    if (!this._isHeartbeatInit)
+    if (!(this.adaptor instanceof RedisAdaptor)) return true;
+    const status = this.adaptor.getManagerStatus();
+    if (!status.initialized)
       throw new Error(
         'init process has not been completed. Please delay a little longer before checking or start app using startWait().'
       );
-    return this._isFirstManager;
+    return status.isFirstManager;
   }
 
   public async doAllRelocate(): Promise<void> {
@@ -660,9 +667,7 @@ export class Manager<T extends Database> {
       throw new Error(
         'This function is currently only available when using redis.'
       );
-    logger.debug('doAllRelocate Start');
     await this._installStore.doAllRelocate();
-    logger.debug('doAllRelocate Finish');
     await this.synchronize();
   }
 }

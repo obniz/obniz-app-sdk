@@ -147,7 +147,10 @@ export class Slave<O extends IObniz> {
     install: InstalledDevice
   ): Promise<void> {
     const oldWorker = this._workers[install.id];
-    if (oldWorker && !deepEqual(oldWorker.install, install)) {
+
+    const copyDevice = { ...oldWorker?.install, deviceLiveInfo: {} };
+    const copyInstall = { ...install, deviceLiveInfo: {} };
+    if (oldWorker && !deepEqual(copyDevice, copyInstall)) {
       logger.info(`App config changed id=${install.id}`);
       await this._stopOneWorker(install.id);
       await this._startOneWorker(install);

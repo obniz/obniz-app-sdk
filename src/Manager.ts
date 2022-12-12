@@ -360,7 +360,11 @@ export class Manager {
       if (!install) {
         mustAdds.push(device);
       } else {
-        if (!deepEqual(device, install.install)) updated.push(device);
+        // deviceLiveInfoだけは別にする（offline毎に更新するわけには行かないので）
+        const copyDevice = { ...device, deviceLiveInfo: {} };
+        const copyInstall = { ...install.install, deviceLiveInfo: {} };
+
+        if (!deepEqual(copyDevice, copyInstall)) updated.push(device);
       }
     }
     const installs = await this._installStore.getAll();

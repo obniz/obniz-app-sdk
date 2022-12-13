@@ -51,9 +51,11 @@ export class Manager {
   private _startOptions?: AppStartOptionInternal;
   private _instanceName: string;
   private _syncing = false;
-  private _syncTimeout: any;
+  private _syncTimeout?: any;
+  private _healthCheckTimeout?: any;
   private _workerStore: WorkerStoreBase;
   private _installStore: InstallStoreBase;
+  private _express?: ReturnType<ReturnType<typeof express>['listen']>;
 
   // Note: moved to _installStore
   // private _allInstalls: { [key: string]: ManagedInstall } = {};
@@ -170,13 +172,16 @@ export class Manager {
     );
 
     if (!option.express) {
-      this._startOptions.express.listen(this._startOptions.port, () => {
-        logger.debug(
-          `App listening on http://localhost:${
-            (this._startOptions || {}).port
-          } `
-        );
-      });
+      this._express = this._startOptions.express.listen(
+        this._startOptions.port,
+        () => {
+          logger.debug(
+            `App listening on http://localhost:${
+              (this._startOptions || {}).port
+            } `
+          );
+        }
+      );
     }
   }
 
@@ -284,7 +289,7 @@ export class Manager {
   }
 
   private _startHealthCheck() {
-    setInterval(async () => {
+    this._healthCheckTimeout = setInterval(async () => {
       try {
         await this._writeSelfHeartbeat();
         await this._healthCheck();
@@ -673,5 +678,12 @@ export class Manager {
       );
     await this._installStore.doAllRelocate();
     await this.synchronize();
+  }
+
+  public async onShutdown() {
+    if (this._express) this._express.close();
+    if (this._syncTimeout) clearTimeout(this._syncTimeout);
+    if (this._healthCheckTimeout) clearTimeout(this._healthCheckTimeout);
+    await this.adaptor.shutdown();
   }
 }

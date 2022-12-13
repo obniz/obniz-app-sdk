@@ -285,4 +285,11 @@ export class App<O extends IObniz> {
   public get obnizClass(): IObnizStatic<O> {
     return this._options.obnizClass;
   }
+
+  public async shutdown(): Promise<void> {
+    logger.info('App shutting down...');
+    if (this._manager) await this._manager.onShutdown();
+    if (this._slave) await this._slave.onShutdown();
+    logger.info('App shut down successfully');
+  }
 }

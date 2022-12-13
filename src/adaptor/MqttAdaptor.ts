@@ -124,4 +124,8 @@ export class MqttAdaptor extends Adaptor {
       this._client.publish('general', message);
     }
   }
+
+  async onShutdown(): Promise<void> {
+    // TODO
+  }
 }

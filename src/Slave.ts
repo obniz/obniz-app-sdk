@@ -208,4 +208,12 @@ export class Slave<O extends IObniz> {
         });
     }
   }
+
+  public async onShutdown() {
+    for (const id in this._workers) {
+      await this._stopOneWorker(id);
+    }
+    if (this._interval) clearTimeout(this._interval);
+    await this._adaptor.shutdown();
+  }
 }

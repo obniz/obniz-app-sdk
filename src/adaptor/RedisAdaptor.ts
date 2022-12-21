@@ -11,6 +11,8 @@ export class RedisAdaptor extends Adaptor {
   private _subOnlyRedis: Redis;
   private _isManagerHeartbeatInited = false;
   private _isFirstManager = false;
+  private _managerProcessing = false;
+  private _slaveProcessing = false;
 
   constructor(
     id: string,
@@ -67,6 +69,7 @@ export class RedisAdaptor extends Adaptor {
   }
 
   protected async _onSendMessage(data: MessagesUnion): Promise<void> {
+    if (this.isShutdown) return;
     const channel =
       data.info.sendMode === 'direct'
         ? this.instanceType === AppInstanceType.Slave
@@ -100,6 +103,8 @@ export class RedisAdaptor extends Adaptor {
   }
 
   async onManagerHeartbeat(): Promise<void> {
+    if (this.isShutdown) return;
+    this._managerProcessing = true;
     const redis = this.getRedisInstance();
     if (this._isManagerHeartbeatInited) {
       await redis.set(`master:${this.id}:heartbeat`, Date.now(), 'EX', 20);
@@ -112,10 +117,33 @@ export class RedisAdaptor extends Adaptor {
       this._isManagerHeartbeatInited = true;
       this._isFirstManager = res[0] === 'true';
     }
+    this._managerProcessing = false;
   }
 
   async onSlaveHeartbeat(): Promise<void> {
+    if (this.isShutdown) return;
+    this._slaveProcessing = true;
     const redis = this.getRedisInstance();
     await redis.set(`slave:${this.id}:heartbeat`, Date.now(), 'EX', 20);
+    this._slaveProcessing = false;
+  }
+
+  protected async onShutdown() {
+    // Wait finish processing
+    await new Promise<void>((rlv, rj) => {
+      const id = setInterval(() => {
+        if (this._managerProcessing || this._slaveProcessing) return;
+        clearInterval(id);
+        rlv();
+      }, 100);
+    });
+    await this._redis.quit();
+    if (this.instanceType === AppInstanceType.Slave) {
+      await this._subOnlyRedis.unsubscribe();
+    } else {
+      await this._subOnlyRedis.punsubscribe();
+    }
+    await this._subOnlyRedis.quit();
+    logger.info('RedisAdaptor shut down successfully');
   }
 }

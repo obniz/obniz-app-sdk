@@ -19,6 +19,7 @@ export abstract class Adaptor {
   public id: string;
 
   public isReady = false;
+  public isShutdown = false;
 
   public onReportRequest?: (masterName: string) => Promise<void>;
   public onKeyRequest?: (
@@ -251,4 +252,13 @@ export abstract class Adaptor {
   }
 
   protected abstract _onSendMessage(data: MessagesUnion): Promise<void>;
+
+  async shutdown(): Promise<void> {
+    if (this.isShutdown) return;
+    this.isShutdown = true;
+    logger.info('Adaptor shutting down...');
+    await this.onShutdown();
+  }
+
+  protected abstract onShutdown(): Promise<void>;
 }

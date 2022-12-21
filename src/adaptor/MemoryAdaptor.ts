@@ -24,4 +24,8 @@ export class MemoryAdaptor extends Adaptor {
       one.onMessage(data);
     }
   }
+
+  protected async onShutdown() {
+    // Nothing to do
+  }
 }

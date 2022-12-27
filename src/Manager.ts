@@ -584,6 +584,10 @@ export class Manager {
     const waitingInstanceCount = Object.keys(
       await this._workerStore.getAllWorkerInstances()
     ).length;
+    if (waitingInstanceCount === 0) {
+      logger.info('There are no running worker instances.');
+      return {};
+    }
     return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
       try {
         const requestId = `${Date.now()} - ${Math.random()

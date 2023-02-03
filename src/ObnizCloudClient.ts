@@ -1,13 +1,7 @@
 import { getSdk, SdkOption } from 'obniz-cloud-sdk';
-import {
-  AppEventApp,
-  AppEventsQuery,
-  Device,
-  Installed_Device,
-  Maybe,
-  User,
-} from 'obniz-cloud-sdk/sdk';
+import { AppEventsQuery, Installed_Device } from 'obniz-cloud-sdk/sdk';
 import { RateLimiter } from 'limiter';
+import { logger } from './logger';
 
 export type AppEvent = NonNullable<
   NonNullable<AppEventsQuery['appEvents']>['events'][number]
@@ -18,40 +12,70 @@ const limiter = new RateLimiter({
   interval: 'second',
 });
 
+const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
+
 export class ObnizCloudClient {
   async getListFromObnizCloud(
     token: string,
     option: SdkOption
   ): Promise<Installed_Device[]> {
     const sdk = getSdk(token, option);
+
     const allInstalls: Installed_Device[] = [];
     let skip = 0;
     let failCount = 0;
+
+    logger.debug('Device API sync loop start');
+
     while (true) {
+      const syncStartDate = new Date().valueOf();
+
       try {
         // 流量制限
         await limiter.removeTokens(1);
-        const result = await sdk.app({ skip });
+
+        logger.debug(`Device API sync request start. skip=${skip}`);
+        const result = await sdk.app({ first: 50, skip });
+        logger.debug(
+          `Device API sync request end. duration="${
+            new Date().valueOf() - syncStartDate
+          }ms"`
+        );
+
         if (!result.app || !result.app.installs) {
           break;
         }
+
+        logger.debug(`Number of devices ${result.app.installs.edges.length}`);
         for (const edge of result.app.installs.edges) {
           if (edge) {
             allInstalls.push(edge.node as Installed_Device);
           }
         }
+
         if (!result.app.installs.pageInfo.hasNextPage) {
           break;
         }
+
         skip += result.app.installs.edges.length;
       } catch (e) {
+        logger.error(
+          `Throw device sync error. duration="${
+            new Date().valueOf() - syncStartDate
+          }ms"`
+        );
         console.error(e);
+
         if (++failCount > 10) {
           throw e;
         }
-        await new Promise((resolve) => setTimeout(resolve, failCount * 1000));
+
+        await sleep(failCount * 1000);
       }
     }
+
+    logger.debug('Device API sync loop end');
+
     return allInstalls;
   }
 
@@ -92,7 +116,7 @@ export class ObnizCloudClient {
         if (++failCount > 10) {
           throw e;
         }
-        await new Promise((resolve) => setTimeout(resolve, failCount * 1000));
+        await sleep(failCount * 1000);
       }
     }
     return { appEvents, maxId };

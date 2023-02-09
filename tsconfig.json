@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
-    "target": "es2017",
+    "target": "es2018",
     "module": "commonjs",
     "lib": ["es2018", "dom"],
     "outDir": "./dist",
     "strict": true,
-    "declaration" : true,
+    "declaration" : false,
     "esModuleInterop": true,
     "sourceMap": true,
     "resolveJsonModule": true

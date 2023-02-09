@@ -1,0 +1,16 @@
+<html>
+<head>
+<script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+<script src="https://unpkg.com/obniz@3.31.0/obniz.js"></script>
+</head>
+<body>
+<strong id="here">Not online</strong>
+<script>
+var obniz = new Obniz("OBNIZ_ID_HERE", {obniz_server: "ws://localhost:3003"});
+obniz.onconnect = async function () {
+  $("#here").text("Online")
+  obniz.display.print("Hello World");
+}
+</script>
+</body>
+</html>

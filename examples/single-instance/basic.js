@@ -9,6 +9,7 @@ class MyWorker extends Worker {
 
   async onStart(){
     console.log("onStart");
+    this.cloudLog.info("app start");
   }
 
   async onLoop(){

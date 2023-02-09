@@ -5,11 +5,11 @@ class MyWorker extends Worker {
 
   // Simple Example
 
-  async onObnizConnect(obniz){
+  async onObnizConnect(obniz) {
     console.log(`connected to obniz ${obniz.id} ${obniz.metadata.description}`);
   }
 
-  async onObnizLoop(obniz){
+  async onObnizLoop(obniz) {
     console.log(`obniz loop ${obniz.id} ${obniz.metadata.description}`);
   }
 
@@ -18,9 +18,10 @@ class MyWorker extends Worker {
 const app = new App({
   appToken: process.env.APPTOKEN,
   workerClass: MyWorker,
-  instanceType: AppInstanceType.Master,
+  instanceType: AppInstanceType.Slave,
+  instanceName: 'worker1',
   database: "redis",
-  databaseConfig: process.env.REDIS_URL|| "redis://localhost:6379",
+  databaseConfig: process.env.REDIS_URL || "redis://localhost:6379",
   obnizClass: Obniz
 })
 

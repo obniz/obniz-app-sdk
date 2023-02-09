@@ -1,40 +1,30 @@
 import { logger } from './logger';
-import { sharedInstalledDeviceManager, AppEvent } from './install';
+import { obnizCloudClientInstance, AppEvent } from './ObnizCloudClient';
 import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
 import { AppStartOption } from './App';
-import {
-  AdaptorFactory,
-  Database,
-  DatabaseConfig,
-} from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk';
-import { wait } from './tools';
+import { wait } from './utils/common';
 import {
+  ObnizAppIdNotFoundError,
   ObnizAppMasterSlaveCommunicationError,
   ObnizAppTimeoutError,
 } from './Errors';
-
-enum InstallStatus {
-  Starting,
-  Started,
-  Stopping,
-  Stopped,
-}
-
-interface ManagedInstall {
-  instanceName: string; // Which Instance handling this
-  install: InstalledDevice;
-  status: InstallStatus;
-  updatedMillisecond: number;
-}
-
-interface WorkerInstance {
-  name: string;
-  installIds: string[];
-  updatedMillisecond: number;
-}
+import { MemoryWorkerStore } from './worker_store/MemoryWorkerStore';
+import {
+  WorkerInstance,
+  WorkerStoreBase,
+} from './worker_store/WorkerStoreBase';
+import { RedisAdaptor } from './adaptor/RedisAdaptor';
+import { RedisWorkerStore } from './worker_store/RedisWorkerStore';
+import {
+  InstallStoreBase,
+  ManagedInstall,
+} from './install_store/InstallStoreBase';
+import { RedisInstallStore } from './install_store/RedisInstallStore';
+import { MemoryInstallStore } from './install_store/MemoryInstallStore';
+import { deepEqual } from 'fast-equals';
 
 interface AppStartOptionInternal extends AppStartOption {
   express: express.Express;
@@ -53,16 +43,25 @@ interface KeyRequestExecute {
   ) => void;
 }
 
-export class Manager<T extends Database> {
+export class Manager {
   public adaptor: Adaptor;
 
   private readonly _appToken: string;
   private readonly _obnizSdkOption: SdkOption;
   private _startOptions?: AppStartOptionInternal;
+  private _instanceName: string;
   private _syncing = false;
-  private _syncTimeout: any;
-  private _allInstalls: { [key: string]: ManagedInstall } = {};
-  private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
+  private _syncTimeout?: any;
+  private _healthCheckTimeout?: any;
+  private _workerStore: WorkerStoreBase;
+  private _installStore: InstallStoreBase;
+  private _express?: ReturnType<ReturnType<typeof express>['listen']>;
+
+  // Note: moved to _installStore
+  // private _allInstalls: { [key: string]: ManagedInstall } = {};
+
+  // Note: moved to _workerStore
+  // private _allWorkerInstances: { [key: string]: WorkerInstance } = {};
 
   private _keyRequestExecutes: { [key: string]: KeyRequestExecute } = {};
 
@@ -71,19 +70,13 @@ export class Manager<T extends Database> {
   constructor(
     appToken: string,
     instanceName: string,
-    database: T,
-    databaseConfig: DatabaseConfig[T],
+    adaptor: Adaptor,
     obnizSdkOption: SdkOption
   ) {
     this._appToken = appToken;
     this._obnizSdkOption = obnizSdkOption;
-
-    this.adaptor = new AdaptorFactory().create<T>(
-      database,
-      instanceName,
-      true,
-      databaseConfig
-    );
+    this._instanceName = instanceName;
+    this.adaptor = adaptor;
 
     /**
      * Workerのうちいずれかから状況報告をもらった
@@ -93,19 +86,23 @@ export class Manager<T extends Database> {
       reportInstanceName: string,
       installIds: string[]
     ) => {
-      const exist = this._allWorkerInstances[reportInstanceName];
+      if (!(this._workerStore instanceof MemoryWorkerStore)) return;
+      const exist = await this._workerStore.getWorkerInstance(
+        reportInstanceName
+      );
       if (exist) {
-        exist.installIds = installIds;
-        exist.updatedMillisecond = Date.now();
-      } else {
-        this._allWorkerInstances[reportInstanceName] = {
-          name: reportInstanceName,
+        this._workerStore.updateWorkerInstance(reportInstanceName, {
           installIds,
           updatedMillisecond: Date.now(),
-        };
+        });
+      } else {
+        this._workerStore.addWorkerInstance(reportInstanceName, {
+          installIds,
+          updatedMillisecond: Date.now(),
+        });
         this.onInstanceAttached(reportInstanceName);
       }
-      this.onInstanceReported(reportInstanceName);
+      await this.onInstanceReported(reportInstanceName);
     };
 
     this.adaptor.onKeyRequestResponse = async (
@@ -130,12 +127,31 @@ export class Manager<T extends Database> {
         }
       }
     };
+
+    if (this.adaptor instanceof RedisAdaptor) {
+      this._workerStore = new RedisWorkerStore(this.adaptor);
+      this._installStore = new RedisInstallStore(this.adaptor);
+    } else {
+      const workerStore = new MemoryWorkerStore();
+      this._workerStore = workerStore;
+      this._installStore = new MemoryInstallStore(workerStore);
+    }
   }
 
   public start(option?: AppStartOption): void {
     this._startWeb(option);
     this._startSyncing();
     this._startHealthCheck();
+    setTimeout(async () => {
+      await this._writeSelfHeartbeat();
+    }, 0);
+  }
+
+  public async startWait(option?: AppStartOption): Promise<void> {
+    this._startWeb(option);
+    this._startSyncing();
+    this._startHealthCheck();
+    await this._writeSelfHeartbeat();
   }
 
   private _startWeb(option?: AppStartOption): void {
@@ -156,13 +172,16 @@ export class Manager<T extends Database> {
     );
 
     if (!option.express) {
-      this._startOptions.express.listen(this._startOptions.port, () => {
-        logger.debug(
-          `App listening on http://localhost:${
-            (this._startOptions || {}).port
-          } `
-        );
-      });
+      this._express = this._startOptions.express.listen(
+        this._startOptions.port,
+        () => {
+          logger.debug(
+            `App listening on http://localhost:${
+              (this._startOptions || {}).port
+            } `
+          );
+        }
+      );
     }
   }
 
@@ -181,32 +200,6 @@ export class Manager<T extends Database> {
   }
 
   /**
-   * 空き状況から最適なWorkerを推測
-   */
-  private bestWorkerInstance(): WorkerInstance {
-    const installCounts: any = {};
-    for (const name in this._allWorkerInstances) {
-      installCounts[name] = 0;
-    }
-    for (const id in this._allInstalls) {
-      const managedInstall = this._allInstalls[id];
-      installCounts[managedInstall.instanceName] += 1;
-    }
-    let minNumber = 1000 * 1000;
-    let minInstance: WorkerInstance | null = null;
-    for (const key in installCounts) {
-      if (installCounts[key] < minNumber) {
-        minInstance = this._allWorkerInstances[key];
-        minNumber = installCounts[key];
-      }
-    }
-    if (!minInstance) {
-      throw new Error(`No Valid Instance`);
-    }
-    return minInstance;
-  }
-
-  /**
    * instanceId がidのWorkerが新たに参加した
    * @param id
    */
@@ -220,21 +213,36 @@ export class Manager<T extends Database> {
    * instanceId がidのWorkerが喪失した
    * @param id
    */
-  private onInstanceMissed(instanceName: string) {
+  private async onInstanceMissed(instanceName: string) {
     logger.info(`worker lost ${instanceName}`);
     // delete immediately
-    const diedWorker: WorkerInstance = this._allWorkerInstances[instanceName];
-    delete this._allWorkerInstances[instanceName];
+    const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
+    if (!diedWorker) throw new Error('Failed get diedWorker status');
 
     // Replacing missed instance workers.
-    for (const id in this._allInstalls) {
-      const managedInstall = this._allInstalls[id];
-      if (managedInstall.instanceName === diedWorker.name) {
-        const nextWorker = this.bestWorkerInstance();
-        managedInstall.instanceName = nextWorker.name;
-        managedInstall.status = InstallStatus.Starting;
+    const missedInstalls = await this._installStore.getByWorker(
+      diedWorker.name
+    );
+    for await (const install of Object.keys(missedInstalls)) {
+      try {
+        const instance = await this._installStore.autoRelocate(install, false);
+      } catch (e) {
+        if (e instanceof Error) {
+          switch (e.message) {
+            case 'NO_NEED_TO_RELOCATE':
+              logger.info(`${install} already moved available worker.`);
+              break;
+            default:
+              logger.error(`Failed autoRelocate: ${e.message} (${e.name})`);
+              break;
+          }
+        } else {
+          logger.error(e);
+        }
       }
     }
+
+    await this._workerStore.deleteWorkerInstance(instanceName);
 
     // synchronize
     this.synchronize()
@@ -248,16 +256,17 @@ export class Manager<T extends Database> {
    * instanceId がidのWorkerから新しい情報が届いた（定期的に届く）
    * @param id
    */
-  private onInstanceReported(instanceName: string) {
-    const worker: WorkerInstance = this._allWorkerInstances[instanceName];
-    for (const existId of worker.installIds) {
-      const managedInstall: ManagedInstall = this._allInstalls[existId];
-      if (managedInstall) {
-        managedInstall.status = InstallStatus.Started;
-        managedInstall.updatedMillisecond = Date.now();
-      } else {
-        // ghost
-        logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
+  private async onInstanceReported(instanceName: string) {
+    const worker = await this._workerStore.getWorkerInstance(instanceName);
+    if (worker) {
+      for (const existId of worker.installIds) {
+        const managedInstall = await this._installStore.get(existId);
+        if (managedInstall) {
+          managedInstall.updatedMillisecond = Date.now();
+        } else {
+          // ghost
+          logger.debug(`Ignore ghost instance=${instanceName} id=${existId}`);
+        }
       }
     }
   }
@@ -280,10 +289,10 @@ export class Manager<T extends Database> {
   }
 
   private _startHealthCheck() {
-    setInterval(async () => {
+    this._healthCheckTimeout = setInterval(async () => {
       try {
-        await this.adaptor.reportRequest();
-        this._healthCheck();
+        await this._writeSelfHeartbeat();
+        await this._healthCheck();
       } catch (e) {
         logger.error(e);
       }
@@ -316,23 +325,25 @@ export class Manager<T extends Database> {
   private async _checkAllInstalls() {
     const startedTime = Date.now();
     logger.debug('API Sync Start');
-    const installsApi = [];
+    const installsApi: InstalledDevice[] = [];
     try {
       // set current id before getting data
-      this._currentAppEventsSequenceNo = await sharedInstalledDeviceManager.getCurrentEventNo(
-        this._appToken,
-        this._obnizSdkOption
-      );
+      this._currentAppEventsSequenceNo =
+        await obnizCloudClientInstance.getCurrentEventNo(
+          this._appToken,
+          this._obnizSdkOption
+        );
 
       installsApi.push(
-        ...(await sharedInstalledDeviceManager.getListFromObnizCloud(
+        ...(await obnizCloudClientInstance.getListFromObnizCloud(
           this._appToken,
           this._obnizSdkOption
         ))
       );
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
-      process.exit(-1);
+      return;
     }
 
     logger.debug(
@@ -347,24 +358,22 @@ export class Manager<T extends Database> {
     const mustAdds: InstalledDevice[] = [];
     const updated: InstalledDevice[] = [];
     const deleted: ManagedInstall[] = [];
-    for (const install of installsApi) {
-      let found = false;
-      for (const id in this._allInstalls) {
-        const oldInstall = this._allInstalls[id].install;
-        if (install.id === id) {
-          if (JSON.stringify(install) !== JSON.stringify(oldInstall)) {
-            // updated
-            updated.push(install);
-          }
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        mustAdds.push(install);
+    const ids = installsApi.map((d) => d.id);
+    const devices = await this._installStore.getMany(ids);
+    for (const device of installsApi) {
+      const install = devices[device.id];
+      if (!install) {
+        mustAdds.push(device);
+      } else {
+        // deviceLiveInfoだけは別にする（offline毎に更新するわけには行かないので）
+        const copyDevice = { ...device, deviceLiveInfo: {} };
+        const copyInstall = { ...install.install, deviceLiveInfo: {} };
+
+        if (!deepEqual(copyDevice, copyInstall)) updated.push(device);
       }
     }
-    for (const id in this._allInstalls) {
+    const installs = await this._installStore.getAll();
+    for (const id in installs) {
       let found = false;
       for (const install of installsApi) {
         if (id === install.id) {
@@ -373,29 +382,29 @@ export class Manager<T extends Database> {
         }
       }
       if (!found) {
-        deleted.push(this._allInstalls[id]);
+        deleted.push(installs[id]);
       }
     }
 
     if (mustAdds.length + updated.length + deleted.length > 0) {
       const allNum =
-        Object.keys(this._allInstalls).length +
-        mustAdds.length -
-        deleted.length;
+        Object.keys(installs).length + mustAdds.length - deleted.length;
       logger.debug(`all \t| added \t| updated \t| deleted`);
       logger.debug(
         `${allNum} \t| ${mustAdds.length} \t| ${updated.length} \t| ${deleted.length}`
       );
     }
 
-    for (const install of updated) {
-      this._updateDevice(install.id, install);
+    for await (const updDevice of updated) {
+      await this._updateDevice(updDevice.id, updDevice);
     }
-    for (const managedInstall of deleted) {
-      this._deleteDevice(managedInstall.install.id);
+
+    for await (const delInstall of deleted) {
+      await this._deleteDevice(delInstall.install.id);
     }
-    for (const install of mustAdds) {
-      this._addDevice(install.id, install);
+
+    for await (const addDevice of mustAdds) {
+      await this._addDevice(addDevice.id, addDevice);
     }
   }
 
@@ -404,19 +413,18 @@ export class Manager<T extends Database> {
     logger.debug('API Diff Sync Start');
     const events: AppEvent[] = [];
     try {
-      const {
-        maxId,
-        appEvents,
-      } = await sharedInstalledDeviceManager.getDiffListFromObnizCloud(
-        this._appToken,
-        this._obnizSdkOption,
-        this._currentAppEventsSequenceNo
-      );
+      const { maxId, appEvents } =
+        await obnizCloudClientInstance.getDiffListFromObnizCloud(
+          this._appToken,
+          this._obnizSdkOption,
+          this._currentAppEventsSequenceNo
+        );
       events.push(...appEvents);
       this._currentAppEventsSequenceNo = maxId;
     } catch (e) {
+      logger.error(`API Sync failed duration=${Date.now() - startedTime}msec`);
       console.error(e);
-      process.exit(-1);
+      return;
     }
 
     logger.debug(
@@ -427,11 +435,16 @@ export class Manager<T extends Database> {
 
     if (events.length > 0) {
       const addNum = events.filter((e) => e.type === 'install.create').length;
-      const updateNum = events.filter((e) => e.type === 'install.update')
-        .length;
-      const deleteNum = events.filter((e) => e.type === 'install.delete')
-        .length;
-      const allNum = Object.keys(this._allInstalls).length + addNum - deleteNum;
+      const updateNum = events.filter(
+        (e) => e.type === 'install.update'
+      ).length;
+      const deleteNum = events.filter(
+        (e) => e.type === 'install.delete'
+      ).length;
+      const allNum =
+        Object.keys(await this._installStore.getAll()).length +
+        addNum -
+        deleteNum;
       logger.debug(`all \t| added \t| updated \t| deleted`);
       logger.debug(`${allNum} \t| ${addNum} \t| ${updateNum} \t| ${deleteNum}`);
     }
@@ -445,7 +458,7 @@ export class Manager<T extends Database> {
       }
     }
 
-    for (const key in list) {
+    for await (const key of Object.keys(list)) {
       const one = list[key];
       if (one.type === 'install.update' && one.payload.device) {
         this._updateDevice(
@@ -453,9 +466,9 @@ export class Manager<T extends Database> {
           one.payload.device as InstalledDevice
         );
       } else if (one.type === 'install.delete' && one.payload.device) {
-        this._deleteDevice(one.payload.device.id);
+        await this._deleteDevice(one.payload.device.id);
       } else if (one.type === 'install.create' && one.payload.device) {
-        this._addDevice(
+        await this._addDevice(
           one.payload.device.id,
           one.payload.device as InstalledDevice
         );
@@ -463,77 +476,88 @@ export class Manager<T extends Database> {
     }
   }
 
-  private _addDevice(obnizId: string, device: InstalledDevice) {
-    if (this._allInstalls[obnizId]) {
-      // already exist
-      this._updateDevice(obnizId, device);
-      return;
+  private async _addDevice(obnizId: string, device: InstalledDevice) {
+    try {
+      const createdInstall = await this._installStore.autoCreate(
+        obnizId,
+        device
+      );
+      return createdInstall;
+    } catch (e) {
+      if (e instanceof Error) {
+        switch (e.message) {
+          case 'ALREADY_INSTALLED':
+            logger.info(`${obnizId} already created.`);
+            break;
+          default:
+            logger.error(`Failed autoCreate: ${e.message} (${e.name})`);
+            break;
+        }
+      } else {
+        logger.error(e);
+      }
     }
-    const instance = this.bestWorkerInstance(); // maybe throw
-    const managedInstall: ManagedInstall = {
-      instanceName: instance.name,
-      status: InstallStatus.Starting,
-      updatedMillisecond: Date.now(),
+  }
+
+  private async _updateDevice(obnizId: string, device: InstalledDevice) {
+    const install = await this._installStore.get(obnizId);
+    if (!install) {
+      return await this._addDevice(obnizId, device);
+    }
+    const updatedInstall = await this._installStore.update(obnizId, {
       install: device,
-    };
-    this._allInstalls[obnizId] = managedInstall;
+    });
+    return updatedInstall;
   }
 
-  private _updateDevice(obnizId: string, device: InstalledDevice) {
-    const managedInstall = this._allInstalls[obnizId];
-    if (!managedInstall) {
-      this._addDevice(obnizId, device);
-      return;
-    }
-    managedInstall.install = device;
-  }
-
-  private _deleteDevice(obnizId: string) {
-    if (!this._allInstalls[obnizId]) {
-      // not exist
-      return;
-    }
-    this._allInstalls[obnizId].status = InstallStatus.Stopping;
-    delete this._allInstalls[obnizId];
+  private async _deleteDevice(obnizId: string) {
+    await this._installStore.remove(obnizId);
   }
 
   private async synchronize() {
     const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
-    for (const instanceName in this._allWorkerInstances) {
-      installsByInstanceName[instanceName] = [];
-    }
-    for (const id in this._allInstalls) {
-      const managedInstall: ManagedInstall = this._allInstalls[id];
-      const instanceName = managedInstall.instanceName;
-      installsByInstanceName[instanceName].push(managedInstall.install);
-    }
-    for (const instanceName in installsByInstanceName) {
-      logger.debug(
-        `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
-      );
-      await this.adaptor.synchronize(
-        instanceName,
-        installsByInstanceName[instanceName]
-      );
+    const instances = await this._workerStore.getAllWorkerInstances();
+    const instanceKeys = Object.keys(instances);
+    if (this.adaptor instanceof RedisAdaptor) {
+      logger.debug(`Sent sync request via Redis to all instance.`);
+      await this.adaptor.synchronizeRequest({
+        syncType: 'redis',
+      });
+    } else {
+      for (const instanceName in instances) {
+        installsByInstanceName[instanceName] = [];
+      }
+      const installs = await this._installStore.getAll();
+      for (const id in installs) {
+        const managedInstall: ManagedInstall = installs[id];
+        const instanceName = managedInstall.instanceName;
+        installsByInstanceName[instanceName].push(managedInstall.install);
+      }
+      for await (const instanceName of instanceKeys) {
+        logger.debug(
+          `synchronize sent to ${instanceName} idsCount=${installsByInstanceName[instanceName].length}`
+        );
+        await this.adaptor.synchronizeRequest({
+          syncType: 'list',
+          installs: installsByInstanceName[instanceName],
+        });
+      }
     }
   }
 
-  private _healthCheck() {
+  private async _writeSelfHeartbeat() {
+    if (!(this.adaptor instanceof RedisAdaptor)) return;
+    await this.adaptor.onManagerHeartbeat();
+  }
+
+  private async _healthCheck() {
     const current = Date.now();
-    // each install
-    // for (const id in this._allInstalls) {
-    //   const managedInstall = this._allInstalls[id];
-    //   if (managedInstall.updatedMillisecond + 60 * 1000 < current) {
-    //     // over time.
-    //     this._onHealthCheckFailedInstall(managedInstall);
-    //   }
-    // }
-    // each room
-    for (const id in this._allWorkerInstances) {
-      const workerInstance = this._allWorkerInstances[id];
-      if (workerInstance.updatedMillisecond + 30 * 1000 < current) {
+    // Each room
+    const instances = await this._workerStore.getAllWorkerInstances();
+    for (const [id, instance] of Object.entries(instances)) {
+      if (instance.updatedMillisecond + 30 * 1000 < current) {
         // over time.
-        this._onHealthCheckFailedWorkerInstance(workerInstance);
+        this._onHealthCheckFailedWorkerInstance(instance);
       }
     }
   }
@@ -547,19 +571,24 @@ export class Manager<T extends Database> {
     this.onInstanceMissed(workerInstance.name);
   }
 
-  public hasSubClusteredInstances(): boolean {
-    return Object.keys(this._allWorkerInstances).length > 1;
+  public async hasSubClusteredInstances(): Promise<boolean> {
+    return (
+      Object.keys(await this._workerStore.getAllWorkerInstances()).length > 1
+    );
   }
 
   public async request(
     key: string,
     timeout: number
   ): Promise<{ [key: string]: string }> {
-    const waitingInstanceCount = Object.keys(this._allWorkerInstances).length;
+    const waitingInstanceCount = Object.keys(
+      await this._workerStore.getAllWorkerInstances()
+    ).length;
     return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
       try {
-        const requestId =
-          Date.now() + '-' + Math.random().toString(36).slice(-8);
+        const requestId = `${Date.now()} - ${Math.random()
+          .toString(36)
+          .slice(-8)}`;
         const execute: KeyRequestExecute = {
           requestId,
           returnedInstanceCount: 0,
@@ -585,5 +614,76 @@ export class Manager<T extends Database> {
         reject(e);
       }
     });
+  }
+
+  public async directRequest(
+    obnizId: string,
+    key: string,
+    timeout: number
+  ): Promise<{ [key: string]: string }> {
+    const install = await this._installStore.get(obnizId);
+    if (!install)
+      throw new ObnizAppIdNotFoundError(`${obnizId}'s Worker is not running`);
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId = `${Date.now()} - ${Math.random()
+          .toString(36)
+          .slice(-8)}`;
+        const execute: KeyRequestExecute = {
+          requestId,
+          returnedInstanceCount: 0,
+          waitingInstanceCount: 1,
+          results: {},
+          resolve,
+          reject,
+        };
+        this._keyRequestExecutes[requestId] = execute;
+        await this.adaptor.directKeyRequest(
+          obnizId,
+          install.instanceName,
+          key,
+          requestId
+        );
+        await wait(timeout);
+        if (this._keyRequestExecutes[requestId]) {
+          delete this._keyRequestExecutes[requestId];
+          reject(new ObnizAppTimeoutError('Request timed out.'));
+        } else {
+          reject(
+            new ObnizAppMasterSlaveCommunicationError(
+              'Could not get request data.'
+            )
+          );
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  public isFirstMaster(): boolean {
+    if (!(this.adaptor instanceof RedisAdaptor)) return true;
+    const status = this.adaptor.getManagerStatus();
+    if (!status.initialized)
+      throw new Error(
+        'init process has not been completed. Please delay a little longer before checking or start app using startWait().'
+      );
+    return status.isFirstManager;
+  }
+
+  public async doAllRelocate(): Promise<void> {
+    if (!(this._installStore instanceof RedisInstallStore))
+      throw new Error(
+        'This function is currently only available when using redis.'
+      );
+    await this._installStore.doAllRelocate();
+    await this.synchronize();
+  }
+
+  public async onShutdown() {
+    if (this._express) this._express.close();
+    if (this._syncTimeout) clearTimeout(this._syncTimeout);
+    if (this._healthCheckTimeout) clearTimeout(this._healthCheckTimeout);
+    await this.adaptor.shutdown();
   }
 }

@@ -1,7 +1,7 @@
 import { MemoryWorkerStore } from '../worker_store/MemoryWorkerStore';
 import { WorkerInstance } from '../worker_store/WorkerStoreBase';
 import { InstallStoreBase, ManagedInstall } from './InstallStoreBase';
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { DeviceInfo } from '../types/device';
 
 export class MemoryInstallStore extends InstallStoreBase {
   private _workerStore: MemoryWorkerStore;
@@ -65,13 +65,13 @@ export class MemoryInstallStore extends InstallStoreBase {
 
   public async autoCreate(
     id: string,
-    device: InstalledDevice
+    device: DeviceInfo
   ): Promise<ManagedInstall> {
     const worker = await this.getBestWorkerInstance();
     if (!worker) throw new Error('NO_ACCEPTABLE_WORKER');
     return this.manualCreate(id, {
       instanceName: worker.name,
-      install: device,
+      deviceInfo: device,
       updatedMillisecond: Date.now(),
     });
   }
@@ -102,7 +102,7 @@ export class MemoryInstallStore extends InstallStoreBase {
     props: Partial<ManagedInstall>
   ): Promise<ManagedInstall> {
     this._installs[id] = {
-      install: props.install ?? this._installs[id].install,
+      deviceInfo: props.deviceInfo ?? this._installs[id].deviceInfo,
       instanceName: props.instanceName ?? this._installs[id].instanceName,
       updatedMillisecond:
         props.updatedMillisecond ?? this._installs[id].updatedMillisecond,

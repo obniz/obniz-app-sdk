@@ -1,6 +1,6 @@
-import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 import { RedisAdaptor } from '../adaptor/RedisAdaptor';
 import { logger } from '../logger';
+import { DeviceInfo } from '../types/device';
 import { InstallStoreBase, ManagedInstall } from './InstallStoreBase';
 
 const AutoCreateLuaScript = `redis.replicate_commands()local a=redis.call('KEYS','slave:*:heartbeat')local b=redis.call('KEYS','workers:*')if#a==0 then return{err='NO_ACCEPTABLE_WORKER'}end;for c=1,#b do local d=redis.call('HEXISTS',b[c],KEYS[1])if d==1 then return{err='ALREADY_INSTALLED'}end end;local e;local f;for c=1,#a do local g=string.match(a[c],"slave:(.+):heartbeat")local h=redis.call('HLEN','workers:'..g)if f==nil or f>=h then e=g;f=h end end;local i=cjson.decode(ARGV[1])local j=redis.call('TIME')local k=j[1]i['instanceName']=e;i['updatedMillisecond']=k;local l=cjson.encode(i)local m=redis.call('HSET','workers:'..e,KEYS[1],l)local n=redis.call('HGET','workers:'..e,KEYS[1])return{n}`;
@@ -78,7 +78,7 @@ export class RedisInstallStore extends InstallStoreBase {
 
   public async autoCreate(
     id: string,
-    device: Installed_Device
+    deviceInfo: DeviceInfo
   ): Promise<ManagedInstall> {
     const redis = this._redisAdaptor.getRedisInstance();
     try {
@@ -86,7 +86,7 @@ export class RedisInstallStore extends InstallStoreBase {
         AutoCreateLuaScript,
         1,
         id,
-        JSON.stringify({ install: device })
+        JSON.stringify({ deviceInfo })
       );
       return JSON.parse(res as string) as ManagedInstall;
     } catch (e) {

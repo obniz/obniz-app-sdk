@@ -1,8 +1,8 @@
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { DeviceInfo } from '../types/device';
 
 export interface ManagedInstall {
   instanceName: string; // Which Instance handling this
-  install: InstalledDevice;
+  deviceInfo: DeviceInfo;
   updatedMillisecond: number;
 }
 
@@ -38,7 +38,7 @@ export abstract class InstallStoreBase {
    */
   public abstract autoCreate(
     id: string,
-    device: InstalledDevice
+    deviceInfo: DeviceInfo
   ): Promise<ManagedInstall>;
 
   /**

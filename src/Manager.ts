@@ -1,6 +1,5 @@
 import { logger } from './logger';
 import { obnizCloudClientInstance, AppEvent } from './ObnizCloudClient';
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { Adaptor } from './adaptor/Adaptor';
 import express from 'express';
 import { AppStartOption } from './App';
@@ -25,6 +24,8 @@ import {
 import { RedisInstallStore } from './install_store/RedisInstallStore';
 import { MemoryInstallStore } from './install_store/MemoryInstallStore';
 import { deepEqual } from 'fast-equals';
+import { DeviceInfo } from './types/device';
+import { FetcherFunction } from './types/fetcher';
 
 interface AppStartOptionInternal extends AppStartOption {
   express: express.Express;
@@ -43,6 +44,14 @@ interface KeyRequestExecute {
   ) => void;
 }
 
+export interface ManagerOptions {
+  appToken: string;
+  instanceName: string;
+  adaptor: Adaptor;
+  obnizSdkOption: SdkOption;
+  customObnizFetcher?: FetcherFunction;
+}
+
 export class Manager {
   public adaptor: Adaptor;
 
@@ -56,6 +65,7 @@ export class Manager {
   private _workerStore: WorkerStoreBase;
   private _installStore: InstallStoreBase;
   private _express?: ReturnType<ReturnType<typeof express>['listen']>;
+  private customFetcher?: FetcherFunction;
 
   // Note: moved to _installStore
   // private _allInstalls: { [key: string]: ManagedInstall } = {};
@@ -67,16 +77,18 @@ export class Manager {
 
   private _currentAppEventsSequenceNo = 0;
 
-  constructor(
-    appToken: string,
-    instanceName: string,
-    adaptor: Adaptor,
-    obnizSdkOption: SdkOption
-  ) {
+  constructor({
+    appToken,
+    adaptor,
+    instanceName,
+    obnizSdkOption,
+    customObnizFetcher: customFetcher,
+  }: ManagerOptions) {
     this._appToken = appToken;
     this._obnizSdkOption = obnizSdkOption;
     this._instanceName = instanceName;
     this.adaptor = adaptor;
+    this.customFetcher = customFetcher;
 
     /**
      * Workerのうちいずれかから状況報告をもらった
@@ -300,17 +312,21 @@ export class Manager {
   }
 
   private async _syncInstalls(diffOnly = false) {
+    if (this._syncing || !this.adaptor.isReady) {
+      return false;
+    }
     let success = false;
     try {
-      if (this._syncing || !this.adaptor.isReady) {
-        return success;
-      }
       this._syncing = true;
 
-      if (diffOnly) {
-        await this._checkDiffInstalls();
+      if (this.customFetcher) {
+        await this._checkCustomFetcherInstalls();
       } else {
-        await this._checkAllInstalls();
+        if (diffOnly) {
+          await this._checkDiffInstalls();
+        } else {
+          await this._checkAllInstalls();
+        }
       }
 
       await this.synchronize();
@@ -322,10 +338,63 @@ export class Manager {
     return success;
   }
 
+  private async _checkCustomFetcherInstalls() {
+    if (!this.customFetcher) return;
+    const startedTime = Date.now();
+    logger.debug('CustomFetcher Sync Start');
+
+    const adds: DeviceInfo[] = [];
+    const deletes: DeviceInfo[] = [];
+
+    try {
+      const devices = await this.customFetcher();
+      const currentAllInstalls = await this._installStore.getAll();
+
+      for (const device of devices) {
+        const install = currentAllInstalls[device.id];
+        if (!install) {
+          adds.push(device);
+        }
+      }
+
+      for (const cid in currentAllInstalls) {
+        const install = currentAllInstalls[cid];
+        if (!devices.find((device) => device.id === install.deviceInfo.id)) {
+          deletes.push(install.deviceInfo);
+        }
+      }
+
+      if (adds.length + deletes.length > 0) {
+        const allNum =
+          Object.keys(currentAllInstalls).length + adds.length - deletes.length;
+        logger.debug(`all \t| added \t| deleted`);
+        logger.debug(`${allNum} \t| ${adds.length} \t| ${deletes.length}`);
+      }
+
+      for await (const delDevice of deletes) {
+        await this._deleteDevice(delDevice.id);
+      }
+
+      for await (const addDevice of adds) {
+        await this._addDevice(addDevice.id, addDevice);
+      }
+    } catch (e) {
+      logger.error(
+        `CustomFetcher Sync failed duration=${Date.now() - startedTime}msec`
+      );
+      console.error(e);
+      return;
+    }
+
+    logger.debug(
+      `CustomFetcher Sync Finished duration=${Date.now() - startedTime}msec`
+    );
+  }
+
   private async _checkAllInstalls() {
     const startedTime = Date.now();
     logger.debug('API Sync Start');
-    const installsApi: InstalledDevice[] = [];
+    const installsApi: DeviceInfo[] = [];
     try {
       // set current id before getting data
       this._currentAppEventsSequenceNo =
@@ -355,8 +424,8 @@ export class Manager {
     /**
      * Compare with currents
      */
-    const mustAdds: InstalledDevice[] = [];
-    const updated: InstalledDevice[] = [];
+    const mustAdds: DeviceInfo[] = [];
+    const updated: DeviceInfo[] = [];
     const deleted: ManagedInstall[] = [];
     const ids = installsApi.map((d) => d.id);
     const devices = await this._installStore.getMany(ids);
@@ -367,7 +436,7 @@ export class Manager {
       } else {
         // deviceLiveInfoだけは別にする（offline毎に更新するわけには行かないので）
         const copyDevice = { ...device, deviceLiveInfo: {} };
-        const copyInstall = { ...install.install, deviceLiveInfo: {} };
+        const copyInstall = { ...install.deviceInfo, deviceLiveInfo: {} };
 
         if (!deepEqual(copyDevice, copyInstall)) updated.push(device);
       }
@@ -400,7 +469,7 @@ export class Manager {
     }
 
     for await (const delInstall of deleted) {
-      await this._deleteDevice(delInstall.install.id);
+      await this._deleteDevice(delInstall.deviceInfo.id);
     }
 
     for await (const addDevice of mustAdds) {
@@ -463,24 +532,24 @@ export class Manager {
       if (one.type === 'install.update' && one.payload.device) {
         this._updateDevice(
           one.payload.device.id,
-          one.payload.device as InstalledDevice
+          one.payload.device as DeviceInfo
         );
       } else if (one.type === 'install.delete' && one.payload.device) {
         await this._deleteDevice(one.payload.device.id);
       } else if (one.type === 'install.create' && one.payload.device) {
         await this._addDevice(
           one.payload.device.id,
-          one.payload.device as InstalledDevice
+          one.payload.device as DeviceInfo
         );
       }
     }
   }
 
-  private async _addDevice(obnizId: string, device: InstalledDevice) {
+  private async _addDevice(obnizId: string, deviceInfo: DeviceInfo) {
     try {
       const createdInstall = await this._installStore.autoCreate(
         obnizId,
-        device
+        deviceInfo
       );
       return createdInstall;
     } catch (e) {
@@ -499,13 +568,13 @@ export class Manager {
     }
   }
 
-  private async _updateDevice(obnizId: string, device: InstalledDevice) {
+  private async _updateDevice(obnizId: string, deviceInfo: DeviceInfo) {
     const install = await this._installStore.get(obnizId);
     if (!install) {
-      return await this._addDevice(obnizId, device);
+      return await this._addDevice(obnizId, deviceInfo);
     }
     const updatedInstall = await this._installStore.update(obnizId, {
-      install: device,
+      deviceInfo,
     });
     return updatedInstall;
   }
@@ -515,7 +584,7 @@ export class Manager {
   }
 
   private async synchronize() {
-    const installsByInstanceName: { [key: string]: InstalledDevice[] } = {};
+    const installsByInstanceName: { [key: string]: DeviceInfo[] } = {};
     const instances = await this._workerStore.getAllWorkerInstances();
     const instanceKeys = Object.keys(instances);
     if (this.adaptor instanceof RedisAdaptor) {
@@ -531,7 +600,7 @@ export class Manager {
       for (const id in installs) {
         const managedInstall: ManagedInstall = installs[id];
         const instanceName = managedInstall.instanceName;
-        installsByInstanceName[instanceName].push(managedInstall.install);
+        installsByInstanceName[instanceName].push(managedInstall.deviceInfo);
       }
       for await (const instanceName of instanceKeys) {
         logger.debug(

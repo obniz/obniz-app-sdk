@@ -1,8 +1,8 @@
 import { Worker } from '../../Worker';
 import { DummyObniz } from './DummyObniz';
-import { Installed_Device } from 'obniz-cloud-sdk/sdk';
 import { App } from '../../App';
 import { IObnizOptions } from '../../Obniz.interface';
+import { DeviceInfo } from '../../types/device';
 
 export type WorkerLogEventType =
   | 'onStart'
@@ -31,11 +31,11 @@ export class LogWorker extends Worker<DummyObniz> {
   }
 
   constructor(
-    install: Installed_Device,
+    deviceInfo: DeviceInfo,
     app: App<DummyObniz>,
     option: IObnizOptions = {}
   ) {
-    super(install, app, option);
+    super(deviceInfo, app, option);
     LogWorker.workers.push(this);
   }
 

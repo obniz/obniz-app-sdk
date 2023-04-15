@@ -10,6 +10,7 @@ import { deviceA, deviceB } from './util/Device';
 import { appEventSamples } from './util/AppEvent';
 import { RedisMemoryServer } from 'redis-memory-server';
 import { obnizCloudClientInstance } from '../ObnizCloudClient';
+import { DeviceInfo } from '../types/device';
 
 let redisServer: RedisMemoryServer;
 let redisAddress: string;
@@ -159,6 +160,67 @@ describe('redis', () => {
       '7877-4454': 'response from 7877-4454',
     });
     await app1.shutdown();
+  }).timeout(30 * 1000);
+
+  it('use custom fetcher', async () => {
+    const fetcherStub = sinon.stub();
+    fetcherStub.onCall(0).returns([
+      {
+        id: '0000-0001',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+      {
+        id: '0000-0002',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+      {
+        id: '0000-0003',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+    ] as DeviceInfo[]);
+    fetcherStub.returns([
+      {
+        id: '0000-0001',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+      {
+        id: '0000-0002',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+    ] as DeviceInfo[]);
+
+    const app1 = new App({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+      fetcher: fetcherStub,
+      database: 'redis',
+      instanceName: 'app1',
+      databaseConfig: redisAddress,
+    });
+    expect(LogWorker.workers.length).to.be.equal(0);
+    expect(fetcherStub.callCount).to.be.equal(0);
+
+    await app1.startWait({
+      express: false,
+    });
+
+    await wait(10000);
+
+    expect(fetcherStub.callCount).to.be.equal(1);
+    expect(LogWorker.workers.length).to.be.equal(3);
+
+    app1.expressWebhook({} as any, {} as any);
+    await wait(3000);
+
+    expect(fetcherStub.callCount).to.be.equal(2);
+    expect(LogWorker.workers.length).to.be.equal(2);
   }).timeout(30 * 1000);
 });
 

@@ -359,8 +359,8 @@ export class Manager {
 
       for (const cid in currentAllInstalls) {
         const install = currentAllInstalls[cid];
-        if (!devices.find((device) => device.id === install.deviceInfo.id)) {
-          deletes.push(install.deviceInfo);
+        if (!devices.find((device) => device.id === install.install.id)) {
+          deletes.push(install.install);
         }
       }
 
@@ -436,7 +436,7 @@ export class Manager {
       } else {
         // deviceLiveInfoだけは別にする（offline毎に更新するわけには行かないので）
         const copyDevice = { ...device, deviceLiveInfo: {} };
-        const copyInstall = { ...install.deviceInfo, deviceLiveInfo: {} };
+        const copyInstall = { ...install.install, deviceLiveInfo: {} };
 
         if (!deepEqual(copyDevice, copyInstall)) updated.push(device);
       }
@@ -469,7 +469,7 @@ export class Manager {
     }
 
     for await (const delInstall of deleted) {
-      await this._deleteDevice(delInstall.deviceInfo.id);
+      await this._deleteDevice(delInstall.install.id);
     }
 
     for await (const addDevice of mustAdds) {
@@ -574,7 +574,7 @@ export class Manager {
       return await this._addDevice(obnizId, deviceInfo);
     }
     const updatedInstall = await this._installStore.update(obnizId, {
-      deviceInfo,
+      install: deviceInfo,
     });
     return updatedInstall;
   }
@@ -600,7 +600,7 @@ export class Manager {
       for (const id in installs) {
         const managedInstall: ManagedInstall = installs[id];
         const instanceName = managedInstall.instanceName;
-        installsByInstanceName[instanceName].push(managedInstall.deviceInfo);
+        installsByInstanceName[instanceName].push(managedInstall.install);
       }
       for await (const instanceName of instanceKeys) {
         logger.debug(

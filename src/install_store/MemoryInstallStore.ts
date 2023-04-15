@@ -71,7 +71,7 @@ export class MemoryInstallStore extends InstallStoreBase {
     if (!worker) throw new Error('NO_ACCEPTABLE_WORKER');
     return this.manualCreate(id, {
       instanceName: worker.name,
-      deviceInfo: device,
+      install: device,
       updatedMillisecond: Date.now(),
     });
   }
@@ -102,7 +102,7 @@ export class MemoryInstallStore extends InstallStoreBase {
     props: Partial<ManagedInstall>
   ): Promise<ManagedInstall> {
     this._installs[id] = {
-      deviceInfo: props.deviceInfo ?? this._installs[id].deviceInfo,
+      install: props.install ?? this._installs[id].install,
       instanceName: props.instanceName ?? this._installs[id].instanceName,
       updatedMillisecond:
         props.updatedMillisecond ?? this._installs[id].updatedMillisecond,

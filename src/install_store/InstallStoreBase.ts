@@ -2,7 +2,7 @@ import { DeviceInfo } from '../types/device';
 
 export interface ManagedInstall {
   instanceName: string; // Which Instance handling this
-  deviceInfo: DeviceInfo;
+  install: DeviceInfo;
   updatedMillisecond: number;
 }
 

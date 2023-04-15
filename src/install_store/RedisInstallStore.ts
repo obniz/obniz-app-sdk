@@ -82,11 +82,14 @@ export class RedisInstallStore extends InstallStoreBase {
   ): Promise<ManagedInstall> {
     const redis = this._redisAdaptor.getRedisInstance();
     try {
+      const partialInstall: Partial<ManagedInstall> = {
+        install: deviceInfo,
+      };
       const res = await redis.eval(
         AutoCreateLuaScript,
         1,
         id,
-        JSON.stringify({ deviceInfo })
+        JSON.stringify(partialInstall)
       );
       return JSON.parse(res as string) as ManagedInstall;
     } catch (e) {

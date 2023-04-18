@@ -16,6 +16,7 @@ import {
 import { SdkOption } from 'obniz-cloud-sdk/index';
 import { Slave as SlaveClass } from './Slave';
 import { DeviceInfo } from './types/device';
+import { FetcherFunction } from './types/fetcher';
 
 export enum AppInstanceType {
   /**
@@ -92,7 +93,7 @@ export interface AppCustomOption<T extends Database, O extends IObniz> {
   /**
    * Override obniz list get function
    */
-  fetcher?: () => DeviceInfo[] | Promise<DeviceInfo[]>;
+  fetcher?: FetcherFunction;
 }
 
 export type AppOptionInternal<T extends Database, O extends IObniz> = Required<

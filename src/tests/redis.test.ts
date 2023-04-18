@@ -221,6 +221,8 @@ describe('redis', () => {
 
     expect(fetcherStub.callCount).to.be.equal(2);
     expect(LogWorker.workers.length).to.be.equal(2);
+
+    await app1.shutdown();
   }).timeout(30 * 1000);
 });
 

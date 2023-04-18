@@ -1,13 +1,13 @@
 import { IObniz } from './Obniz.interface';
 import { Adaptor } from './adaptor/Adaptor';
 import { Worker } from './Worker';
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
 import { logger } from './logger';
 import { App } from './App';
 import { RedisAdaptor } from './adaptor/RedisAdaptor';
 import { ManagedInstall } from './install_store/InstallStoreBase';
 import { deepEqual } from 'fast-equals';
 import { MessageBodies } from './utils/message';
+import { DeviceInfo } from './types/device';
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
@@ -65,7 +65,7 @@ export class Slave<O extends IObniz> {
   }
 
   private async _getInstallsFromRedis(): Promise<{
-    [id: string]: InstalledDevice;
+    [id: string]: DeviceInfo;
   }> {
     if (!(this._adaptor instanceof RedisAdaptor)) {
       throw new Error(
@@ -77,7 +77,7 @@ export class Slave<O extends IObniz> {
       const rawInstalls = await redis.hgetall(
         `workers:${this._app._options.instanceName}`
       );
-      const installs: { [id: string]: InstalledDevice } = {};
+      const installs: { [id: string]: DeviceInfo } = {};
       for (const obnizId in rawInstalls) {
         installs[obnizId] = (
           JSON.parse(rawInstalls[obnizId]) as ManagedInstall
@@ -130,32 +130,32 @@ export class Slave<O extends IObniz> {
     this._syncing = false;
   }
 
-  protected async _startOneWorker(install: InstalledDevice): Promise<void> {
-    logger.info(`New Worker Start id=${install.id}`);
+  protected async _startOneWorker(deviceInfo: DeviceInfo): Promise<void> {
+    logger.info(`New Worker Start id=${deviceInfo.id}`);
 
-    const wclass = this._app._options.workerClassFunction(install);
-    const worker = new wclass(install, this._app, {
+    const wclass = this._app._options.workerClassFunction(deviceInfo);
+    const worker = new wclass(deviceInfo, this._app, {
       ...this._app._options.obnizOption,
       access_token: this._app._options.appToken,
     });
 
-    this._workers[install.id] = worker;
+    this._workers[deviceInfo.id] = worker;
     await worker.start();
   }
 
   protected async _startOrRestartOneWorker(
-    install: InstalledDevice
+    deviceInfo: DeviceInfo
   ): Promise<void> {
-    const oldWorker = this._workers[install.id];
+    const oldWorker = this._workers[deviceInfo.id];
 
-    const copyDevice = { ...oldWorker?.install, deviceLiveInfo: {} };
-    const copyInstall = { ...install, deviceLiveInfo: {} };
+    const copyDevice = { ...oldWorker?.deviceInfo, deviceLiveInfo: {} };
+    const copyInstall = { ...deviceInfo, deviceLiveInfo: {} };
     if (oldWorker && !deepEqual(copyDevice, copyInstall)) {
-      logger.info(`App config changed id=${install.id}`);
-      await this._stopOneWorker(install.id);
-      await this._startOneWorker(install);
+      logger.info(`App config changed id=${deviceInfo.id}`);
+      await this._stopOneWorker(deviceInfo.id);
+      await this._startOneWorker(deviceInfo);
     } else if (!oldWorker) {
-      await this._startOneWorker(install);
+      await this._startOneWorker(deviceInfo);
     }
   }
 

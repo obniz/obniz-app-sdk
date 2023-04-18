@@ -6,11 +6,7 @@ import semver from 'semver';
 import { Worker, WorkerStatic } from './Worker';
 import { logger } from './logger';
 import { Manager as ManagerClass } from './Manager';
-import {
-  Installed_Device,
-  Installed_Device as InstalledDevice,
-  User,
-} from 'obniz-cloud-sdk/sdk';
+import { User } from 'obniz-cloud-sdk/sdk';
 import { IObnizStatic, IObniz, IObnizOptions } from './Obniz.interface';
 import {
   AdaptorFactory,
@@ -19,6 +15,8 @@ import {
 } from './adaptor/AdaptorFactory';
 import { SdkOption } from 'obniz-cloud-sdk/index';
 import { Slave as SlaveClass } from './Slave';
+import { DeviceInfo } from './types/device';
+import { FetcherFunction } from './types/fetcher';
 
 export enum AppInstanceType {
   /**
@@ -61,7 +59,7 @@ export interface AppOption<T extends Database, O extends IObniz> {
   /**
    * TODO
    */
-  workerClassFunction?: (install: Installed_Device) => WorkerStatic<O>;
+  workerClassFunction?: (deviceInfo: DeviceInfo) => WorkerStatic<O>;
 
   /**
    * obniz Class used with your workerClass.
@@ -91,9 +89,17 @@ export interface AppOption<T extends Database, O extends IObniz> {
   obnizCloudSdkOption?: SdkOption;
 }
 
+export interface AppCustomOption<T extends Database, O extends IObniz> {
+  /**
+   * Override obniz list get function
+   */
+  fetcher?: FetcherFunction;
+}
+
 export type AppOptionInternal<T extends Database, O extends IObniz> = Required<
   AppOption<T, O>
->;
+> &
+  AppCustomOption<T, O>;
 
 export interface AppStartOption {
   express?: express.Express | false;
@@ -102,7 +108,7 @@ export interface AppStartOption {
 }
 
 export class App<O extends IObniz> {
-  readonly _options: AppOptionInternal<any, O>;
+  readonly _options: AppOptionInternal<any, O> & AppCustomOption<any, O>;
 
   // As Master
   protected readonly _manager?: ManagerClass;
@@ -115,11 +121,11 @@ export class App<O extends IObniz> {
   // protected _syncing = false;
 
   // eslint-disable-next-line no-unused-vars
-  public onInstall?: (user: User, install: InstalledDevice) => Promise<void>;
+  public onInstall?: (user: User, deviceInfo: DeviceInfo) => Promise<void>;
   // eslint-disable-next-line no-unused-vars
-  public onUninstall?: (user: User, install: InstalledDevice) => Promise<void>;
+  public onUninstall?: (user: User, deviceInfo: DeviceInfo) => Promise<void>;
 
-  constructor(option: AppOption<any, O>) {
+  constructor(option: AppOption<any, O> & AppCustomOption<any, O>) {
     // validate obniz.js
     const requiredObnizJsVersion = '3.15.0-alpha.1';
     if (
@@ -174,12 +180,13 @@ export class App<O extends IObniz> {
     );
 
     if (hasManager) {
-      this._manager = new ManagerClass(
-        option.appToken,
-        this._options.instanceName,
+      this._manager = new ManagerClass({
+        appToken: this._options.appToken,
+        instanceName: this._options.instanceName,
         adaptor,
-        this._options.obnizCloudSdkOption
-      );
+        obnizSdkOption: this._options.obnizCloudSdkOption,
+        customObnizFetcher: option.fetcher,
+      });
     }
 
     if (option.instanceType !== AppInstanceType.Manager) {

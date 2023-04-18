@@ -1,8 +1,9 @@
 import { App } from './App';
 import { logger } from './logger';
 import { IObniz, IObnizOptions } from './Obniz.interface';
-import { Installed_Device, User } from 'obniz-cloud-sdk/sdk';
+import { User } from 'obniz-cloud-sdk/sdk';
 import { getSdk } from 'obniz-cloud-sdk';
+import { DeviceInfo } from './types/device';
 
 /**
  * This class is exported from this library
@@ -10,26 +11,22 @@ import { getSdk } from 'obniz-cloud-sdk';
  * Example: https://qiita.com/okdyy75/items/610623943979cf422775#%E3%81%BE%E3%81%82%E3%81%A8%E3%82%8A%E3%81%82%E3%81%88%E3%81%9A%E3%81%A9%E3%82%93%E3%81%AA%E6%84%9F%E3%81%98%E3%81%AB%E6%9B%B8%E3%81%8F%E3%81%AE
  */
 export class Worker<O extends IObniz> {
-  public install: Installed_Device;
+  public deviceInfo: DeviceInfo;
   protected app: App<O>;
   protected obniz: O;
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
   protected readonly _obnizOption: IObnizOptions;
-  public user: User;
+  public user?: User | null;
   private _cloudSdk: ReturnType<typeof getSdk> | null;
 
-  constructor(
-    install: Installed_Device,
-    app: App<O>,
-    option: IObnizOptions = {}
-  ) {
-    this.install = install;
+  constructor(deviceInfo: DeviceInfo, app: App<O>, option: IObnizOptions = {}) {
+    this.deviceInfo = deviceInfo;
     this.app = app;
     this._obnizOption = option;
     const overrideOptions: IObnizOptions = {
       auto_connect: false,
     };
-    this.obniz = new this.app.obnizClass(this.install.id, {
+    this.obniz = new this.app.obnizClass(this.deviceInfo.id, {
       ...this._obnizOption,
       ...overrideOptions,
     });
@@ -37,8 +34,7 @@ export class Worker<O extends IObniz> {
     this.obniz.onloop = this.onObnizLoop.bind(this);
     this.obniz.onclose = this.onObnizClose.bind(this);
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    this.user = this.install.user!;
+    this.user = this.deviceInfo.user;
 
     this._cloudSdk = this._obnizOption.access_token
       ? getSdk(this._obnizOption.access_token, app._options.obnizCloudSdkOption)
@@ -199,7 +195,7 @@ export class Worker<O extends IObniz> {
 }
 
 export type WorkerStatic<O extends IObniz> = new (
-  install: Installed_Device,
+  deviceInfo: DeviceInfo,
   app: App<O>,
   option: IObnizOptions
 ) => Worker<O>;

@@ -38,6 +38,25 @@ const app = new App({
   workerClass: MyWorker,
   instanceType: AppInstanceType.Master,
   obnizClass: Obniz,
+  fetcher: async () => {
+    return [
+      {
+        id: "0000-0001",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+      {
+        id: "0000-0002",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+      {
+        id: "192.168.0.100",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+    ];
+  },
 });
 
 app.start();

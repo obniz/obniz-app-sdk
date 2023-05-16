@@ -92,13 +92,14 @@ App には以下のオプションが指定可能です。
 | instanceType | オートスケールのために必要です。<br>1台目を`Master`または`Manager`、2台目以降は`Slave`を指定してください。 |
 | obnizClass | Workerで使用するobnizクラスを指定してください。 |
 | obnizOption | `new Obniz()` の第2引数です。 |
+| fetcher | obniz の一覧を obniz Cloud から取得する代わりに渡す非同期関数 (任意) |
 | database | 複数マシンの連携モードを指定します。詳しくは [Multi-Machines](#multi-machines) を参照してください。 |
 | databaseConfig | 複数マシン連携のDB接続方法を指定します。詳しくは [Multi-Machines](#multi-machines) を参照してください。 |
 | instanceName | このプロセスを識別する文字列を指定します。デフォルトで`os.hostname()`が使用されます。 |
 
 その他、オプションのパラメータはプログラム内(App.ts)を参照してください。
 
-#### instanceType について
+#### `instanceType` について
 
 `instanceType` には3種類あり、それぞれ以下のように動作します。
 
@@ -111,6 +112,39 @@ App には以下のオプションが指定可能です。
 - Slave ( `AppInstanceType.Slave` )
   - Worker としての動作の1つのみのタイプです。
   - **最低1つのMasterもしくはManagerが同時に起動されている必要があります**。
+
+#### `fetcher` について
+
+App をインストールした obniz の一覧を obniz Cloud から取得する代わりに、任意の非同期関数から渡すことができます。  
+この関数はデフォルトの obniz Cloud からの取得する場合と同じ間隔で定期的に実行されます。  
+型については [types/device.ts](src/types/device.ts) と [types/fetcher.ts](src/types/fetcher.ts) を参照してください。
+
+```typescript
+const app = new App({
+  // ... other settings
+  fetcher: async () => {
+    return [
+      {
+        id: "0000-0001",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+      {
+        id: "0000-0002",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+      {
+        id: "0000-0003",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+    ];
+  },
+});
+```
+
+⚠️ `configs` は JSON 文字列です。
 
 ### Deploy
 
@@ -128,6 +162,19 @@ $ pm2 save
 ## Examples
 
 サンプルは[こちら](./examples)
+
+## Basic
+
+obniz の一覧をメモリ上に保持し、Worker を同じプログラム(インスタンス)上で実行する基本的な使い方の例です。
+
+- [JavaScript](examples/single-instance/basic.js)
+- [TypeScript](examples/single-instance/basic.ts)
+
+## Local fetch
+
+`fetcher` を使って任意の関数から obniz の一覧を渡す例です。
+
+- [TypeScript](examples/single-instance/local-fetch.ts)
 
 ## Multi-Machines
 

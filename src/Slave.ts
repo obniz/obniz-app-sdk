@@ -134,7 +134,7 @@ export class Slave<O extends IObniz> {
     logger.info(`New Worker Start id=${deviceInfo.id}`);
 
     const wclass = this._app._options.workerClassFunction(deviceInfo);
-    const worker = new wclass(deviceInfo, this._app, {
+    const worker = new wclass(deviceInfo, this._app, this, {
       ...this._app._options.obnizOption,
       access_token: this._app._options.appToken,
     });
@@ -215,5 +215,17 @@ export class Slave<O extends IObniz> {
     }
     if (this._interval) clearTimeout(this._interval);
     await this._adaptor.shutdown();
+  }
+
+  public async restartWorker(obnizId: string) {
+    const worker = this._workers[obnizId];
+    if (worker === undefined) {
+      logger.error(`Not found specified worker id=${obnizId}`);
+      return false;
+    }
+    await this._stopOneWorker(obnizId);
+    await this._startOneWorker(worker.deviceInfo);
+    logger.info(`App restarted id=${obnizId}`);
+    return true;
   }
 }

@@ -3,6 +3,7 @@ import { DummyObniz } from './DummyObniz';
 import { App } from '../../App';
 import { IObnizOptions } from '../../Obniz.interface';
 import { DeviceInfo } from '../../types/device';
+import { Slave } from '../../Slave';
 
 export type WorkerLogEventType =
   | 'onStart'
@@ -33,9 +34,10 @@ export class LogWorker extends Worker<DummyObniz> {
   constructor(
     deviceInfo: DeviceInfo,
     app: App<DummyObniz>,
+    slave: Slave<DummyObniz>,
     option: IObnizOptions = {}
   ) {
-    super(deviceInfo, app, option);
+    super(deviceInfo, app, slave, option);
     LogWorker.workers.push(this);
   }
 

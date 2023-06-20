@@ -89,7 +89,7 @@ export interface AppOption<T extends Database, O extends IObniz> {
   obnizCloudSdkOption?: SdkOption;
 }
 
-export interface AppCustomOption<T extends Database, O extends IObniz> {
+export interface AppCustomOption {
   /**
    * Override obniz list get function
    */
@@ -99,7 +99,7 @@ export interface AppCustomOption<T extends Database, O extends IObniz> {
 export type AppOptionInternal<T extends Database, O extends IObniz> = Required<
   AppOption<T, O>
 > &
-  AppCustomOption<T, O>;
+  AppCustomOption;
 
 export interface AppStartOption {
   express?: express.Express | false;
@@ -108,7 +108,7 @@ export interface AppStartOption {
 }
 
 export class App<O extends IObniz> {
-  readonly _options: AppOptionInternal<any, O> & AppCustomOption<any, O>;
+  readonly _options: AppOptionInternal<any, O> & AppCustomOption;
 
   // As Master
   protected readonly _manager?: ManagerClass;
@@ -125,7 +125,7 @@ export class App<O extends IObniz> {
   // eslint-disable-next-line no-unused-vars
   public onUninstall?: (user: User, deviceInfo: DeviceInfo) => Promise<void>;
 
-  constructor(option: AppOption<any, O> & AppCustomOption<any, O>) {
+  constructor(option: AppOption<any, O> & AppCustomOption) {
     // validate obniz.js
     const requiredObnizJsVersion = '3.15.0-alpha.1';
     if (

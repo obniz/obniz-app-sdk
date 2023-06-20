@@ -200,7 +200,7 @@ export class RedisInstallStore extends InstallStoreBase {
   public async doAllRelocate(): Promise<void> {
     const redis = this._redisAdaptor.getRedisInstance();
     try {
-      const res = await redis.eval(AllRelocateLuaScript, 0);
+      await redis.eval(AllRelocateLuaScript, 0);
     } catch (e) {
       if (e instanceof Error) {
         switch (e.message) {

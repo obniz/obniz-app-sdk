@@ -80,6 +80,12 @@
     "@typescript-eslint/indent": "off",
     "@typescript-eslint/ban-ts-comment": "warn",
     "@typescript-eslint/naming-convention": "off",
+    "@typescript-eslint/no-floating-promises": [
+      "warn",
+      {
+        "ignoreIIFE": true
+      }
+    ],
     "@typescript-eslint/no-empty-function": "off",
     "@typescript-eslint/no-empty-interface": "off",
     "@typescript-eslint/no-explicit-any": "off",

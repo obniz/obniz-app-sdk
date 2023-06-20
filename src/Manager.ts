@@ -237,7 +237,7 @@ export class Manager {
     );
     for await (const install of Object.keys(missedInstalls)) {
       try {
-        const instance = await this._installStore.autoRelocate(install, false);
+        await this._installStore.autoRelocate(install, false);
       } catch (e) {
         if (e instanceof Error) {
           switch (e.message) {
@@ -530,7 +530,7 @@ export class Manager {
     for await (const key of Object.keys(list)) {
       const one = list[key];
       if (one.type === 'install.update' && one.payload.device) {
-        this._updateDevice(
+        await this._updateDevice(
           one.payload.device.id,
           one.payload.device as DeviceInfo
         );
@@ -623,7 +623,7 @@ export class Manager {
     const current = Date.now();
     // Each room
     const instances = await this._workerStore.getAllWorkerInstances();
-    for (const [id, instance] of Object.entries(instances)) {
+    for (const [, instance] of Object.entries(instances)) {
       if (instance.updatedMillisecond + 30 * 1000 < current) {
         // over time.
         this._onHealthCheckFailedWorkerInstance(instance);
@@ -753,7 +753,7 @@ export class Manager {
     await this.synchronize();
   }
 
-  public async onShutdown() {
+  public async onShutdown(): Promise<void> {
     if (this._express) this._express.close();
     if (this._syncTimeout) clearTimeout(this._syncTimeout);
     if (this._healthCheckTimeout) clearTimeout(this._healthCheckTimeout);

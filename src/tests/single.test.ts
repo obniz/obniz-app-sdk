@@ -45,11 +45,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -78,11 +75,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -108,11 +102,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -144,11 +135,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -181,11 +169,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -218,11 +203,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -257,11 +239,7 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getListFromObnizCloudStub } = obnizApiStub();
     // const stubInstalledDeviceManager = stubObject<InstalledDeviceManager>(sharedInstalledDeviceManager,["getListFromObnizCloud"])
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     app.start({ express: false });
@@ -322,11 +300,8 @@ describe('single', () => {
 
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);

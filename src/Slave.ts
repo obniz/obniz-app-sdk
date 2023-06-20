@@ -209,10 +209,12 @@ export class Slave<O extends IObniz> {
     }
   }
 
-  public async onShutdown() {
+  public async onShutdown(): Promise<void> {
+    const stopPromises: Promise<void>[] = [];
     for (const id in this._workers) {
-      await this._stopOneWorker(id);
+      stopPromises.push(this._stopOneWorker(id));
     }
+    await Promise.all(stopPromises);
     if (this._interval) clearTimeout(this._interval);
     await this._adaptor.shutdown();
   }

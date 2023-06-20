@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import { describe, it, beforeEach, afterEach } from 'mocha';
 import { DummyObniz } from './util/DummyObniz';
 import { LogWorker } from './util/LogWorker';
@@ -66,11 +67,8 @@ describe('redis', () => {
     });
     expect(LogWorker.workers.length).to.be.equal(0);
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     let appMessageCount = 0;
     const redisClient = new IORedis(redisAddress);
@@ -108,11 +106,8 @@ describe('redis', () => {
       databaseConfig: redisAddress,
     });
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);
@@ -141,11 +136,8 @@ describe('redis', () => {
       databaseConfig: redisAddress,
     });
 
-    const {
-      getCurrentEventNoStub,
-      getDiffListFromObnizCloudStub,
-      getListFromObnizCloudStub,
-    } = obnizApiStub();
+    const { getDiffListFromObnizCloudStub, getListFromObnizCloudStub } =
+      obnizApiStub();
 
     expect(getListFromObnizCloudStub.callCount).to.be.equal(0);
     expect(getDiffListFromObnizCloudStub.callCount).to.be.equal(0);

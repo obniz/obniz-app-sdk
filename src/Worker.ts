@@ -116,8 +116,7 @@ export class Worker<O extends IObniz> {
     this.obniz.connect();
 
     // in background
-    // noinspection ES6MissingAwait
-    this._loop();
+    void this._loop();
   }
 
   private async _loop(): Promise<void> {
@@ -148,7 +147,10 @@ export class Worker<O extends IObniz> {
     }
   }
 
-  protected async statusUpdateWait(status: 'success' | 'error', text: string) {
+  protected async statusUpdateWait(
+    status: 'success' | 'error',
+    text: string
+  ): Promise<void> {
     if (!this._cloudSdk) {
       return;
     }
@@ -166,7 +168,7 @@ export class Worker<O extends IObniz> {
     });
   }
 
-  protected addLogQueue(level: 'info' | 'error', message: string) {
+  protected addLogQueue(level: 'info' | 'error', message: string): void {
     if (!this._cloudSdk) {
       return;
     }
@@ -190,10 +192,10 @@ export class Worker<O extends IObniz> {
   }
 
   cloudLog = {
-    info: (message: string) => {
+    info: (message: string): void => {
       this.addLogQueue('info', message);
     },
-    error: (message: string) => {
+    error: (message: string): void => {
       this.addLogQueue('error', message);
     },
   };

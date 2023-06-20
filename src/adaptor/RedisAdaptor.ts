@@ -40,7 +40,7 @@ export class RedisAdaptor extends Adaptor {
 
   private _onRedisMessage(channel: string, message: string) {
     const parsed = JSON.parse(message) as MessagesUnion;
-    this.onMessage(parsed);
+    void this.onMessage(parsed);
   }
 
   private _onPatternRedisMessage(
@@ -53,10 +53,10 @@ export class RedisAdaptor extends Adaptor {
 
   private _bindRedisEvents(_redis: Redis) {
     if (this.instanceType === AppInstanceType.Slave) {
-      _redis.subscribe('app', `app.${this.id}`);
+      void _redis.subscribe('app', `app.${this.id}`);
       _redis.on('message', this._onRedisMessage.bind(this));
     } else {
-      _redis.psubscribe('app*');
+      void _redis.psubscribe('app*');
       _redis.on('pmessage', this._onPatternRedisMessage.bind(this));
     }
     _redis.on('ready', this._onRedisReady.bind(this));

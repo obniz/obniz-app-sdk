@@ -37,4 +37,4 @@ const main = async () => {
   redis.disconnect();
 };
 
-main();
+void main();

@@ -39,7 +39,7 @@ export class LogWorker extends Worker<DummyObniz> {
     LogWorker.workers.push(this);
   }
 
-  __getOption() {
+  __getOption(): IObnizOptions {
     return this._obnizOption;
   }
 

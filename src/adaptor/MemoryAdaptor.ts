@@ -20,12 +20,12 @@ export class MemoryAdaptor extends Adaptor {
   }
 
   protected async _onSendMessage(data: MessagesUnion): Promise<void> {
-    for (const one of MemoryAdaptor.memoryAdaptorList) {
-      one.onMessage(data);
-    }
+    await Promise.all(
+      MemoryAdaptor.memoryAdaptorList.map((one) => one.onMessage(data))
+    );
   }
 
-  protected async onShutdown() {
+  protected async onShutdown(): Promise<void> {
     // Nothing to do
   }
 }

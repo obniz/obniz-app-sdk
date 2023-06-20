@@ -58,9 +58,15 @@ export class Slave<O extends IObniz> {
         ? this._workers
         : { [obnizId]: this._workers[obnizId] };
     const results: { [key: string]: string } = {};
-    for (const install_id in targetWorkers) {
-      results[install_id] = await this._workers[install_id].onRequest(key);
+    const resultPromises: Promise<void>[] = [];
+    for (const installId in targetWorkers) {
+      resultPromises.push(
+        this._workers[installId].onRequest(key).then((v) => {
+          results[installId] = v;
+        })
+      );
     }
+    await Promise.all(resultPromises);
     await this._adaptor.keyRequestResponse(masterName, requestId, results);
   }
 

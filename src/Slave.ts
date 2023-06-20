@@ -53,6 +53,7 @@ export class Slave<O extends IObniz> {
       await this._adaptor.keyRequestResponse(masterName, requestId, {});
       return;
     }
+    logger.debug(`KeyRequestProcess: Received (requestId: ${requestId})`);
     const targetWorkers =
       obnizId === undefined
         ? this._workers
@@ -60,7 +61,15 @@ export class Slave<O extends IObniz> {
     const results: { [key: string]: string } = {};
     for (const install_id in targetWorkers) {
       results[install_id] = await this._workers[install_id].onRequest(key);
+      logger.debug(
+        `KeyRequestProcess: ${install_id} finished (requestId: ${requestId})`,
+        results[install_id]
+      );
     }
+    logger.debug(
+      `KeyRequestProcess: response send (requestId: ${requestId})`,
+      results
+    );
     await this._adaptor.keyRequestResponse(masterName, requestId, results);
   }
 

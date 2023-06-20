@@ -122,18 +122,34 @@ export class Manager {
       fromInstanceName: string,
       results: { [key: string]: string }
     ) => {
+      logger.debug(`KeyRequestResponse: Received (requestId: ${requestId})`);
+      if (!this._keyRequestExecutes[requestId]) {
+        logger.debug(
+          `KeyRequestResponse: No matches found (requestId: ${requestId})`
+        );
+      }
       if (this._keyRequestExecutes[requestId]) {
         this._keyRequestExecutes[requestId].results = {
           ...this._keyRequestExecutes[requestId].results,
           ...results,
         };
+        logger.debug(
+          'KeyRequestResponse: CurrentResults',
+          this._keyRequestExecutes[requestId].results
+        );
         this._keyRequestExecutes[requestId].returnedInstanceCount++;
+        logger.debug(
+          `KeyRequestResponse: Waiting ${this._keyRequestExecutes[requestId].waitingInstanceCount} / Returned ${this._keyRequestExecutes[requestId].returnedInstanceCount} (requestId: ${requestId})`
+        );
         if (
           this._keyRequestExecutes[requestId].returnedInstanceCount ===
           this._keyRequestExecutes[requestId].waitingInstanceCount
         ) {
           this._keyRequestExecutes[requestId].resolve(
             this._keyRequestExecutes[requestId].results
+          );
+          logger.debug(
+            `KeyRequestResponse: request resolved (requestId: ${requestId})`
           );
           delete this._keyRequestExecutes[requestId];
         }
@@ -671,9 +687,17 @@ export class Manager {
           reject,
         };
         this._keyRequestExecutes[requestId] = execute;
+        logger.debug(
+          `Request: request sent (currentInstances: ${waitingInstanceCount}, requestId: ${requestId})`,
+          key
+        );
         await this.adaptor.keyRequest(key, requestId);
         await wait(timeout);
         if (this._keyRequestExecutes[requestId]) {
+          logger.debug(
+            `Request: Timeout. Show currentResults (requestId: ${requestId})`,
+            this._keyRequestExecutes[requestId].results
+          );
           delete this._keyRequestExecutes[requestId];
           reject(new ObnizAppTimeoutError('Request timed out.'));
         } else {

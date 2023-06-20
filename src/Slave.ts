@@ -59,6 +59,11 @@ export class Slave<O extends IObniz> {
         ? this._workers
         : { [obnizId]: this._workers[obnizId] };
     const results: { [key: string]: string } = {};
+    logger.debug(
+      `KeyRequestProcess: Start request process (workers: ${
+        Object.keys(targetWorkers).length
+      }, requestId: ${requestId})`
+    );
     for (const install_id in targetWorkers) {
       results[install_id] = await this._workers[install_id].onRequest(key);
       logger.debug(

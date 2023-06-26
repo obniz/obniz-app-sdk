@@ -2,33 +2,32 @@ const { App, AppInstanceType, Worker } = require('../../dist')
 const Obniz = require("obniz");
 
 class MyWorker extends Worker {
-
   /**
    * Worker lifecycle
    */
 
-  async onStart(){
-    console.log("onStart");
+  async onStart() {
+    console.log("onStart", this.obniz.id);
     this.cloudLog.info("app start");
   }
 
-  async onLoop(){
-    console.log("onLoop");
+  async onLoop() {
+    console.log("onLoop", this.obniz.id);
   }
 
-  async onEnd(){
-    console.log("onEnd");
+  async onEnd() {
+    console.log("onEnd", this.obniz.id);
   }
 
   async onRequest(key) {
-    return `response from ${this.obniz.id}`
+    return `response from ${this.obniz.id}`;
   }
 
   /**
    * obniz lifecycle
    */
 
-   async onObnizConnect(obniz){
+  async onObnizConnect(obniz){
     console.log(`connected to obniz ${obniz.id} ${obniz.metadata.description}`);
   }
 
@@ -39,8 +38,6 @@ class MyWorker extends Worker {
   async onObnizClose(obniz){
     console.log(`obniz disconnected from ${obniz.id} ${obniz.metadata.description}`);
   }
-
-
 }
 
 const app = new App({
@@ -52,6 +49,6 @@ const app = new App({
 
 app.start();
 
-setTimeout(async ()=>{
+setTimeout(async () => {
   console.log(await app.request("something_key"))
 }, 10 * 1000);

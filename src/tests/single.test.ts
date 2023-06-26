@@ -15,6 +15,7 @@ import {
   appEventDeleteSamples,
   appEventSamples,
 } from './util/AppEvent';
+import { DeviceInfo } from '../types/device';
 
 describe('single', () => {
   beforeEach(() => {
@@ -343,6 +344,64 @@ describe('single', () => {
       '0883-8329': 'response from 0883-8329',
     });
   }).timeout(80 * 1000);
+
+  it('use custom fetcher', async () => {
+    const fetcherStub = sinon.stub();
+    fetcherStub.onCall(0).returns([
+      {
+        id: '0000-0001',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+      {
+        id: '0000-0002',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+      {
+        id: '0000-0003',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+    ] as DeviceInfo[]);
+    fetcherStub.returns([
+      {
+        id: '0000-0001',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+      {
+        id: '0000-0002',
+        hardware: 'obnizb1',
+        configs: '{}',
+      },
+    ] as DeviceInfo[]);
+
+    const app = new App<DummyObniz>({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+      fetcher: fetcherStub,
+    });
+    expect(LogWorker.workers.length).to.be.equal(0);
+    expect(fetcherStub.callCount).to.be.equal(0);
+
+    await app.startWait({
+      express: false,
+    });
+
+    await wait(1000);
+
+    expect(fetcherStub.callCount).to.be.equal(1);
+    expect(LogWorker.workers.length).to.be.equal(3);
+
+    app.expressWebhook({} as any, {} as any);
+    await wait(1000);
+
+    expect(fetcherStub.callCount).to.be.equal(2);
+    expect(LogWorker.workers.length).to.be.equal(2);
+  }).timeout(30 * 1000);
 });
 
 function obnizApiStub() {

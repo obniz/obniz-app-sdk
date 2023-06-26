@@ -1,4 +1,4 @@
-import { Installed_Device as InstalledDevice } from 'obniz-cloud-sdk/sdk';
+import { DeviceInfo } from '../types/device';
 import { UnionOmit } from './common';
 
 export type MessageBodies = {
@@ -12,7 +12,7 @@ export type MessageBodies = {
       }
     | {
         syncType: 'list';
-        installs: InstalledDevice[];
+        installs: DeviceInfo[];
       };
   keyRequest: {
     obnizId?: string;

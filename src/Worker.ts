@@ -4,6 +4,7 @@ import { IObniz, IObnizOptions } from './Obniz.interface';
 import { User } from 'obniz-cloud-sdk/sdk';
 import { getSdk } from 'obniz-cloud-sdk';
 import { DeviceInfo } from './types/device';
+import { Slave } from './Slave';
 
 /**
  * This class is exported from this library
@@ -17,16 +18,23 @@ export class Worker<O extends IObniz> {
   public install: DeviceInfo;
   public deviceInfo: DeviceInfo;
   protected app: App<O>;
+  protected slave: Slave<O>;
   protected obniz: O;
   public state: 'stopped' | 'starting' | 'started' | 'stopping' = 'stopped';
   protected readonly _obnizOption: IObnizOptions;
   public user?: User | null;
   private _cloudSdk: ReturnType<typeof getSdk> | null;
 
-  constructor(deviceInfo: DeviceInfo, app: App<O>, option: IObnizOptions = {}) {
+  constructor(
+    deviceInfo: DeviceInfo,
+    app: App<O>,
+    slave: Slave<O>,
+    option: IObnizOptions = {}
+  ) {
     this.install = deviceInfo;
     this.deviceInfo = deviceInfo;
     this.app = app;
+    this.slave = slave;
     this._obnizOption = option;
     const overrideOptions: IObnizOptions = {
       auto_connect: false,
@@ -133,6 +141,10 @@ export class Worker<O extends IObniz> {
     }
   }
 
+  async restart(): Promise<void> {
+    await this.slave.restartWorker(this.deviceInfo.id);
+  }
+
   async stop(): Promise<void> {
     if (this.state === 'starting' || this.state === 'started') {
       this.state = 'stopping';
@@ -202,5 +214,6 @@ export class Worker<O extends IObniz> {
 export type WorkerStatic<O extends IObniz> = new (
   deviceInfo: DeviceInfo,
   app: App<O>,
+  slave: Slave<O>,
   option: IObnizOptions
 ) => Worker<O>;

@@ -92,6 +92,7 @@ The following options are available for App.
 | instanceType | Required for autoscaling.<br>1st unit must be `Master` or `Manager`, 2nd and later units must be `Slave`. |
 | obnizClass | Specify the obniz class to be used by the Worker. |
 | obnizOption | The second argument of `new Obniz()`. |
+| fetcher | An asynchronous function to get a list of obniz instead of obniz Cloud (optional) |
 | database | Specifies the coordination mode for multiple machines. See [Multi-Machines](#multi-machines) for details. |
 | databaseConfig | Specify the DB connection method for multi-machine cooperation. See [Multi-Machines](#multi-machines) for details. |
 | instanceName | Specify a string that identifies this process. This must be unique. By default, `os.hostname()` is used. |
@@ -112,6 +113,39 @@ There are three types of `instanceType`, each of which works as follows
   - This type performs only one operation as a Worker.
   - **At least one Master or Manager must be running at the same time**。
 
+#### fetcher
+
+Instead of getting the list of obniz installed App from obniz Cloud, you can pass it from optional asynchronous function.  
+This function is executed at the same fetch interval as when fetching from obniz Cloud.  
+Please refer to [types/device.ts](src/types/device.ts) and [types/fetcher.ts](src/types/fetcher.ts) for type information.
+
+```typescript
+const app = new App({
+  // ... other settings
+  fetcher: async () => {
+    return [
+      {
+        id: "0000-0001",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+      {
+        id: "0000-0002",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+      {
+        id: "0000-0003",
+        hardware: "blewifi_gw2",
+        configs: "{}",
+      },
+    ];
+  },
+});
+```
+
+⚠️ `configs` is a JSON string.
+
 ### Deploy
 
 Run this Nodejs project on a server. The following is an example of [pm2](https://github.com/Unitech/pm2).
@@ -128,6 +162,19 @@ While running, it will always work with obnizCloud to monitor the addition and r
 ## Examples
 
 Examples can be found [Examples](./examples)
+
+## Basic
+
+Here is an example of basic usage, where the list of obniz is kept in memory and the Worker instance runs on the same program (instance).
+
+- [JavaScript](examples/single-instance/basic.js)
+- [TypeScript](examples/single-instance/basic.ts)
+
+## Local fetch
+
+Here is an example of using a function to get a list of obniz.
+
+- [TypeScript](examples/single-instance/local-fetch.ts)
 
 ## Multi-Machines
 
@@ -182,7 +229,7 @@ Unlike Redis load balancing, there is no need to set up a server.
 ```
 
 
-### Multi-Core.
+### Multi-Core
 
 [Example](./examples/clustered/pm2-cluster)
 
@@ -201,7 +248,7 @@ class MyWorker extends Worker {
 
   /**
    * Worker lifecycle
-   */ async
+   */
 
   async onStart(){
     console.log("onStart");

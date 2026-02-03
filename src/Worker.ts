@@ -166,7 +166,7 @@ export class Worker<O extends IObniz> {
     }
 
     await this._cloudSdk.createAppStatus({
-      createAppStatusInput: {
+      input: {
         obniz: {
           id: this.obniz.id,
         },
@@ -186,7 +186,7 @@ export class Worker<O extends IObniz> {
 
     this._cloudSdk
       .createAppLog({
-        createAppLogInput: {
+        input: {
           obniz: {
             id: this.obniz.id,
           },

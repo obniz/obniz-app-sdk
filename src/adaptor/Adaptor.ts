@@ -345,6 +345,19 @@ export abstract class Adaptor {
 
   protected abstract _onSendMessage(data: MessagesUnion): Promise<void>;
 
+  /**
+   * Returns the number of Slave instances currently reachable on the bus.
+   * Used by Slave.workerRequest() to early-resolve a broadcast once every
+   * expected instance has replied, without waiting for the full timeout.
+   *
+   * Master instances include a Slave part and are counted here as well.
+   * Adaptors that cannot enumerate peers should return 0; callers will
+   * then fall back to waiting the full timeout.
+   */
+  public async getSlaveInstanceCount(): Promise<number> {
+    return 0;
+  }
+
   async shutdown(): Promise<void> {
     if (this.isShutdown) return;
     this.isShutdown = true;

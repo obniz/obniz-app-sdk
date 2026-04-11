@@ -93,6 +93,14 @@ export class RedisAdaptor extends Adaptor {
     return this._redis;
   }
 
+  public async getSlaveInstanceCount(): Promise<number> {
+    // Slaves (including Master's Slave part) write slave:{id}:heartbeat
+    // keys via onSlaveHeartbeat(). Count them to know how many responders
+    // we can expect on a worker-to-worker broadcast.
+    const keys = await this._redis.keys('slave:*:heartbeat');
+    return keys.length;
+  }
+
   getManagerStatus():
     | {
         initialized: false;

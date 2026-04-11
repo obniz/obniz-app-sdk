@@ -33,6 +33,24 @@ export abstract class Adaptor {
     instanceName: string,
     results: { [key: string]: string }
   ) => Promise<void>;
+  /**
+   * Fired on a Slave when another Slave sends a worker-to-worker request.
+   */
+  public onWorkerKeyRequest?: (
+    fromInstanceName: string,
+    requestId: string,
+    key: string,
+    obnizId?: string
+  ) => Promise<void>;
+  /**
+   * Fired on a Slave when another Slave responds to a worker-to-worker request
+   * that was issued from this Slave.
+   */
+  public onWorkerKeyRequestResponse?: (
+    requestId: string,
+    fromInstanceName: string,
+    results: { [key: string]: string }
+  ) => Promise<void>;
   public onSynchronize?: (
     options: MessageBodies['synchronize']
   ) => Promise<void>;
@@ -113,6 +131,25 @@ export abstract class Adaptor {
             mes.body.requestId,
             mes.body.key,
             mes.body.obnizId
+          );
+        }
+      } else if (mes.action === 'workerKeyRequest') {
+        if (this.onWorkerKeyRequest) {
+          await this.onWorkerKeyRequest(
+            mes.info.from,
+            mes.body.requestId,
+            mes.body.key,
+            mes.body.obnizId
+          );
+        }
+      } else if (mes.action === 'workerKeyRequestResponse') {
+        // Only the addressed slave should consume the response.
+        if (mes.info.sendMode === 'direct' && mes.info.to !== this.id) return;
+        if (this.onWorkerKeyRequestResponse) {
+          await this.onWorkerKeyRequestResponse(
+            mes.body.requestId,
+            mes.info.from,
+            mes.body.results
           );
         }
       }
@@ -218,6 +255,61 @@ export abstract class Adaptor {
         toManager: true,
         sendMode: 'direct',
         to: masterName,
+      },
+      {
+        requestId,
+        results,
+      }
+    );
+  }
+
+  async workerKeyRequest(key: string, requestId: string): Promise<void> {
+    await this._sendMessage(
+      'workerKeyRequest',
+      {
+        toManager: false,
+        sendMode: 'broadcast',
+      },
+      {
+        requestId,
+        key,
+      }
+    );
+  }
+
+  async directWorkerKeyRequest(
+    obnizId: string,
+    key: string,
+    requestId: string
+  ): Promise<void> {
+    // Broadcast with obnizId filter: only the slave hosting the obnizId
+    // will actually respond. We broadcast (instead of direct-to-instance)
+    // because the requesting slave does not know which instance hosts it.
+    await this._sendMessage(
+      'workerKeyRequest',
+      {
+        toManager: false,
+        sendMode: 'broadcast',
+      },
+      {
+        obnizId,
+        requestId,
+        key,
+      }
+    );
+  }
+
+  async workerKeyRequestResponse(
+    toInstanceName: string,
+    requestId: string,
+    results: { [key: string]: string }
+  ): Promise<void> {
+    await this._sendMessage(
+      'workerKeyRequestResponse',
+      {
+        toManager: false,
+        sendMode: 'direct',
+        to: toInstanceName,
       },
       {
         requestId,

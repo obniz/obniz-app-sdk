@@ -70,12 +70,22 @@ export class RedisAdaptor extends Adaptor {
 
   protected async _onSendMessage(data: MessagesUnion): Promise<void> {
     if (this.isShutdown) return;
-    const channel =
-      data.info.sendMode === 'direct'
-        ? this.instanceType === AppInstanceType.Slave
-          ? `app.${data.info.from}` // m(to) <= (app.{from}) == s(from)
-          : `app.${data.info.to}` // m(from) == (app.{to}) => s(to)
-        : 'app'; // m(any) <= (app) => s(any)
+    let channel: string;
+    if (data.info.sendMode === 'direct') {
+      if (this.instanceType === AppInstanceType.Slave && data.info.toManager) {
+        // slave → manager: publish on the sender's channel so any
+        // pattern-subscribed manager (psubscribe `app*`) receives it.
+        // m(to) <= (app.{from}) == s(from)
+        channel = `app.${data.info.from}`;
+      } else {
+        // manager → slave, or slave → slave, or manager → manager:
+        // publish on the recipient's channel.
+        // m(from) == (app.{to}) => s(to)
+        channel = `app.${data.info.to}`;
+      }
+    } else {
+      channel = 'app'; // m(any) <= (app) => s(any)
+    }
     await this._redis.publish(channel, JSON.stringify(data));
   }
 

@@ -23,6 +23,23 @@ export type MessageBodies = {
     results: { [key: string]: string };
     requestId: string;
   };
+  /**
+   * Worker-to-worker request. Sent from a Slave and received by other Slaves.
+   * When obnizId is set, only the Slave hosting that obnizId should respond.
+   */
+  workerKeyRequest: {
+    obnizId?: string;
+    requestId: string;
+    key: string;
+  };
+  /**
+   * Worker-to-worker response. Sent from a receiving Slave back to the
+   * requesting Slave (direct, toManager:false).
+   */
+  workerKeyRequestResponse: {
+    results: { [key: string]: string };
+    requestId: string;
+  };
 };
 
 export type MessageKeys = keyof MessageBodies;
@@ -33,6 +50,8 @@ const MessageKeysArray = [
   'synchronize',
   'keyRequest',
   'keyRequestResponse',
+  'workerKeyRequest',
+  'workerKeyRequestResponse',
 ] satisfies (keyof MessageBodies)[];
 
 export type MessageInfo =

@@ -162,6 +162,92 @@ describe('redis', () => {
     await app1.shutdown();
   }).timeout(30 * 1000);
 
+  it('worker-to-worker broadcast request across slaves', async () => {
+    const app1 = new App({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+      database: 'redis',
+      instanceName: 'app1',
+      databaseConfig: redisAddress,
+    });
+    const app2 = new App({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Slave,
+      obnizClass: DummyObniz,
+      database: 'redis',
+      instanceName: 'app2',
+      databaseConfig: redisAddress,
+    });
+
+    obnizApiStub();
+
+    await app1.startWait({ express: false });
+    await app2.startWait({ express: false });
+    await wait(10000);
+
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    const senderWorker = LogWorker.workers[0];
+    const response = await senderWorker.request('ping', 3000);
+    expect(response).to.be.deep.equal({
+      '7877-4454': 'response from 7877-4454',
+      '0883-8329': 'response from 0883-8329',
+    });
+
+    await app1.shutdown();
+    await app2.shutdown();
+  }).timeout(30 * 1000);
+
+  it('worker-to-worker direct request across slaves', async () => {
+    const app1 = new App({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+      database: 'redis',
+      instanceName: 'app1',
+      databaseConfig: redisAddress,
+    });
+    const app2 = new App({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Slave,
+      obnizClass: DummyObniz,
+      database: 'redis',
+      instanceName: 'app2',
+      databaseConfig: redisAddress,
+    });
+
+    obnizApiStub();
+
+    await app1.startWait({ express: false });
+    await app2.startWait({ express: false });
+    await wait(10000);
+
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    const senderWorker = LogWorker.workers[0];
+    const otherWorker = LogWorker.workers.find(
+      (w) => w.deviceInfo.id !== senderWorker.deviceInfo.id
+    );
+    if (!otherWorker) throw new Error('no other worker');
+
+    const response = await senderWorker.directRequest(
+      otherWorker.deviceInfo.id,
+      'ping',
+      3000
+    );
+    expect(response).to.be.deep.equal({
+      [otherWorker.deviceInfo.id]: `response from ${otherWorker.deviceInfo.id}`,
+    });
+
+    await app1.shutdown();
+    await app2.shutdown();
+  }).timeout(30 * 1000);
+
   it('use custom fetcher', async () => {
     const fetcherStub = sinon.stub();
     fetcherStub.onCall(0).returns([

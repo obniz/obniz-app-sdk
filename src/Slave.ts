@@ -8,11 +8,34 @@ import { ManagedInstall } from './install_store/InstallStoreBase';
 import { deepEqual } from 'fast-equals';
 import { MessageBodies } from './utils/message';
 import { DeviceInfo } from './types/device';
+import { wait } from './utils/common';
+import { ObnizAppTimeoutError } from './Errors';
+
+interface WorkerKeyRequestExecute {
+  requestId: string;
+  isDirect: boolean;
+  /**
+   * Expected number of Slave instances that will respond. For broadcast
+   * requests we resolve as soon as we have received this many responses;
+   * 0 means "unknown" and we fall back to timeout-based resolution.
+   */
+  waitingInstanceCount: number;
+  returnedInstanceCount: number;
+  results: { [key: string]: string };
+  resolve: (
+    value: { [key: string]: string } | PromiseLike<{ [key: string]: string }>
+  ) => void;
+  reject: (reason?: any) => void;
+}
 
 export class Slave<O extends IObniz> {
   protected _workers: { [key: string]: Worker<O> } = {};
   protected _interval: ReturnType<typeof setTimeout> | null = null;
   protected _syncing = false;
+
+  private _workerKeyRequestExecutes: {
+    [requestId: string]: WorkerKeyRequestExecute;
+  } = {};
 
   constructor(
     protected readonly _adaptor: Adaptor,
@@ -41,6 +64,48 @@ export class Slave<O extends IObniz> {
     ) => {
       await this._keyRequestProcess(masterName, requestId, key, obnizId);
     };
+
+    this._adaptor.onWorkerKeyRequest = async (
+      fromInstanceName: string,
+      requestId: string,
+      key: string,
+      obnizId?: string
+    ) => {
+      await this._workerKeyRequestProcess(
+        fromInstanceName,
+        requestId,
+        key,
+        obnizId
+      );
+    };
+
+    this._adaptor.onWorkerKeyRequestResponse = async (
+      requestId: string,
+      fromInstanceName: string,
+      results: { [key: string]: string }
+    ) => {
+      const execute = this._workerKeyRequestExecutes[requestId];
+      if (!execute) return;
+      execute.results = { ...execute.results, ...results };
+      execute.returnedInstanceCount++;
+      // Direct (by obnizId): resolve on first non-empty response.
+      if (execute.isDirect) {
+        if (Object.keys(results).length > 0) {
+          execute.resolve(execute.results);
+          delete this._workerKeyRequestExecutes[requestId];
+        }
+        return;
+      }
+      // Broadcast: resolve as soon as every expected Slave has replied,
+      // so the caller does not have to wait for the full timeout.
+      if (
+        execute.waitingInstanceCount > 0 &&
+        execute.returnedInstanceCount >= execute.waitingInstanceCount
+      ) {
+        execute.resolve(execute.results);
+        delete this._workerKeyRequestExecutes[requestId];
+      }
+    };
   }
 
   protected async _keyRequestProcess(
@@ -57,11 +122,150 @@ export class Slave<O extends IObniz> {
       obnizId === undefined
         ? this._workers
         : { [obnizId]: this._workers[obnizId] };
-    const results: { [key: string]: string } = {};
-    for (const install_id in targetWorkers) {
-      results[install_id] = await this._workers[install_id].onRequest(key);
-    }
+    const results = await this._runOnRequestParallel(targetWorkers, key);
     await this._adaptor.keyRequestResponse(masterName, requestId, results);
+  }
+
+  /**
+   * Handle a worker-to-worker request from another Slave.
+   * For broadcasts (no obnizId): run onRequest on every local worker.
+   * For direct requests (obnizId set): only respond if this Slave
+   * actually hosts that obnizId — otherwise stay silent, so the
+   * requester's direct-mode early-resolve only fires for the real owner.
+   */
+  protected async _workerKeyRequestProcess(
+    fromInstanceName: string,
+    requestId: string,
+    key: string,
+    obnizId?: string
+  ): Promise<void> {
+    if (obnizId !== undefined) {
+      if (this._workers[obnizId] === undefined) {
+        // Not our worker; do not respond.
+        return;
+      }
+      const result = await this._workers[obnizId].onRequest(key);
+      await this._adaptor.workerKeyRequestResponse(
+        fromInstanceName,
+        requestId,
+        {
+          [obnizId]: result,
+        }
+      );
+      return;
+    }
+    const results = await this._runOnRequestParallel(this._workers, key);
+    await this._adaptor.workerKeyRequestResponse(
+      fromInstanceName,
+      requestId,
+      results
+    );
+  }
+
+  /**
+   * Fan out a `key` to every worker in the provided map concurrently and
+   * collect their `onRequest` results. Running in parallel avoids the
+   * accumulated latency of waiting on each worker sequentially.
+   * A worker whose onRequest throws is logged and omitted from results.
+   */
+  private async _runOnRequestParallel(
+    workers: { [id: string]: Worker<O> },
+    key: string
+  ): Promise<{ [id: string]: string }> {
+    const ids = Object.keys(workers);
+    const settled = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          return [id, await workers[id].onRequest(key)] as const;
+        } catch (e) {
+          logger.error(e);
+          return [id, undefined] as const;
+        }
+      })
+    );
+    const results: { [id: string]: string } = {};
+    for (const [id, value] of settled) {
+      if (value !== undefined) results[id] = value;
+    }
+    return results;
+  }
+
+  /**
+   * Issue a worker-to-worker broadcast request. Returns results collected
+   * from all responding Slaves, keyed by obnizId. Resolves as soon as every
+   * reachable Slave has replied, or after `timeout` with partial results.
+   */
+  public async workerRequest(
+    key: string,
+    timeout = 30 * 1000
+  ): Promise<{ [key: string]: string }> {
+    // Query how many Slaves should respond so we can early-resolve.
+    // 0 means the adaptor can't enumerate peers; in that case we just
+    // wait the full timeout.
+    const waitingInstanceCount = await this._adaptor.getSlaveInstanceCount();
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId = this._generateRequestId();
+        this._workerKeyRequestExecutes[requestId] = {
+          requestId,
+          isDirect: false,
+          waitingInstanceCount,
+          returnedInstanceCount: 0,
+          results: {},
+          resolve,
+          reject,
+        };
+        await this._adaptor.workerKeyRequest(key, requestId);
+        await wait(timeout);
+        const execute = this._workerKeyRequestExecutes[requestId];
+        if (execute) {
+          delete this._workerKeyRequestExecutes[requestId];
+          resolve(execute.results);
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  /**
+   * Issue a worker-to-worker direct request targeting a specific obnizId.
+   * Resolves on first response from the Slave hosting the obnizId, or
+   * rejects with ObnizAppTimeoutError after `timeout` if no response.
+   */
+  public async workerDirectRequest(
+    obnizId: string,
+    key: string,
+    timeout = 30 * 1000
+  ): Promise<{ [key: string]: string }> {
+    return new Promise<{ [key: string]: string }>(async (resolve, reject) => {
+      try {
+        const requestId = this._generateRequestId();
+        this._workerKeyRequestExecutes[requestId] = {
+          requestId,
+          isDirect: true,
+          waitingInstanceCount: 0,
+          returnedInstanceCount: 0,
+          results: {},
+          resolve,
+          reject,
+        };
+        await this._adaptor.directWorkerKeyRequest(obnizId, key, requestId);
+        await wait(timeout);
+        if (this._workerKeyRequestExecutes[requestId]) {
+          delete this._workerKeyRequestExecutes[requestId];
+          reject(new ObnizAppTimeoutError('Worker request timed out.'));
+        }
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  private _generateRequestId(): string {
+    return `w-${this._instanceName}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(-8)}`;
   }
 
   private async _getInstallsFromRedis(): Promise<{

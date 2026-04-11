@@ -55,7 +55,7 @@
     "prettier": "^3.8.2",
     "redis-memory-server": "^0.16.0",
     "sinon": "^21.1.1",
-    "ts-node": "^10.9.1",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   },
   "dependencies": {
@@ -71,6 +71,6 @@
     "semver": "^7.3.5"
   },
   "engines": {
-    "node": ">= 14.21.1"
+    "node": ">= 18.19.0"
   }
 }

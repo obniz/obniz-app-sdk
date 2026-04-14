@@ -145,6 +145,42 @@ export class Worker<O extends IObniz> {
     await this.slave.restartWorker(this.deviceInfo.id);
   }
 
+  /**
+   * Send a request to all other Workers in this App (across every Slave
+   * instance) and collect their `onRequest` responses keyed by obnizId.
+   *
+   * This is the worker-to-worker counterpart of `App.request()`.
+   * The requesting Worker's own Slave also handles the request, so the
+   * returned object includes sibling Workers on the same instance.
+   *
+   * @param key string payload passed to `onRequest` on each Worker.
+   * @param timeout time in milliseconds to wait for responses. Default 30s.
+   * @returns `{ [obnizId]: response }` collected across Slaves.
+   */
+  public async request(
+    key: string,
+    timeout = 30 * 1000
+  ): Promise<{ [key: string]: string }> {
+    return await this.slave.workerRequest(key, timeout);
+  }
+
+  /**
+   * Send a request directly to a single Worker identified by obnizId and
+   * receive its `onRequest` response. Rejects with ObnizAppTimeoutError if
+   * no Worker responds within `timeout`.
+   *
+   * @param obnizId target Worker's obniz id.
+   * @param key string payload passed to `onRequest`.
+   * @param timeout time in milliseconds to wait for a response. Default 30s.
+   */
+  public async directRequest(
+    obnizId: string,
+    key: string,
+    timeout = 30 * 1000
+  ): Promise<{ [key: string]: string }> {
+    return await this.slave.workerDirectRequest(obnizId, key, timeout);
+  }
+
   async stop(): Promise<void> {
     if (this.state === 'starting' || this.state === 'started') {
       this.state = 'stopping';

@@ -215,6 +215,22 @@ redisサーバーを用いたプロセス間連携と負荷分散を行います
 }
 ```
 
+tlsオプションを付与したい場合など、REDIS_URLとオプションの共存が必要な場合には以下のような指定を行ってください。
+
+```javascript
+let redisOptions = {};
+if (REDIS_URL.indexOf("rediss://") >= 0) {
+  redisOptions = {
+    REDIS_URL,
+    tls: {
+      rejectUnauthorized: false,
+    },
+  };
+} else {
+  redisOptions = REDIS_URL;
+}
+```
+
 ### `database:'mqtt'`
 
 [Example](./examples/clustered/mqtt)

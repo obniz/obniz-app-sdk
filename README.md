@@ -214,6 +214,22 @@ Each machine must be able to access a common redis server.
 }
 ```
 
+When you need to configure tls and otheroptions. Use option like below.
+
+```javascript
+let redisOptions = {};
+if (REDIS_URL.indexOf("rediss://") >= 0) {
+  redisOptions = {
+    REDIS_URL,
+    tls: {
+      rejectUnauthorized: false,
+    },
+  };
+} else {
+  redisOptions = REDIS_URL;
+}
+```
+
 ### `database:'mqtt'`
 
 [Example](./examples/clustered/mqtt)

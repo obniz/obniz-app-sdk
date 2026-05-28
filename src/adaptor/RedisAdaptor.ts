@@ -20,8 +20,15 @@ export class RedisAdaptor extends Adaptor {
     redisOption: RedisAdaptorOptions
   ) {
     super(id, instanceType);
-    this._redis = new IORedis(redisOption);
-    this._subOnlyRedis = new IORedis(redisOption);
+    const { REDIS_URL, ...restOption } = redisOption as RedisAdaptorOptions & {
+      REDIS_URL?: string;
+    };
+    this._redis = REDIS_URL
+      ? new IORedis(REDIS_URL, restOption)
+      : new IORedis(restOption);
+    this._subOnlyRedis = REDIS_URL
+      ? new IORedis(REDIS_URL, restOption)
+      : new IORedis(restOption);
     this._bindRedisEvents(this._subOnlyRedis);
   }
 

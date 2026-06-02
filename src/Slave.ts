@@ -8,8 +8,16 @@ import { ManagedInstall } from './install_store/InstallStoreBase';
 import { deepEqual } from 'fast-equals';
 import { MessageBodies } from './utils/message';
 import { DeviceInfo } from './types/device';
-import { wait } from './utils/common';
+import { runWithConcurrency, wait } from './utils/common';
 import { ObnizAppTimeoutError } from './Errors';
+
+/**
+ * Maximum number of workers booted concurrently during a synchronize. Starting
+ * thousands of workers strictly one-by-one is the main reason a Slave is slow
+ * to begin working; a bounded fan-out cuts startup latency by orders of
+ * magnitude while avoiding a thundering herd of simultaneous obniz connections.
+ */
+const WORKER_START_CONCURRENCY = 50;
 
 interface WorkerKeyRequestExecute {
   requestId: string;
@@ -311,22 +319,37 @@ export class Slave<O extends IObniz> {
         : Object.values(await this._getInstallsFromRedis());
 
     try {
-      const exists: any = {};
+      const exists: { [id: string]: Worker<O> } = {};
       for (const install_id in this._workers) {
         exists[install_id] = this._workers[install_id];
       }
 
-      for await (const install of installs) {
-        await this._startOrRestartOneWorker(install);
+      // Anything still in `exists` after this loop is no longer assigned.
+      for (const install of installs) {
         if (exists[install.id]) {
           delete exists[install.id];
         }
       }
 
-      // Apps which not listed
-      for await (const install_id of Object.keys(exists)) {
-        await this._stopOneWorker(install_id);
-      }
+      // Boot/refresh assigned workers with bounded concurrency instead of
+      // sequentially, so a large install list does not serialize startup.
+      await runWithConcurrency(
+        installs,
+        WORKER_START_CONCURRENCY,
+        async (install) => {
+          try {
+            await this._startOrRestartOneWorker(install);
+          } catch (e) {
+            logger.error(e);
+          }
+        }
+      );
+
+      // Apps which are not listed anymore. _stopOneWorker stops in the
+      // background, so these can be kicked off together.
+      await Promise.all(
+        Object.keys(exists).map((install_id) => this._stopOneWorker(install_id))
+      );
     } catch (e) {
       logger.error(e);
     }
@@ -406,10 +429,28 @@ export class Slave<O extends IObniz> {
         }
       }, 10 * 1000);
       this._onHeartBeat()
-        .then()
+        .then(() => this._bootstrapFromRedis())
         .catch((e) => {
           logger.error(e);
         });
+    }
+  }
+
+  /**
+   * On startup, immediately restore this Slave's previously-assigned workers
+   * by reading its assignments straight from Redis, rather than waiting for
+   * the Manager's next periodic synchronize broadcast (up to 60s away). This
+   * is what makes a restarted Slave resume past work quickly. The heartbeat is
+   * written first (in startSyncing) so the Manager can already see this Slave.
+   *
+   * No-op for non-Redis adaptors, where assignments are pushed by the Manager.
+   */
+  private async _bootstrapFromRedis(): Promise<void> {
+    if (!(this._adaptor instanceof RedisAdaptor)) return;
+    try {
+      await this._synchronize({ syncType: 'redis' });
+    } catch (e) {
+      logger.error(e);
     }
   }
 

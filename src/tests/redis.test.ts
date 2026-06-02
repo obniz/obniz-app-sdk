@@ -20,6 +20,13 @@ describe('redis', () => {
     redisServer = new RedisMemoryServer();
     redisAddress = `redis://${await redisServer.getHost()}:${await redisServer.getPort()}`;
     console.log(`redis-memory-server started on ${redisAddress}`);
+    // Ensure a clean keyspace per test. redis-memory-server may hand back a
+    // shared/persisted dataset in some environments; without this, a freshly
+    // started Slave can pick up another test's leftover worker assignments
+    // (Slaves now bootstrap their workers directly from Redis on startup).
+    const flushClient = new IORedis(redisAddress);
+    await flushClient.flushall();
+    flushClient.disconnect();
     LogWorker.__reset();
     DummyObniz.__reset();
   });

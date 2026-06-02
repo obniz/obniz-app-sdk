@@ -76,6 +76,22 @@ export class MemoryInstallStore extends InstallStoreBase {
     });
   }
 
+  public async bulkCreate(devices: DeviceInfo[]): Promise<ManagedInstall[]> {
+    const created: ManagedInstall[] = [];
+    for (const device of devices) {
+      if (this._installs[device.id]) continue; // already installed
+      try {
+        created.push(await this.autoCreate(device.id, device));
+      } catch (e) {
+        if (e instanceof Error && e.message === 'NO_ACCEPTABLE_WORKER') {
+          throw e;
+        }
+        // Skip individual failures so one bad device does not abort the batch.
+      }
+    }
+    return created;
+  }
+
   public manualCreate(
     id: string,
     install: ManagedInstall

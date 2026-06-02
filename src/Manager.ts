@@ -99,9 +99,8 @@ export class Manager {
       installIds: string[]
     ) => {
       if (!(this._workerStore instanceof MemoryWorkerStore)) return;
-      const exist = await this._workerStore.getWorkerInstance(
-        reportInstanceName
-      );
+      const exist =
+        await this._workerStore.getWorkerInstance(reportInstanceName);
       if (exist) {
         this._workerStore.updateWorkerInstance(reportInstanceName, {
           installIds,
@@ -375,9 +374,7 @@ export class Manager {
         await this._deleteDevice(delDevice.id);
       }
 
-      for await (const addDevice of adds) {
-        await this._addDevice(addDevice.id, addDevice);
-      }
+      await this._bulkAddDevices(adds);
     } catch (e) {
       logger.error(
         `CustomFetcher Sync failed duration=${Date.now() - startedTime}msec`
@@ -422,15 +419,16 @@ export class Manager {
     );
 
     /**
-     * Compare with currents
+     * Compare with currents.
+     * Take a single snapshot of all current installs and diff in memory,
+     * instead of issuing per-device lookups (getMany) plus a second getAll.
      */
     const mustAdds: DeviceInfo[] = [];
     const updated: DeviceInfo[] = [];
     const deleted: ManagedInstall[] = [];
-    const ids = installsApi.map((d) => d.id);
-    const devices = await this._installStore.getMany(ids);
+    const installs = await this._installStore.getAll();
     for (const device of installsApi) {
-      const install = devices[device.id];
+      const install = installs[device.id];
       if (!install) {
         mustAdds.push(device);
       } else {
@@ -441,16 +439,9 @@ export class Manager {
         if (!deepEqual(copyDevice, copyInstall)) updated.push(device);
       }
     }
-    const installs = await this._installStore.getAll();
+    const apiIds = new Set(installsApi.map((d) => d.id));
     for (const id in installs) {
-      let found = false;
-      for (const install of installsApi) {
-        if (id === install.id) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
+      if (!apiIds.has(id)) {
         deleted.push(installs[id]);
       }
     }
@@ -472,8 +463,28 @@ export class Manager {
       await this._deleteDevice(delInstall.install.id);
     }
 
-    for await (const addDevice of mustAdds) {
-      await this._addDevice(addDevice.id, addDevice);
+    // Assign all new devices in bulk. Creating 1,000+ installs one-by-one was
+    // the dominant cost on initial boot.
+    await this._bulkAddDevices(mustAdds);
+  }
+
+  private async _bulkAddDevices(devices: DeviceInfo[]): Promise<void> {
+    if (devices.length === 0) return;
+    try {
+      await this._installStore.bulkCreate(devices);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'NO_ACCEPTABLE_WORKER') {
+        logger.warn('Cannot assign new devices: no acceptable worker.');
+        return;
+      }
+      // Fall back to per-device creation so a transient bulk failure does not
+      // drop every new device. autoCreate handles ALREADY_INSTALLED, so this
+      // is safe to retry over the same list.
+      logger.error(`Bulk device assignment failed, falling back per-device.`);
+      console.error(e);
+      for await (const device of devices) {
+        await this._addDevice(device.id, device);
+      }
     }
   }
 

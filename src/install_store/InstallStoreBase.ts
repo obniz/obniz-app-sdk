@@ -42,6 +42,19 @@ export abstract class InstallStoreBase {
   ): Promise<ManagedInstall>;
 
   /**
+   * Automatically assigns many devices to the least-loaded Slaves and creates
+   * their Installs in as few round-trips as possible. This is the bulk
+   * counterpart of {@link autoCreate} and is used when a large number of new
+   * devices appear at once (e.g. initial boot with 1,000+ devices), where
+   * creating them one-by-one would be prohibitively slow.
+   *
+   * Devices that are already installed are skipped. Returns the
+   * ManagedInstalls that were actually created.
+   * @param devices device list to create
+   */
+  public abstract bulkCreate(devices: DeviceInfo[]): Promise<ManagedInstall[]>;
+
+  /**
    * Create an Install from the data.
    * @param id obnizId
    * @param install Install Data

@@ -9,6 +9,10 @@ const AutoRelocateLuaScript = `redis.replicate_commands()local a=redis.call('KEY
 
 const UpdateInstallLuaScript = `redis.replicate_commands()local a=redis.call('KEYS','slave:*:heartbeat')local b=redis.call('KEYS','workers:*')if#a==0 then return{err='NO_RUNNING_WORKER'}end;local c;for d=1,#b do local e=redis.call('HEXISTS',b[d],KEYS[1])if e==1 then c=string.match(b[d],"workers:(.+)")break end end;if c==nil then return{err='NOT_INSTALLED'}end;local f=cjson.decode(redis.call('HGET','workers:'..c,KEYS[1]))local g=cjson.decode(ARGV[1])local h=f;for i,j in pairs(g)do h[i]=j end;local k=cjson.encode(h)local l=redis.call('HSET','workers:'..c,KEYS[1],k)local m=redis.call('HGET','workers:'..c,KEYS[1])return{m}`;
 
+// Bulk assigns many devices to the least-loaded Slaves in a single atomic
+// eval. See src/lua_script/BulkCreate.lua for the readable source.
+const BulkCreateLuaScript = `redis.replicate_commands()local a=redis.call('KEYS','slave:*:heartbeat')local b=redis.call('KEYS','workers:*')if#a==0 then return{err='NO_ACCEPTABLE_WORKER'}end;local c={}local d={}for e=1,#a do local f=string.match(a[e],"slave:(.+):heartbeat")c[e]=f;d[e]=redis.call('HLEN','workers:'..f)end;local g=cjson.decode(ARGV[1])local h=redis.call('TIME')[1]local i={}for j=1,#g do local k=g[j].id;local l=false;for e=1,#b do if redis.call('HEXISTS',b[e],k)==1 then l=true;break end end;if not l then local m=1;for n=2,#d do if d[n]<d[m]then m=n end end;local o=g[j].data;o['instanceName']=c[m]o['updatedMillisecond']=h;local p=cjson.encode(o)redis.call('HSET','workers:'..c[m],k,p)d[m]=d[m]+1;i[#i+1]=redis.call('HGET','workers:'..c[m],k)end end;return i`;
+
 const AllRelocateLuaScript = `local function a(b,c)for d=1,#b do if b[d]==c then return true end end;return false end;redis.replicate_commands()local e=redis.call('KEYS','slave:*:heartbeat')local f=redis.call('KEYS','workers:*')if#e==0 then return{err='NO_WORKER'}end;local g={}local h=0;for d=1,#e do local c=string.match(e[d],"slave:(.+):heartbeat")if a(f,'workers:'..c)then local i=redis.call('HLEN','workers:'..c)table.insert(g,{key=c,count=i})h=h+i else table.insert(g,{key=c,count=0})end end;local j=math.floor(h/#g)for k=1,#g do table.sort(g,function(l,m)return l.count>m.count end)local n=g[1]local o=g[#g]if o.count==j then break end;local p=math.min(math.floor((n.count-o.count)/2),j)local q=redis.call('HGETALL','workers:'..n.key)for d=1,p*2,2 do local r=cjson.decode(q[d+1])local s=r;local t=redis.call('TIME')[1]s['instanceName']=o.key;s['updatedMillisecond']=t;local u=cjson.encode(s)local v=redis.call('HSET','workers:'..o.key,q[d],u)local w=redis.call('HDEL','workers:'..n.key,q[d])end;g[1]={key=g[1].key,count=g[1].count-p}g[#g]={key=g[#g].key,count=g[#g].count+p}end`;
 
 export class RedisInstallStore extends InstallStoreBase {
@@ -35,12 +39,30 @@ export class RedisInstallStore extends InstallStoreBase {
   ): Promise<{ [id: string]: ManagedInstall | undefined }> {
     const redis = this._redisAdaptor.getRedisInstance();
     const workerKeys = await redis.keys('workers:*');
+    // Pull each worker's entire hash once (pipelined into a single round-trip)
+    // and resolve the requested ids in memory. The previous implementation
+    // issued one HGET per (id × worker) pair, i.e. thousands of sequential
+    // round-trips when syncing 1,000+ devices.
+    const pipeline = redis.pipeline();
+    for (const key of workerKeys) {
+      pipeline.hgetall(key);
+    }
+    const pipelineResults = (await pipeline.exec()) ?? [];
+
+    const requested = new Set(ids);
+    const found: { [id: string]: ManagedInstall } = {};
+    for (const [err, raw] of pipelineResults) {
+      if (err || !raw) continue;
+      const hash = raw as Record<string, string>;
+      for (const obnizId in hash) {
+        if (!requested.has(obnizId)) continue;
+        found[obnizId] = JSON.parse(hash[obnizId]) as ManagedInstall;
+      }
+    }
+
     const installs: { [id: string]: ManagedInstall | undefined } = {};
     for (const id of ids) {
-      for await (const key of workerKeys) {
-        const ins = await redis.hget(key, id);
-        if (ins) installs[id] = JSON.parse(ins) as ManagedInstall;
-      }
+      installs[id] = found[id];
     }
     return installs;
   }
@@ -104,6 +126,39 @@ export class RedisInstallStore extends InstallStoreBase {
       }
       throw e;
     }
+  }
+
+  public async bulkCreate(devices: DeviceInfo[]): Promise<ManagedInstall[]> {
+    if (devices.length === 0) return [];
+    const redis = this._redisAdaptor.getRedisInstance();
+    const created: ManagedInstall[] = [];
+    // Chunk so a single eval payload (and the time Redis spends blocked in one
+    // atomic script) stays bounded. Each chunk is balanced independently, and
+    // the script re-reads worker counts per call so balance is preserved.
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < devices.length; i += CHUNK_SIZE) {
+      const chunk = devices.slice(i, i + CHUNK_SIZE);
+      const payload = chunk.map((device) => ({
+        id: device.id,
+        data: { install: device } as Partial<ManagedInstall>,
+      }));
+      try {
+        const res = (await redis.eval(
+          BulkCreateLuaScript,
+          0,
+          JSON.stringify(payload)
+        )) as string[];
+        for (const item of res) {
+          created.push(JSON.parse(item) as ManagedInstall);
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === 'NO_ACCEPTABLE_WORKER') {
+          throw new Error(e.message);
+        }
+        throw e;
+      }
+    }
+    return created;
   }
 
   public async manualCreate(

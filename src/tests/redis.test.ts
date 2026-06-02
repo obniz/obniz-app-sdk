@@ -461,7 +461,8 @@ describe('redis', () => {
       3000
     );
     expect(response).to.be.deep.equal({
-      [targetWorker.deviceInfo.id]: `response from ${targetWorker.deviceInfo.id}`,
+      [targetWorker.deviceInfo.id]:
+        `response from ${targetWorker.deviceInfo.id}`,
     });
 
     // Only the target's onRequest was invoked — sender and the third

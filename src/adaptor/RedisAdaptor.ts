@@ -4,7 +4,9 @@ import { logger } from '../logger';
 import { MessagesUnion } from '../utils/message';
 import { AppInstanceType } from '../App';
 
-export type RedisAdaptorOptions = RedisOptions;
+export type RedisAdaptorOptions =
+  | (RedisOptions & { REDIS_URL?: string })
+  | string;
 
 export class RedisAdaptor extends Adaptor {
   private _redis: Redis;
@@ -20,15 +22,18 @@ export class RedisAdaptor extends Adaptor {
     redisOption: RedisAdaptorOptions
   ) {
     super(id, instanceType);
-    const { REDIS_URL, ...restOption } = redisOption as RedisAdaptorOptions & {
-      REDIS_URL?: string;
-    };
-    this._redis = REDIS_URL
-      ? new IORedis(REDIS_URL, restOption)
-      : new IORedis(restOption);
-    this._subOnlyRedis = REDIS_URL
-      ? new IORedis(REDIS_URL, restOption)
-      : new IORedis(restOption);
+    if (typeof redisOption === 'string') {
+      this._redis = new IORedis(redisOption);
+      this._subOnlyRedis = new IORedis(redisOption);
+    } else {
+      const { REDIS_URL, ...restOption } = redisOption;
+      this._redis = REDIS_URL
+        ? new IORedis(REDIS_URL, restOption)
+        : new IORedis(restOption);
+      this._subOnlyRedis = REDIS_URL
+        ? new IORedis(REDIS_URL, restOption)
+        : new IORedis(restOption);
+    }
     this._bindRedisEvents(this._subOnlyRedis);
   }
 

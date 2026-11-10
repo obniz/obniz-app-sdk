@@ -7,7 +7,6 @@ export type ObnizHardwareIdentifier =
   | 'esp32w'
   | 'esp32p'
   | 'encored'
-  // eslint-disable-next-line @typescript-eslint/ban-types
   | (string & {});
 
 export type DeviceInfo = {

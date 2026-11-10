@@ -52,4 +52,14 @@ export class MemoryWorkerStore extends WorkerStoreBase {
     delete this._workerInstances[instanceName];
     return new Promise((r) => r());
   }
+
+  public async deleteWorkerInstanceIfInactive(
+    instanceName: string,
+    inactiveBefore: number
+  ): Promise<void> {
+    const worker = this._workerInstances[instanceName];
+    if (worker && worker.updatedMillisecond < inactiveBefore) {
+      delete this._workerInstances[instanceName];
+    }
+  }
 }

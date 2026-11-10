@@ -182,6 +182,15 @@ export class RedisInstallStore extends InstallStoreBase {
     }
   }
 
+  public async finalizeWorkerRelocation(
+    instanceName: string,
+    inactiveBefore: number
+  ): Promise<void> {
+    // autoRelocate removes only the transferred assignment with HDEL; Redis
+    // deletes the hash when empty. Offline heartbeats expire by TTL.
+    // Bulk deletion here could erase skipped assignments or a renewed heartbeat.
+  }
+
   public async remove(id: string): Promise<void> {
     const install = await this.get(id);
     if (install) {

@@ -99,9 +99,8 @@ export class Manager {
       installIds: string[]
     ) => {
       if (!(this._workerStore instanceof MemoryWorkerStore)) return;
-      const exist = await this._workerStore.getWorkerInstance(
-        reportInstanceName
-      );
+      const exist =
+        await this._workerStore.getWorkerInstance(reportInstanceName);
       if (exist) {
         this._workerStore.updateWorkerInstance(reportInstanceName, {
           installIds,

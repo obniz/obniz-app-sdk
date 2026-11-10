@@ -71,6 +71,17 @@ export abstract class InstallStoreBase {
   ): Promise<ManagedInstall>;
 
   /**
+   * Finish relocation attempts without losing retained assignments or heartbeats.
+   * Remove a worker registration only if no assignments remain and its last
+   * heartbeat predates inactiveBefore, captured before relocation began.
+   * Stores whose records expire automatically need no explicit deletion.
+   */
+  public abstract finalizeWorkerRelocation(
+    instanceName: string,
+    inactiveBefore: number
+  ): Promise<void>;
+
+  /**
    * Remove Install.
    * @param id obnizId
    */

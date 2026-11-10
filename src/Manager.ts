@@ -52,6 +52,8 @@ export interface ManagerOptions {
   customObnizFetcher?: FetcherFunction;
 }
 
+const WORKER_HEARTBEAT_TIMEOUT_MS = 30 * 1000;
+
 export class Manager {
   public adaptor: Adaptor;
 
@@ -226,7 +228,18 @@ export class Manager {
    */
   private async onInstanceMissed(instanceName: string) {
     logger.info(`worker lost ${instanceName}`);
-    // delete immediately
+    const inactiveBefore = Date.now() - WORKER_HEARTBEAT_TIMEOUT_MS;
+    // Every autoRelocate would fail without a live destination; the retained
+    // assignments are retried by the next health check once a worker returns.
+    const workers = await this._workerStore.getAllWorkerInstances();
+    const hasLiveWorker = Object.values(workers).some(
+      (worker) => worker.updatedMillisecond >= inactiveBefore
+    );
+    if (!hasLiveWorker) {
+      logger.warn(`relocation of ${instanceName} deferred: no live worker`);
+      return;
+    }
+
     const diedWorker = await this._workerStore.getWorkerInstance(instanceName);
     if (!diedWorker) throw new Error('Failed get diedWorker status');
 
@@ -236,12 +249,14 @@ export class Manager {
     );
     for await (const install of Object.keys(missedInstalls)) {
       try {
-        const instance = await this._installStore.autoRelocate(install, false);
+        await this._installStore.autoRelocate(install, false);
       } catch (e) {
         if (e instanceof Error) {
           switch (e.message) {
             case 'NO_NEED_TO_RELOCATE':
-              logger.info(`${install} already moved available worker.`);
+              logger.info(
+                `${install} relocation skipped: current worker is available.`
+              );
               break;
             default:
               logger.error(`Failed autoRelocate: ${e.message} (${e.name})`);
@@ -253,7 +268,10 @@ export class Manager {
       }
     }
 
-    await this._workerStore.deleteWorkerInstance(instanceName);
+    await this._installStore.finalizeWorkerRelocation(
+      instanceName,
+      inactiveBefore
+    );
 
     // synchronize
     this.synchronize()
@@ -623,7 +641,7 @@ export class Manager {
     // Each room
     const instances = await this._workerStore.getAllWorkerInstances();
     for (const [id, instance] of Object.entries(instances)) {
-      if (instance.updatedMillisecond + 30 * 1000 < current) {
+      if (instance.updatedMillisecond + WORKER_HEARTBEAT_TIMEOUT_MS < current) {
         // over time.
         this._onHealthCheckFailedWorkerInstance(instance);
       }

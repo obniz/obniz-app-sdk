@@ -110,6 +110,23 @@ export class MemoryInstallStore extends InstallStoreBase {
     return new Promise((r) => r(this._installs[id]));
   }
 
+  public async finalizeWorkerRelocation(
+    instanceName: string,
+    inactiveBefore: number
+  ): Promise<void> {
+    // installIds in WorkerStore is a report snapshot; _installs owns assignments.
+    const hasRemainingInstalls = Object.values(this._installs).some(
+      (install) => install.instanceName === instanceName
+    );
+    if (hasRemainingInstalls) return;
+
+    // No await between checking assignments and conditionally removing metadata.
+    return this._workerStore.deleteWorkerInstanceIfInactive(
+      instanceName,
+      inactiveBefore
+    );
+  }
+
   public remove(id: string): Promise<void> {
     delete this._installs[id];
     return new Promise((r) => r());

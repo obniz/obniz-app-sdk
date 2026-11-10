@@ -1,7 +1,6 @@
 import { after, afterEach, before, beforeEach, describe, it } from 'mocha';
 import { expect } from 'chai';
 import IORedis from 'ioredis';
-import { RedisMemoryServer } from 'redis-memory-server';
 import sinon from 'sinon';
 import '../App';
 import { Manager } from '../Manager';
@@ -20,6 +19,10 @@ interface ManagerInternals {
   onInstanceMissed(instanceName: string): Promise<void>;
   synchronize(): Promise<void>;
 }
+
+const redisAddress = process.env.REDIS_URL;
+if (!redisAddress)
+  throw new Error('REDIS_URL is required to run manager tests');
 
 const source = 'source';
 const destination = 'destination';
@@ -51,22 +54,15 @@ describe('manager lost worker cleanup', () => {
   afterEach(() => sinon.restore());
 
   describe('Redis assignments', () => {
-    let server: RedisMemoryServer;
     let redis: IORedis;
     let manager: ManagerInternals;
 
-    before(async function () {
-      this.timeout(120000);
-      server = new RedisMemoryServer();
-      redis = new IORedis(
-        `redis://${await server.getHost()}:${await server.getPort()}`
-      );
-      await redis.ping();
+    before(() => {
+      redis = new IORedis(redisAddress);
     });
 
     after(async () => {
-      if (redis) await redis.quit();
-      if (server) await server.stop();
+      await redis.quit();
     });
 
     beforeEach(async () => {

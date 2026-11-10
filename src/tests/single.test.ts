@@ -312,6 +312,49 @@ describe('single', () => {
     expect(obnizA.options.obniz_server).to.be.equal('ws://localhost:9999');
   });
 
+  it('worker broadcast request', async () => {
+    const app = new App<DummyObniz>({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+    });
+
+    obnizApiStub();
+    app.start({ express: false });
+    await wait(1000);
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    // Issue a worker-to-worker broadcast from the first worker.
+    const senderWorker = LogWorker.workers[0];
+    const response = await senderWorker.request('PING', 2000);
+    expect(response).to.be.deep.equal({
+      '7877-4454': 'response from 7877-4454',
+      '0883-8329': 'response from 0883-8329',
+    });
+  }).timeout(10 * 1000);
+
+  it('worker direct request', async () => {
+    const app = new App<DummyObniz>({
+      appToken: process.env.AppToken || '',
+      workerClass: LogWorker,
+      instanceType: AppInstanceType.Master,
+      obnizClass: DummyObniz,
+    });
+
+    obnizApiStub();
+    app.start({ express: false });
+    await wait(1000);
+    expect(LogWorker.workers.length).to.be.equal(2);
+
+    const senderWorker = LogWorker.workers[0];
+    const targetId = LogWorker.workers[1].deviceInfo.id;
+    const response = await senderWorker.directRequest(targetId, 'PING', 2000);
+    expect(response).to.be.deep.equal({
+      [targetId]: `response from ${targetId}`,
+    });
+  }).timeout(10 * 1000);
+
   it('request', async () => {
     const app = new App<DummyObniz>({
       appToken: process.env.AppToken || '',

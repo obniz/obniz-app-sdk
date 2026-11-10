@@ -25,6 +25,15 @@ export class MemoryAdaptor extends Adaptor {
     }
   }
 
+  public async getSlaveInstanceCount(): Promise<number> {
+    // Master includes a Slave part and is counted here as well.
+    return MemoryAdaptor.memoryAdaptorList.filter(
+      (a) =>
+        a.instanceType === AppInstanceType.Slave ||
+        a.instanceType === AppInstanceType.Master
+    ).length;
+  }
+
   protected async onShutdown() {
     // Nothing to do
   }

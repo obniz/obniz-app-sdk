@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-22.04 ]
-        node: [ 16, 18, 20, 22, latest ]
+        node: [ 18, 20, 22, latest ]
 
     # The type of runner that the job will run on
     runs-on: ${{ matrix.os }}

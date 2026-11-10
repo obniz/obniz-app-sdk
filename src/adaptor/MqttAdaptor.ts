@@ -1,7 +1,7 @@
 import { Adaptor } from './Adaptor';
 import { logger } from '../logger';
 
-import { Server, Aedes, AedesPublishPacket } from 'aedes';
+import { Aedes, AedesPublishPacket } from 'aedes';
 import { createServer } from 'net';
 
 import * as mqtt from 'mqtt';
@@ -10,7 +10,7 @@ import { AppInstanceType } from '../App';
 
 export class MqttAdaptor extends Adaptor {
   private _broker?: Aedes;
-  private _client?: mqtt.Client;
+  private _client?: mqtt.MqttClient;
 
   constructor(id: string, instanceType: AppInstanceType, mqttOption: string) {
     super(id, instanceType);
@@ -18,7 +18,7 @@ export class MqttAdaptor extends Adaptor {
       this.instanceType === AppInstanceType.Master ||
       this.instanceType === AppInstanceType.Manager
     ) {
-      const broker = Server({
+      const broker = new Aedes({
         concurrency: 100,
         heartbeatInterval: 60 * 1000,
         connectTimeout: 30 * 1000,
@@ -56,7 +56,7 @@ export class MqttAdaptor extends Adaptor {
 
       broker.subscribe(
         'general',
-        (packet: AedesPublishPacket, cb) => {
+        (packet: AedesPublishPacket, cb: () => void) => {
           // logger.debug(packet.payload.toString());
           const parsed = JSON.parse(packet.payload.toString()) as MessagesUnion;
           this.onMessage(parsed);

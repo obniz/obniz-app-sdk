@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from 'mocha';
+import { describe, it, beforeEach } from 'mocha';
 import { DummyObniz } from './util/DummyObniz';
 import { LogWorker } from './util/LogWorker';
 import { App, AppInstanceType } from '../App';
@@ -8,27 +8,20 @@ import { wait } from '../utils/common';
 import sinon from 'sinon';
 import { deviceA, deviceB, deviceC } from './util/Device';
 import { appEventSamples } from './util/AppEvent';
-import { RedisMemoryServer } from 'redis-memory-server';
 import { obnizCloudClientInstance } from '../ObnizCloudClient';
 import { DeviceInfo } from '../types/device';
 
-let redisServer: RedisMemoryServer;
-let redisAddress: string;
+const redisAddress = process.env.REDIS_URL;
+if (!redisAddress) throw new Error('REDIS_URL is required to run redis tests');
 
 describe('redis', () => {
   beforeEach(async () => {
-    redisServer = new RedisMemoryServer();
-    redisAddress = `redis://${await redisServer.getHost()}:${await redisServer.getPort()}`;
-    console.log(`redis-memory-server started on ${redisAddress}`);
+    // Tests share one Redis server, so reset it to isolate each test.
+    const redis = new IORedis(redisAddress);
+    await redis.flushall();
+    await redis.quit();
     LogWorker.__reset();
     DummyObniz.__reset();
-  });
-
-  afterEach(async () => {
-    if (redisServer) {
-      await redisServer.stop();
-      console.log('redis-memory-server stopped');
-    }
   });
 
   it('not start worker', async () => {
@@ -461,7 +454,8 @@ describe('redis', () => {
       3000
     );
     expect(response).to.be.deep.equal({
-      [targetWorker.deviceInfo.id]: `response from ${targetWorker.deviceInfo.id}`,
+      [targetWorker.deviceInfo.id]:
+        `response from ${targetWorker.deviceInfo.id}`,
     });
 
     // Only the target's onRequest was invoked — sender and the third
